@@ -2685,10 +2685,32 @@ function ApiKeysForm() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-api-keys"] });
-      toast.success("API key saved successfully!");
     },
     onError: () => {
       toast.error("Failed to save API key");
+    },
+  });
+
+  const saveMultipleMutation = useMutation({
+    mutationFn: async (keys: { key: string; value: string }[]) => {
+      for (const { key, value } of keys) {
+        if (value) {
+          const res = await fetch("/api/admin/api-keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ key, value }),
+          });
+          if (!res.ok) throw new Error("Failed to save API key");
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-api-keys"] });
+      toast.success("Settings saved successfully!");
+    },
+    onError: () => {
+      toast.error("Failed to save settings");
     },
   });
 
@@ -2699,8 +2721,61 @@ function ApiKeysForm() {
     }
   };
 
+  const handleSaveGroup = (keys: string[]) => {
+    const keysToSave = keys.map(key => ({
+      key,
+      value: apiKeys[key as keyof typeof apiKeys]
+    })).filter(k => k.value);
+    
+    if (keysToSave.length > 0) {
+      saveMultipleMutation.mutate(keysToSave);
+    }
+  };
+
   const toggleShowPassword = (key: string) => {
     setShowPassword(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderKeyInputOnly = (
+    key: string,
+    label: string,
+    placeholder: string,
+    isSecret: boolean = false
+  ) => {
+    const value = apiKeys[key as keyof typeof apiKeys];
+    const isConfigured = savedKeys?.[key] && savedKeys[key].length > 0;
+    
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-gray-300">{label}</Label>
+          {isConfigured && (
+            <Badge className="bg-green-600 text-xs">Configured</Badge>
+          )}
+        </div>
+        <div className="relative">
+          <Input
+            type={isSecret && !showPassword[key] ? "password" : "text"}
+            value={value}
+            onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
+            placeholder={isConfigured ? "••••••••••••" : placeholder}
+            className="bg-gray-700 border-gray-600 text-white pr-10"
+            data-testid={`input-${key}`}
+          />
+          {isSecret && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => toggleShowPassword(key)}
+            >
+              {showPassword[key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderKeyInput = (
@@ -2846,13 +2921,22 @@ function ApiKeysForm() {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Mail className="h-5 w-5 text-red-500" />
-            Gmail / Email Service
+            Gmail / Email Service (OTP Verification)
           </CardTitle>
-          <p className="text-sm text-gray-400">For notifications, password reset, and alerts</p>
+          <p className="text-sm text-gray-400">Required for email OTP verification during signup</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {renderKeyInput("gmail_user", "Gmail Address", "your-email@gmail.com")}
-          {renderKeyInput("gmail_app_password", "App Password", "Enter 16-character app password", true)}
+          {renderKeyInputOnly("gmail_user", "Gmail Address", "your-email@gmail.com")}
+          {renderKeyInputOnly("gmail_app_password", "App Password", "Enter 16-character app password", true)}
+          <Button
+            onClick={() => handleSaveGroup(["gmail_user", "gmail_app_password"])}
+            disabled={(!apiKeys.gmail_user && !apiKeys.gmail_app_password) || saveMultipleMutation.isPending}
+            className="w-full bg-green-600"
+            data-testid="button-save-gmail"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMultipleMutation.isPending ? "Saving..." : "Save Gmail Settings"}
+          </Button>
           <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
             <p className="text-xs text-gray-400">
               Generate app password from <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" className="text-blue-400 underline">Google App Passwords</a> (requires 2-Step Verification)
