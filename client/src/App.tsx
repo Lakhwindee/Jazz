@@ -25,6 +25,7 @@ import SponsorWallet from "@/pages/sponsor/SponsorWallet";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import Subscription from "@/pages/Subscription";
+import Support from "@/pages/Support";
 
 function Router() {
   return (
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/earnings" component={Earnings} />
       <Route path="/profile" component={Profile} />
       <Route path="/subscription" component={Subscription} />
+      <Route path="/support" component={Support} />
       
       {/* Sponsor Routes */}
       <Route path="/sponsor" component={SponsorDashboard} />
@@ -55,6 +57,7 @@ function Router() {
       <Route path="/sponsor/create-campaign" component={CreateCampaign} />
       <Route path="/sponsor/settings" component={SponsorSettings} />
       <Route path="/sponsor/wallet" component={SponsorWallet} />
+      <Route path="/sponsor/support" component={Support} />
       
       {/* Admin Routes */}
       <Route path="/admin" component={AdminLogin} />

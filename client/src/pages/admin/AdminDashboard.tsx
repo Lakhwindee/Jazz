@@ -53,7 +53,9 @@ import {
   Save,
   Menu,
   X,
-  Home
+  Home,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -69,6 +71,8 @@ const adminMenuItems = [
   { id: "campaigns", label: "Campaigns", icon: Briefcase },
   { id: "verifications", label: "Verifications", icon: Shield },
   { id: "promo-codes", label: "Promo Codes", icon: Ticket },
+  { id: "newsletter", label: "Newsletter", icon: Mail },
+  { id: "support-tickets", label: "Support Tickets", icon: MessageCircle },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -3354,6 +3358,463 @@ function PromoCodesTab() {
   );
 }
 
+interface Newsletter {
+  id: number;
+  subject: string;
+  content: string;
+  targetAudience: string;
+  recipientCount: number;
+  status: string;
+  createdAt: string;
+}
+
+interface SupportTicket {
+  id: number;
+  userId: number;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
+interface TicketMessage {
+  id: number;
+  ticketId: number;
+  senderId: number;
+  message: string;
+  isAdminReply: boolean;
+  createdAt: string;
+  senderName: string;
+  senderRole: string;
+}
+
+function NewsletterTab() {
+  const queryClient = useQueryClient();
+  const [subject, setSubject] = useState("");
+  const [content, setContent] = useState("");
+  const [targetAudience, setTargetAudience] = useState("all");
+  const [isSending, setIsSending] = useState(false);
+
+  const { data: newsletters, isLoading } = useQuery<Newsletter[]>({
+    queryKey: ["/api/admin/newsletters"],
+  });
+
+  const sendNewsletter = async () => {
+    if (!subject.trim() || !content.trim()) {
+      toast.error("Please enter subject and content");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/admin/newsletters/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, content, targetAudience }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send newsletter");
+      }
+
+      toast.success(`Newsletter sent to ${result.stats.sent} users`);
+      setSubject("");
+      setContent("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/newsletters"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send newsletter");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Mail className="h-5 w-5 text-purple-500" />
+            Compose Newsletter
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-gray-300">Target Audience</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={targetAudience === "all" ? "default" : "outline"}
+                onClick={() => setTargetAudience("all")}
+                size="sm"
+                data-testid="button-audience-all"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                All Users
+              </Button>
+              <Button
+                variant={targetAudience === "creators" ? "default" : "outline"}
+                onClick={() => setTargetAudience("creators")}
+                size="sm"
+                data-testid="button-audience-creators"
+              >
+                <Instagram className="h-4 w-4 mr-2" />
+                Creators Only
+              </Button>
+              <Button
+                variant={targetAudience === "sponsors" ? "default" : "outline"}
+                onClick={() => setTargetAudience("sponsors")}
+                size="sm"
+                data-testid="button-audience-sponsors"
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                Sponsors Only
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-gray-300">Subject</Label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Newsletter subject line"
+              className="bg-gray-700 border-gray-600 text-white"
+              data-testid="input-newsletter-subject"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-gray-300">Content (HTML supported)</Label>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your newsletter content here. HTML tags are supported."
+              className="bg-gray-700 border-gray-600 text-white min-h-[200px]"
+              data-testid="input-newsletter-content"
+            />
+          </div>
+
+          <Button 
+            onClick={sendNewsletter} 
+            disabled={isSending || !subject.trim() || !content.trim()}
+            className="w-full"
+            data-testid="button-send-newsletter"
+          >
+            {isSending ? (
+              <>Sending...</>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Send Newsletter
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">Newsletter History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-gray-400 text-center py-8">Loading...</div>
+          ) : newsletters && newsletters.length > 0 ? (
+            <div className="space-y-3">
+              {newsletters.map((newsletter) => (
+                <div 
+                  key={newsletter.id} 
+                  className="bg-gray-700/50 rounded-lg p-4"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <h4 className="font-medium text-white">{newsletter.subject}</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">
+                        {newsletter.targetAudience}
+                      </Badge>
+                      <Badge variant="outline" className="text-green-400 border-green-400/50">
+                        {newsletter.recipientCount} sent
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Sent on {new Date(newsletter.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-gray-400 text-center py-8">No newsletters sent yet</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function SupportTicketsTab() {
+  const queryClient = useQueryClient();
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
+    queryKey: ["/api/admin/support-tickets"],
+  });
+
+  const { data: ticketDetails, isLoading: detailsLoading } = useQuery<SupportTicket & { messages: TicketMessage[] }>({
+    queryKey: [`/api/support-tickets/${selectedTicket?.id}`],
+    enabled: !!selectedTicket,
+  });
+
+  const sendReply = async () => {
+    if (!selectedTicket || !replyText.trim()) return;
+
+    setIsReplying(true);
+    try {
+      const response = await fetch(`/api/support-tickets/${selectedTicket.id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          senderId: 1, 
+          message: replyText,
+          isAdminReply: true
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send reply");
+      }
+
+      toast.success("Reply sent successfully");
+      setReplyText("");
+      queryClient.invalidateQueries({ queryKey: [`/api/support-tickets/${selectedTicket.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
+    } catch (error) {
+      toast.error("Failed to send reply");
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const updateTicketStatus = async (ticketId: number, status: string) => {
+    try {
+      const response = await fetch(`/api/support-tickets/${ticketId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      toast.success("Ticket status updated");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support-tickets"] });
+      if (selectedTicket?.id === ticketId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/support-tickets/${ticketId}`] });
+      }
+    } catch (error) {
+      toast.error("Failed to update ticket status");
+    }
+  };
+
+  const filteredTickets = tickets?.filter(ticket => 
+    statusFilter === "all" || ticket.status === statusFilter
+  ) || [];
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, string> = {
+      open: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      in_progress: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      resolved: "bg-green-500/20 text-green-400 border-green-500/30",
+      closed: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    };
+    return variants[status] || variants.open;
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const variants: Record<string, string> = {
+      low: "bg-gray-500/20 text-gray-400",
+      normal: "bg-blue-500/20 text-blue-400",
+      high: "bg-orange-500/20 text-orange-400",
+      urgent: "bg-red-500/20 text-red-400",
+    };
+    return variants[priority] || variants.normal;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {["all", "open", "in_progress", "resolved", "closed"].map((status) => (
+          <Button
+            key={status}
+            variant={statusFilter === status ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter(status)}
+            data-testid={`button-filter-${status}`}
+          >
+            {status === "all" ? "All" : status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-purple-500" />
+              Tickets ({filteredTickets.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-gray-400 text-center py-8">Loading tickets...</div>
+            ) : filteredTickets.length > 0 ? (
+              <ScrollArea className="h-[500px] pr-4">
+                <div className="space-y-3">
+                  {filteredTickets.map((ticket) => (
+                    <div 
+                      key={ticket.id} 
+                      className={`bg-gray-700/50 rounded-lg p-4 cursor-pointer transition-colors ${
+                        selectedTicket?.id === ticket.id ? "ring-2 ring-purple-500" : ""
+                      }`}
+                      onClick={() => setSelectedTicket(ticket)}
+                      data-testid={`ticket-item-${ticket.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-medium text-white line-clamp-1">{ticket.subject}</h4>
+                        <Badge className={getStatusBadge(ticket.status)}>
+                          {ticket.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-gray-400">{ticket.user?.name || "Unknown"}</span>
+                        <Badge className={getPriorityBadge(ticket.priority)} variant="outline">
+                          {ticket.priority}
+                        </Badge>
+                        <Badge variant="secondary">{ticket.category}</Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(ticket.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-gray-400 text-center py-8">No tickets found</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">
+              {selectedTicket ? selectedTicket.subject : "Select a Ticket"}
+            </CardTitle>
+            {selectedTicket && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant={selectedTicket.status === "in_progress" ? "default" : "outline"}
+                  onClick={() => updateTicketStatus(selectedTicket.id, "in_progress")}
+                  data-testid="button-status-in-progress"
+                >
+                  In Progress
+                </Button>
+                <Button
+                  size="sm"
+                  variant={selectedTicket.status === "resolved" ? "default" : "outline"}
+                  onClick={() => updateTicketStatus(selectedTicket.id, "resolved")}
+                  data-testid="button-status-resolved"
+                >
+                  Resolved
+                </Button>
+                <Button
+                  size="sm"
+                  variant={selectedTicket.status === "closed" ? "default" : "outline"}
+                  onClick={() => updateTicketStatus(selectedTicket.id, "closed")}
+                  data-testid="button-status-closed"
+                >
+                  Closed
+                </Button>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {!selectedTicket ? (
+              <div className="text-gray-400 text-center py-8">
+                Select a ticket to view messages
+              </div>
+            ) : detailsLoading ? (
+              <div className="text-gray-400 text-center py-8">Loading...</div>
+            ) : ticketDetails ? (
+              <div className="space-y-4">
+                <ScrollArea className="h-[350px] pr-4">
+                  <div className="space-y-3">
+                    {ticketDetails.messages?.map((msg) => (
+                      <div 
+                        key={msg.id} 
+                        className={`p-3 rounded-lg ${
+                          msg.isAdminReply 
+                            ? "bg-purple-500/20 ml-4" 
+                            : "bg-gray-700/50 mr-4"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-white">
+                            {msg.senderName}
+                          </span>
+                          {msg.isAdminReply && (
+                            <Badge variant="secondary" className="text-xs">Admin</Badge>
+                          )}
+                        </div>
+                        <p className="text-gray-300 text-sm whitespace-pre-wrap">{msg.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(msg.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+
+                {selectedTicket.status !== "closed" && (
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Type your reply..."
+                      className="bg-gray-700 border-gray-600 text-white flex-1"
+                      data-testid="input-ticket-reply"
+                    />
+                    <Button 
+                      onClick={sendReply} 
+                      disabled={isReplying || !replyText.trim()}
+                      data-testid="button-send-reply"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -3424,6 +3885,8 @@ export default function AdminDashboard() {
               {activeTab === "campaigns" && "Campaigns"}
               {activeTab === "verifications" && "Verifications"}
               {activeTab === "promo-codes" && "Promo Codes"}
+              {activeTab === "newsletter" && "Newsletter"}
+              {activeTab === "support-tickets" && "Support Tickets"}
               {activeTab === "settings" && "Settings"}
             </h1>
             <div className="w-9" />
@@ -3440,6 +3903,8 @@ export default function AdminDashboard() {
               {activeTab === "campaigns" && "Campaign Management"}
               {activeTab === "verifications" && "Instagram Verifications"}
               {activeTab === "promo-codes" && "Promo & Trial Codes"}
+              {activeTab === "newsletter" && "Newsletter Broadcast"}
+              {activeTab === "support-tickets" && "Support Tickets"}
               {activeTab === "settings" && "Platform Settings"}
             </h1>
             <p className="text-gray-400">
@@ -3463,6 +3928,8 @@ export default function AdminDashboard() {
           {activeTab === "campaigns" && <CampaignsTab />}
           {activeTab === "verifications" && <VerificationsTab />}
           {activeTab === "promo-codes" && <PromoCodesTab />}
+          {activeTab === "newsletter" && <NewsletterTab />}
+          {activeTab === "support-tickets" && <SupportTicketsTab />}
           {activeTab === "settings" && <SettingsTab />}
         </div>
       </main>
