@@ -1554,7 +1554,7 @@ function CampaignsTab() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="w-full"
+                            className="w-full text-white border-gray-500"
                             onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
                             data-testid={`button-pause-campaign-${campaign.id}`}
                           >
@@ -1565,7 +1565,7 @@ function CampaignsTab() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="w-full"
+                            className="w-full text-white border-gray-500"
                             onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
                             data-testid={`button-activate-campaign-${campaign.id}`}
                           >
@@ -1648,6 +1648,7 @@ function CampaignsTab() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="text-white border-gray-500"
                           onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
                           data-testid={`button-pause-campaign-${campaign.id}`}
                         >
@@ -1658,6 +1659,7 @@ function CampaignsTab() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="text-white border-gray-500"
                           onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
                           data-testid={`button-activate-campaign-${campaign.id}`}
                         >
@@ -2356,6 +2358,7 @@ function SettingsTab() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="text-white border-gray-500"
                           onClick={() => setEditingPlan(plan)}
                           data-testid={`button-edit-plan-${plan.id}`}
                         >
@@ -2364,6 +2367,7 @@ function SettingsTab() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="text-white border-gray-500"
                           onClick={() => updatePlanMutation.mutate({ id: plan.id, isActive: !plan.isActive })}
                           data-testid={`button-toggle-plan-${plan.id}`}
                         >
