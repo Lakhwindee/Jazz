@@ -208,7 +208,13 @@ export default function Profile() {
               <CardContent className="space-y-6">
                 {isInstagramLinked ? (
                   <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border-2 border-green-200 bg-green-50 dark:bg-green-900/20 p-4 gap-4">
+                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border-2 p-4 gap-4 ${
+                      user.isInstagramVerified 
+                        ? "border-green-200 bg-green-50 dark:bg-green-900/20" 
+                        : user.instagramVerificationStatus === "pending"
+                          ? "border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20"
+                          : "border-gray-200 bg-gray-50 dark:bg-gray-900/20"
+                    }`}>
                       <div className="flex items-center gap-3">
                         <div className="rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px] shrink-0">
                           <div className="rounded-full bg-white dark:bg-gray-900 p-2">
@@ -217,8 +223,20 @@ export default function Profile() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium truncate">@{user.instagramUsername}</p>
-                          <p className="text-xs sm:text-sm text-green-600">
-                            {user.instagramAccessToken ? "API Connected" : "Connected (Manual)"}
+                          <p className={`text-xs sm:text-sm ${
+                            user.isInstagramVerified 
+                              ? "text-green-600" 
+                              : user.instagramVerificationStatus === "pending"
+                                ? "text-yellow-600"
+                                : "text-gray-600"
+                          }`}>
+                            {user.instagramAccessToken 
+                              ? "API Connected" 
+                              : user.isInstagramVerified 
+                                ? "Verified" 
+                                : user.instagramVerificationStatus === "pending"
+                                  ? "Pending Verification"
+                                  : "Connected (Manual)"}
                           </p>
                         </div>
                       </div>
