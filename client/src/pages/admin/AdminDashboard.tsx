@@ -2647,6 +2647,9 @@ function ApiKeysForm() {
     razorpay_key_secret: "",
     stripe_publishable_key: "",
     stripe_secret_key: "",
+    payu_merchant_key: "",
+    payu_merchant_salt: "",
+    payu_mode: "test",
     gmail_user: "",
     gmail_app_password: "",
     rapidapi_key: "",
@@ -2673,6 +2676,9 @@ function ApiKeysForm() {
         razorpay_key_secret: savedKeys.razorpay_key_secret || "",
         stripe_publishable_key: savedKeys.stripe_publishable_key || "",
         stripe_secret_key: savedKeys.stripe_secret_key || "",
+        payu_merchant_key: savedKeys.payu_merchant_key || "",
+        payu_merchant_salt: savedKeys.payu_merchant_salt || "",
+        payu_mode: savedKeys.payu_mode || "test",
         gmail_user: savedKeys.gmail_user || "",
         gmail_app_password: savedKeys.gmail_app_password || "",
         rapidapi_key: savedKeys.rapidapi_key || "",
@@ -2948,6 +2954,46 @@ function ApiKeysForm() {
           <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
             <p className="text-xs text-gray-400">
               Get keys from <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="text-blue-400 underline">Stripe Dashboard</a> - Developers - API Keys
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-orange-500" />
+            PayU (Alternative India Payments)
+          </CardTitle>
+          <p className="text-sm text-gray-400">Alternative payment gateway for Indian sponsor wallet deposits</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {renderKeyInputOnly("payu_merchant_key", "Merchant Key", "Enter PayU Merchant Key")}
+          {renderKeyInputOnly("payu_merchant_salt", "Merchant Salt", "Enter PayU Merchant Salt", true)}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">Environment Mode</label>
+            <select
+              value={apiKeys.payu_mode}
+              onChange={(e) => setApiKeys(prev => ({ ...prev, payu_mode: e.target.value }))}
+              className="w-full bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2 text-sm"
+              data-testid="select-payu-mode"
+            >
+              <option value="test">Test (Sandbox)</option>
+              <option value="production">Production (Live)</option>
+            </select>
+          </div>
+          <Button
+            onClick={() => handleSaveGroup(["payu_merchant_key", "payu_merchant_salt", "payu_mode"])}
+            disabled={(!apiKeys.payu_merchant_key && !apiKeys.payu_merchant_salt) || saveMultipleMutation.isPending}
+            className="w-full bg-orange-600"
+            data-testid="button-save-payu"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMultipleMutation.isPending ? "Saving..." : "Save PayU Settings"}
+          </Button>
+          <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+            <p className="text-xs text-gray-400">
+              Get keys from <a href="https://onboarding.payu.in" target="_blank" rel="noopener" className="text-blue-400 underline">PayU Dashboard</a> - API Keys section
             </p>
           </div>
         </CardContent>
