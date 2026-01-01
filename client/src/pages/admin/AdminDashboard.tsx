@@ -1534,18 +1534,20 @@ function CampaignsTab() {
         
         {/* LEFT SIDE: Active & Paused Campaigns */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="text-lg font-bold text-green-400 flex items-center gap-2">
-              <Play className="h-5 w-5" />
-              Active Campaigns
-            </h3>
-            <div className="flex gap-2">
-              <Badge className="bg-green-500 text-white">
-                Active: {campaigns.filter(c => c.isApproved && c.status === "active").length}
-              </Badge>
-              <Badge className="bg-yellow-500 text-gray-900">
-                Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
-              </Badge>
+          <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-xl font-bold text-green-400 flex items-center gap-2">
+                <Play className="h-6 w-6" />
+                ACTIVE
+              </h3>
+              <div className="flex gap-2">
+                <Badge className="bg-green-500 text-white">
+                  Running: {campaigns.filter(c => c.isApproved && c.status === "active").length}
+                </Badge>
+                <Badge className="bg-yellow-500 text-gray-900">
+                  Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
+                </Badge>
+              </div>
             </div>
           </div>
           
@@ -1632,16 +1634,6 @@ function CampaignsTab() {
                                 Activate
                               </Button>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-purple-300 border-purple-500"
-                              onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "completed" })}
-                              data-testid={`button-complete-campaign-${campaign.id}`}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Complete
-                            </Button>
                             {campaign.isPromotional ? (
                               <Button
                                 size="sm"
@@ -1682,14 +1674,16 @@ function CampaignsTab() {
 
         {/* RIGHT SIDE: Completed History */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="text-lg font-bold text-purple-400 flex items-center gap-2">
-              <CheckCircle className="h-5 w-5" />
-              Completed History
-            </h3>
-            <Badge className="bg-purple-500 text-white">
-              Total: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
-            </Badge>
+          <div className="bg-purple-500/20 border border-purple-500/50 rounded-lg p-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-xl font-bold text-purple-400 flex items-center gap-2">
+                <CheckCircle className="h-6 w-6" />
+                COMPLETED
+              </h3>
+              <Badge className="bg-purple-500 text-white">
+                Total: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
+              </Badge>
+            </div>
           </div>
           
           <ScrollArea className="h-[600px]">
