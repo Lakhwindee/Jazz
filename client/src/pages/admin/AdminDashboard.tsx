@@ -1531,7 +1531,20 @@ function CampaignsTab() {
 
       {/* Approved Campaigns Section */}
       <div>
-        <h3 className="text-lg lg:text-xl font-bold text-white mb-4">All Approved Campaigns</h3>
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <h3 className="text-lg lg:text-xl font-bold text-white">All Campaigns ({campaigns.filter(c => c.isApproved).length})</h3>
+          <div className="flex gap-2 flex-wrap">
+            <Badge className="bg-green-500 text-white">
+              Active: {campaigns.filter(c => c.isApproved && c.status === "active").length}
+            </Badge>
+            <Badge className="bg-yellow-500 text-gray-900">
+              Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
+            </Badge>
+            <Badge className="bg-purple-500 text-white">
+              Completed: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
+            </Badge>
+          </div>
+        </div>
         
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-3">
@@ -1556,6 +1569,7 @@ function CampaignsTab() {
                           className={
                             campaign.status === "active" ? "bg-green-500 text-white" :
                             campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
+                            campaign.status === "completed" ? "bg-purple-500 text-white" :
                             "bg-gray-500 text-white"
                           }
                         >
@@ -1574,11 +1588,21 @@ function CampaignsTab() {
                     
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                       <div>
-                        <span className="text-gray-400">Spots:</span>
-                        <span className="text-white ml-2">{campaign.spotsRemaining}/{campaign.totalSpots}</span>
+                        <span className="text-gray-400">Spots Filled:</span>
+                        <span className="text-white ml-2">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Budget:</span>
+                        <span className="text-gray-400">Spots Left:</span>
+                        <span className={`ml-2 font-semibold ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-300"}`}>
+                          {campaign.spotsRemaining}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Per Creator:</span>
+                        <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Total Budget:</span>
                         <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
                       </div>
                       <div>
@@ -1668,11 +1692,11 @@ function CampaignsTab() {
                 <tr>
                   <th className="text-left p-4 text-sm font-bold text-white">Campaign</th>
                   <th className="text-left p-4 text-sm font-bold text-white">Brand</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Spots</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Budget</th>
+                  <th className="text-left p-4 text-sm font-bold text-white">Spots (Filled/Total)</th>
+                  <th className="text-left p-4 text-sm font-bold text-white">Per Creator</th>
+                  <th className="text-left p-4 text-sm font-bold text-white">Total Budget</th>
                   <th className="text-left p-4 text-sm font-bold text-white">Released</th>
                   <th className="text-left p-4 text-sm font-bold text-white">Pending</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Refunded</th>
                   <th className="text-left p-4 text-sm font-bold text-white">Status</th>
                   <th className="text-left p-4 text-sm font-bold text-white">Actions</th>
                 </tr>
@@ -1693,19 +1717,25 @@ function CampaignsTab() {
                       </div>
                     </td>
                     <td className="p-4 text-white">{campaign.brand}</td>
-                    <td className="p-4 text-white">
-                      {campaign.spotsRemaining}/{campaign.totalSpots}
+                    <td className="p-4">
+                      <div className="flex flex-col">
+                        <span className="text-white font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
+                        <span className={`text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
+                          {campaign.spotsRemaining === 0 ? "All filled" : `${campaign.spotsRemaining} left`}
+                        </span>
+                      </div>
                     </td>
+                    <td className="p-4 text-green-300 font-semibold">{formatINR(campaign.payAmount)}</td>
                     <td className="p-4 text-blue-300 font-semibold">{formatINR(totalBudget)}</td>
                     <td className="p-4 text-green-300 font-semibold">{formatINR(released)}</td>
                     <td className="p-4 text-yellow-300 font-semibold">{formatINR(pending > 0 ? pending : 0)}</td>
-                    <td className="p-4 text-purple-300 font-semibold">{formatINR(refunded)}</td>
                     <td className="p-4">
                       <div className="flex flex-col gap-1">
                         <Badge
                           className={
                             campaign.status === "active" ? "bg-green-500 text-white" :
                             campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
+                            campaign.status === "completed" ? "bg-purple-500 text-white" :
                             "bg-gray-500 text-white"
                           }
                         >
