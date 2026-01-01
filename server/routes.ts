@@ -12,6 +12,7 @@ import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
 import { createOrder as createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId } from "./razorpay";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
+import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
 import { sendEmail } from "./email";
 import axios from "axios";
 
@@ -1954,6 +1955,100 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error verifying Stripe payment:", error);
       res.status(500).json({ error: "Failed to verify payment" });
+    }
+  });
+
+  // ==================== PAYU PAYMENT (India Alternative) ====================
+
+  // Check if PayU is configured
+  app.get("/api/payu/config", async (req, res) => {
+    try {
+      const configured = await isPayUConfigured();
+      res.json({ configured });
+    } catch (error) {
+      console.error("Error checking PayU config:", error);
+      res.status(500).json({ error: "Failed to check PayU configuration" });
+    }
+  });
+
+  // Initiate PayU payment for Indian sponsors
+  app.post("/api/sponsors/:sponsorId/payu/initiate", async (req, res) => {
+    try {
+      const sponsorId = parseInt(req.params.sponsorId);
+      const { baseAmount, gstAmount, totalAmount, firstname, email, phone } = req.body;
+
+      if (!baseAmount || !totalAmount || !firstname || !email || !phone) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const sponsor = await storage.getUser(sponsorId);
+      if (!sponsor || sponsor.role !== "sponsor") {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
+
+      const baseUrl = process.env.REPL_SLUG
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER?.toLowerCase()}.repl.co`
+        : `https://${req.get("host")}`;
+
+      const successUrl = `${baseUrl}/api/payu/callback`;
+      const failureUrl = `${baseUrl}/api/payu/callback`;
+
+      const paymentData = await createPayUPayment(
+        sponsorId,
+        totalAmount,
+        baseAmount,
+        gstAmount || 0,
+        firstname,
+        email,
+        phone,
+        successUrl,
+        failureUrl
+      );
+
+      if (!paymentData) {
+        return res.status(500).json({ error: "Failed to create PayU payment" });
+      }
+
+      res.json({
+        success: true,
+        paymentData
+      });
+    } catch (error) {
+      console.error("Error initiating PayU payment:", error);
+      res.status(500).json({ error: "Failed to initiate PayU payment" });
+    }
+  });
+
+  // PayU callback handler (success/failure)
+  app.post("/api/payu/callback", async (req, res) => {
+    try {
+      const { txnid, status, mihpayid, hash, email, firstname, productinfo, amount } = req.body;
+
+      console.log("PayU callback received:", { txnid, status, mihpayid });
+
+      const result = await handlePayUCallback(
+        txnid,
+        status,
+        mihpayid || '',
+        hash,
+        email,
+        firstname,
+        productinfo,
+        amount
+      );
+
+      const baseUrl = process.env.REPL_SLUG
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER?.toLowerCase()}.repl.co`
+        : `https://${req.get("host")}`;
+
+      if (result.success) {
+        res.redirect(`${baseUrl}/sponsor/wallet?payu_success=true`);
+      } else {
+        res.redirect(`${baseUrl}/sponsor/wallet?payu_failed=true&message=${encodeURIComponent(result.message)}`);
+      }
+    } catch (error) {
+      console.error("Error handling PayU callback:", error);
+      res.redirect(`/sponsor/wallet?payu_failed=true&message=Payment%20processing%20error`);
     }
   });
 
