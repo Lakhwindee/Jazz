@@ -637,6 +637,15 @@ export const api = {
       return res.json();
     },
 
+    async getVerifiedInstagramUsers(): Promise<ApiUser[]> {
+      const res = await fetch(`${API_BASE}/admin/users/verified-instagram`, { credentials: "include" });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to fetch verified users");
+      }
+      return res.json();
+    },
+
     async verifyInstagram(userId: number): Promise<ApiUser> {
       const res = await fetch(`${API_BASE}/admin/users/${userId}/verify-instagram`, {
         method: "POST",

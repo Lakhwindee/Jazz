@@ -1803,16 +1803,23 @@ function VerificationsTab() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ApiUser | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [activeSubTab, setActiveSubTab] = useState<"pending" | "verified">("pending");
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: pendingUsers = [], isLoading: pendingLoading } = useQuery({
     queryKey: ["admin-pending-verifications"],
     queryFn: () => api.admin.getPendingVerifications(),
+  });
+
+  const { data: verifiedUsers = [], isLoading: verifiedLoading } = useQuery({
+    queryKey: ["admin-verified-instagram-users"],
+    queryFn: () => api.admin.getVerifiedInstagramUsers(),
   });
 
   const approveMutation = useMutation({
     mutationFn: (userId: number) => api.admin.verifyInstagram(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-pending-verifications"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-verified-instagram-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
       toast.success("Instagram verification approved");
     },
@@ -1835,80 +1842,149 @@ function VerificationsTab() {
     },
   });
 
-  if (isLoading) {
-    return <div className="text-center py-8 text-gray-400">Loading verifications...</div>;
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-400">
-        <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No pending Instagram verifications</p>
-      </div>
-    );
-  }
+  const isLoading = activeSubTab === "pending" ? pendingLoading : verifiedLoading;
 
   return (
     <div className="space-y-4">
-      {users.map((user) => (
-        <Card key={user.id} className="bg-gray-800 border-gray-700" data-testid={`card-verification-${user.id}`}>
-          <CardContent className="p-4">
-            <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-white">{user.name}</h3>
-                <p className="text-sm text-gray-400">{user.email}</p>
-                <div className="flex items-center gap-2">
-                  <Instagram className="h-5 w-5 text-pink-500" />
-                  <span className="text-gray-300">{user.instagramUsername}</span>
-                </div>
-                {user.instagramProfileUrl && (
-                  <a
-                    href={user.instagramProfileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View Profile
-                  </a>
-                )}
-                {user.instagramVerificationCode && (
-                  <p className="text-sm text-gray-400">
-                    Verification Code: <span className="text-yellow-400 font-mono">{user.instagramVerificationCode}</span>
-                  </p>
-                )}
-                <p className="text-sm text-gray-400">
-                  Followers: {user.instagramFollowers?.toLocaleString() || "Unknown"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => approveMutation.mutate(user.id)}
-                  disabled={approveMutation.isPending}
-                  data-testid={`button-approve-verification-${user.id}`}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => {
-                    setSelectedUser(user);
-                    setRejectDialogOpen(true);
-                  }}
-                  data-testid={`button-reject-verification-${user.id}`}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Reject
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      <div className="flex gap-2 mb-4">
+        <Button
+          variant={activeSubTab === "pending" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("pending")}
+          className="flex items-center gap-2"
+          data-testid="button-pending-verifications"
+        >
+          <Clock className="h-4 w-4" />
+          Pending ({pendingUsers.length})
+        </Button>
+        <Button
+          variant={activeSubTab === "verified" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("verified")}
+          className="flex items-center gap-2"
+          data-testid="button-verified-accounts"
+        >
+          <CheckCircle className="h-4 w-4" />
+          Verified ({verifiedUsers.length})
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-gray-400">Loading...</div>
+      ) : activeSubTab === "pending" ? (
+        pendingUsers.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No pending Instagram verifications</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {pendingUsers.map((user) => (
+              <Card key={user.id} className="bg-gray-800 border-gray-700" data-testid={`card-verification-${user.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-bold text-white">{user.name}</h3>
+                      <p className="text-sm text-gray-400">{user.email}</p>
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-5 w-5 text-pink-500" />
+                        <span className="text-gray-300">{user.instagramUsername}</span>
+                      </div>
+                      {user.instagramProfileUrl && (
+                        <a
+                          href={user.instagramProfileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          View Profile
+                        </a>
+                      )}
+                      {user.instagramVerificationCode && (
+                        <p className="text-sm text-gray-400">
+                          Verification Code: <span className="text-yellow-400 font-mono">{user.instagramVerificationCode}</span>
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-400">
+                        Followers: {user.instagramFollowers?.toLocaleString() || "Unknown"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => approveMutation.mutate(user.id)}
+                        disabled={approveMutation.isPending}
+                        data-testid={`button-approve-verification-${user.id}`}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setRejectDialogOpen(true);
+                        }}
+                        data-testid={`button-reject-verification-${user.id}`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : (
+        verifiedUsers.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <Instagram className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No verified Instagram accounts yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {verifiedUsers.map((user) => (
+              <Card key={user.id} className="bg-gray-800 border-gray-700" data-testid={`card-verified-user-${user.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white">{user.name}</h3>
+                        <Badge className="bg-green-600 text-white">Verified</Badge>
+                      </div>
+                      <p className="text-sm text-gray-400">{user.email}</p>
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-5 w-5 text-pink-500" />
+                        <span className="text-gray-300">@{user.instagramUsername}</span>
+                      </div>
+                      {user.instagramProfileUrl && (
+                        <a
+                          href={user.instagramProfileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          View Profile
+                        </a>
+                      )}
+                      <p className="text-sm text-gray-400">
+                        Followers: {user.instagramFollowers?.toLocaleString() || "Unknown"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Country: {user.country || "Not specified"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
 
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="bg-gray-800 border-gray-700">

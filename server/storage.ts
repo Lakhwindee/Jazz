@@ -89,6 +89,7 @@ export interface IStorage {
   getAllCreators(): Promise<User[]>;
   getAllSponsors(): Promise<User[]>;
   getUsersPendingVerification(): Promise<User[]>;
+  getVerifiedInstagramUsers(): Promise<User[]>;
   getAllWithdrawalRequests(): Promise<WithdrawalRequest[]>;
   getAllSubmissions(): Promise<Submission[]>;
   getAllReservations(): Promise<Reservation[]>;
@@ -600,6 +601,12 @@ export class DatabaseStorage implements IStorage {
   async getUsersPendingVerification(): Promise<User[]> {
     return await db.select().from(users)
       .where(eq(users.instagramVerificationStatus, "pending"))
+      .orderBy(desc(users.createdAt));
+  }
+
+  async getVerifiedInstagramUsers(): Promise<User[]> {
+    return await db.select().from(users)
+      .where(eq(users.isInstagramVerified, true))
       .orderBy(desc(users.createdAt));
   }
 

@@ -1980,6 +1980,17 @@ export async function registerRoutes(
     }
   });
 
+  // Get verified Instagram users
+  app.get("/api/admin/users/verified-instagram", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getVerifiedInstagramUsers();
+      res.json(users.map(sanitizeUser));
+    } catch (error) {
+      console.error("Error fetching verified users:", error);
+      res.status(500).json({ error: "Failed to fetch verified users" });
+    }
+  });
+
   // Approve Instagram verification (admin action)
   app.post("/api/admin/users/:userId/verify-instagram", isAdmin, async (req, res) => {
     try {
