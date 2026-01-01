@@ -90,3 +90,41 @@ export async function sendOTPEmail(
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+// Generic email sending function for newsletters and other emails
+export async function sendEmail(options: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<boolean> {
+  try {
+    const config = await getEmailConfig();
+    
+    if (!config) {
+      console.error("Email not configured - SMTP credentials missing");
+      return false;
+    }
+    
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: config.smtpEmail,
+        pass: config.smtpPassword,
+      },
+    });
+    
+    const mailOptions = {
+      from: `"InstaCreator Hub" <${config.smtpEmail}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent successfully to ${options.to}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    return false;
+  }
+}

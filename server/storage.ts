@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans, otpVerifications } from "@shared/schema";
-import type { User, InsertUser, Campaign, InsertCampaign, Reservation, InsertReservation, Submission, InsertSubmission, Transaction, InsertTransaction, Notification, InsertNotification, CategorySubscription, InsertCategorySubscription, BankAccount, InsertBankAccount, WithdrawalRequest, InsertWithdrawalRequest, AppSetting, InsertAppSetting, PromoCode, InsertPromoCode, PromoCodeUsage, InsertPromoCodeUsage, AdminWallet, AdminWalletTransaction, InsertAdminWalletTransaction, SubscriptionPlan, InsertSubscriptionPlan, OtpVerification, InsertOtpVerification } from "@shared/schema";
+import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans, otpVerifications, newsletters, supportTickets, ticketMessages } from "@shared/schema";
+import type { User, InsertUser, Campaign, InsertCampaign, Reservation, InsertReservation, Submission, InsertSubmission, Transaction, InsertTransaction, Notification, InsertNotification, CategorySubscription, InsertCategorySubscription, BankAccount, InsertBankAccount, WithdrawalRequest, InsertWithdrawalRequest, AppSetting, InsertAppSetting, PromoCode, InsertPromoCode, PromoCodeUsage, InsertPromoCodeUsage, AdminWallet, AdminWalletTransaction, InsertAdminWalletTransaction, SubscriptionPlan, InsertSubscriptionPlan, OtpVerification, InsertOtpVerification, Newsletter, InsertNewsletter, SupportTicket, InsertSupportTicket, TicketMessage, InsertTicketMessage } from "@shared/schema";
 import { eq, desc, and, count, sql, or, isNull, ne, lt } from "drizzle-orm";
 
 export interface IStorage {
@@ -150,6 +150,20 @@ export interface IStorage {
   verifyOtp(email: string, otp: string): Promise<boolean>;
   incrementOtpAttempts(id: number): Promise<void>;
   deleteExpiredOtps(): Promise<void>;
+
+  // Newsletters
+  getAllNewsletters(): Promise<Newsletter[]>;
+  createNewsletter(newsletter: InsertNewsletter): Promise<Newsletter>;
+  getUsersForNewsletter(targetAudience: string): Promise<User[]>;
+
+  // Support Tickets
+  getAllSupportTickets(): Promise<SupportTicket[]>;
+  getSupportTicketsByUser(userId: number): Promise<SupportTicket[]>;
+  getSupportTicket(id: number): Promise<SupportTicket | undefined>;
+  createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
+  updateSupportTicketStatus(id: number, status: string): Promise<void>;
+  getTicketMessages(ticketId: number): Promise<TicketMessage[]>;
+  createTicketMessage(message: InsertTicketMessage): Promise<TicketMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1001,6 +1015,65 @@ export class DatabaseStorage implements IStorage {
   async deleteExpiredOtps(): Promise<void> {
     await db.delete(otpVerifications)
       .where(sql`${otpVerifications.expiresAt} < NOW()`);
+  }
+
+  // Newsletters
+  async getAllNewsletters(): Promise<Newsletter[]> {
+    return await db.select().from(newsletters).orderBy(desc(newsletters.createdAt));
+  }
+
+  async createNewsletter(newsletter: InsertNewsletter): Promise<Newsletter> {
+    const result = await db.insert(newsletters).values(newsletter).returning();
+    return result[0];
+  }
+
+  async getUsersForNewsletter(targetAudience: string): Promise<User[]> {
+    if (targetAudience === "all") {
+      return await db.select().from(users).where(ne(users.role, "admin"));
+    } else if (targetAudience === "creators") {
+      return await db.select().from(users).where(eq(users.role, "creator"));
+    } else if (targetAudience === "sponsors") {
+      return await db.select().from(users).where(eq(users.role, "sponsor"));
+    }
+    return [];
+  }
+
+  // Support Tickets
+  async getAllSupportTickets(): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getSupportTicketsByUser(userId: number): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets)
+      .where(eq(supportTickets.userId, userId))
+      .orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getSupportTicket(id: number): Promise<SupportTicket | undefined> {
+    const result = await db.select().from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
+    const result = await db.insert(supportTickets).values(ticket).returning();
+    return result[0];
+  }
+
+  async updateSupportTicketStatus(id: number, status: string): Promise<void> {
+    await db.update(supportTickets)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(supportTickets.id, id));
+  }
+
+  async getTicketMessages(ticketId: number): Promise<TicketMessage[]> {
+    return await db.select().from(ticketMessages)
+      .where(eq(ticketMessages.ticketId, ticketId))
+      .orderBy(ticketMessages.createdAt);
+  }
+
+  async createTicketMessage(message: InsertTicketMessage): Promise<TicketMessage> {
+    const result = await db.insert(ticketMessages).values(message).returning();
+    return result[0];
   }
 }
 

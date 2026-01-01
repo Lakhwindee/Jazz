@@ -12,6 +12,7 @@ import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
 import { createOrder as createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId } from "./razorpay";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
+import { sendEmail } from "./email";
 import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -1953,6 +1954,237 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error verifying Stripe payment:", error);
       res.status(500).json({ error: "Failed to verify payment" });
+    }
+  });
+
+  // ==================== NEWSLETTER ====================
+
+  // Get all newsletters (admin)
+  app.get("/api/admin/newsletters", async (req, res) => {
+    try {
+      const newsletters = await storage.getAllNewsletters();
+      res.json(newsletters);
+    } catch (error) {
+      console.error("Error fetching newsletters:", error);
+      res.status(500).json({ error: "Failed to fetch newsletters" });
+    }
+  });
+
+  // Send newsletter to users (admin)
+  app.post("/api/admin/newsletters/send", async (req, res) => {
+    try {
+      const { subject, content, targetAudience, sentBy } = req.body;
+
+      if (!subject || !content) {
+        return res.status(400).json({ error: "Subject and content are required" });
+      }
+
+      // Get users based on target audience
+      const users = await storage.getUsersForNewsletter(targetAudience || "all");
+      
+      if (users.length === 0) {
+        return res.status(400).json({ error: "No users found for selected audience" });
+      }
+
+      // Send emails to users
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const user of users) {
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: subject,
+            html: content,
+          });
+          successCount++;
+        } catch (emailError) {
+          console.error(`Failed to send email to ${user.email}:`, emailError);
+          failCount++;
+        }
+      }
+
+      // Save newsletter record
+      const newsletter = await storage.createNewsletter({
+        subject,
+        content,
+        targetAudience: targetAudience || "all",
+        recipientCount: successCount,
+        sentBy: sentBy || null,
+        status: "sent",
+      });
+
+      res.json({
+        success: true,
+        newsletter,
+        stats: {
+          total: users.length,
+          sent: successCount,
+          failed: failCount,
+        }
+      });
+    } catch (error) {
+      console.error("Error sending newsletter:", error);
+      res.status(500).json({ error: "Failed to send newsletter" });
+    }
+  });
+
+  // ==================== SUPPORT TICKETS ====================
+
+  // Get all tickets (admin)
+  app.get("/api/admin/support-tickets", async (req, res) => {
+    try {
+      const tickets = await storage.getAllSupportTickets();
+      
+      // Get user info for each ticket
+      const ticketsWithUsers = await Promise.all(
+        tickets.map(async (ticket) => {
+          const user = await storage.getUser(ticket.userId);
+          return {
+            ...ticket,
+            user: user ? { id: user.id, name: user.name, email: user.email, role: user.role } : null,
+          };
+        })
+      );
+      
+      res.json(ticketsWithUsers);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  // Get tickets for a user
+  app.get("/api/users/:userId/support-tickets", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const tickets = await storage.getSupportTicketsByUser(userId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching user tickets:", error);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  // Get single ticket with messages
+  app.get("/api/support-tickets/:ticketId", async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.ticketId);
+      const ticket = await storage.getSupportTicket(ticketId);
+      
+      if (!ticket) {
+        return res.status(404).json({ error: "Ticket not found" });
+      }
+
+      const messages = await storage.getTicketMessages(ticketId);
+      const user = await storage.getUser(ticket.userId);
+      
+      // Get sender info for each message
+      const messagesWithSenders = await Promise.all(
+        messages.map(async (msg) => {
+          const sender = await storage.getUser(msg.senderId);
+          return {
+            ...msg,
+            senderName: sender?.name || "Unknown",
+            senderRole: sender?.role || "user",
+          };
+        })
+      );
+
+      res.json({
+        ...ticket,
+        user: user ? { id: user.id, name: user.name, email: user.email } : null,
+        messages: messagesWithSenders,
+      });
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ error: "Failed to fetch ticket" });
+    }
+  });
+
+  // Create new ticket (user)
+  app.post("/api/support-tickets", async (req, res) => {
+    try {
+      const { userId, subject, category, priority, message } = req.body;
+
+      if (!userId || !subject || !message) {
+        return res.status(400).json({ error: "User ID, subject, and message are required" });
+      }
+
+      // Create ticket
+      const ticket = await storage.createSupportTicket({
+        userId,
+        subject,
+        category: category || "general",
+        priority: priority || "normal",
+        status: "open",
+      });
+
+      // Create initial message
+      await storage.createTicketMessage({
+        ticketId: ticket.id,
+        senderId: userId,
+        message,
+        isAdminReply: false,
+      });
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ error: "Failed to create ticket" });
+    }
+  });
+
+  // Reply to ticket
+  app.post("/api/support-tickets/:ticketId/reply", async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.ticketId);
+      const { senderId, message, isAdminReply } = req.body;
+
+      if (!senderId || !message) {
+        return res.status(400).json({ error: "Sender ID and message are required" });
+      }
+
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ error: "Ticket not found" });
+      }
+
+      // Create message
+      const ticketMessage = await storage.createTicketMessage({
+        ticketId,
+        senderId,
+        message,
+        isAdminReply: isAdminReply || false,
+      });
+
+      // Update ticket status to in_progress if admin replied
+      if (isAdminReply && ticket.status === "open") {
+        await storage.updateSupportTicketStatus(ticketId, "in_progress");
+      }
+
+      res.json(ticketMessage);
+    } catch (error) {
+      console.error("Error replying to ticket:", error);
+      res.status(500).json({ error: "Failed to reply to ticket" });
+    }
+  });
+
+  // Update ticket status (admin)
+  app.patch("/api/support-tickets/:ticketId/status", async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.ticketId);
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+
+      await storage.updateSupportTicketStatus(ticketId, status);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ error: "Failed to update ticket status" });
     }
   });
 
