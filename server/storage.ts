@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans } from "@shared/schema";
-import type { User, InsertUser, Campaign, InsertCampaign, Reservation, InsertReservation, Submission, InsertSubmission, Transaction, InsertTransaction, Notification, InsertNotification, CategorySubscription, InsertCategorySubscription, BankAccount, InsertBankAccount, WithdrawalRequest, InsertWithdrawalRequest, AppSetting, InsertAppSetting, PromoCode, InsertPromoCode, PromoCodeUsage, InsertPromoCodeUsage, AdminWallet, AdminWalletTransaction, InsertAdminWalletTransaction, SubscriptionPlan, InsertSubscriptionPlan } from "@shared/schema";
+import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans, otpVerifications } from "@shared/schema";
+import type { User, InsertUser, Campaign, InsertCampaign, Reservation, InsertReservation, Submission, InsertSubmission, Transaction, InsertTransaction, Notification, InsertNotification, CategorySubscription, InsertCategorySubscription, BankAccount, InsertBankAccount, WithdrawalRequest, InsertWithdrawalRequest, AppSetting, InsertAppSetting, PromoCode, InsertPromoCode, PromoCodeUsage, InsertPromoCodeUsage, AdminWallet, AdminWalletTransaction, InsertAdminWalletTransaction, SubscriptionPlan, InsertSubscriptionPlan, OtpVerification, InsertOtpVerification } from "@shared/schema";
 import { eq, desc, and, count, sql, or, isNull, ne, lt } from "drizzle-orm";
 
 export interface IStorage {
@@ -143,6 +143,13 @@ export interface IStorage {
   createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
   updateSubscriptionPlan(id: number, updates: Partial<InsertSubscriptionPlan>): Promise<void>;
   deleteSubscriptionPlan(id: number): Promise<void>;
+
+  // OTP Verification
+  createOtp(email: string, otp: string, expiresAt: Date): Promise<OtpVerification>;
+  getValidOtp(email: string): Promise<OtpVerification | undefined>;
+  verifyOtp(email: string, otp: string): Promise<boolean>;
+  incrementOtpAttempts(id: number): Promise<void>;
+  deleteExpiredOtps(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -940,6 +947,60 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubscriptionPlan(id: number): Promise<void> {
     await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+  }
+
+  // OTP Verification
+  async createOtp(email: string, otp: string, expiresAt: Date): Promise<OtpVerification> {
+    await db.delete(otpVerifications).where(eq(otpVerifications.email, email));
+    const result = await db.insert(otpVerifications).values({
+      email,
+      otp,
+      expiresAt,
+      verified: false,
+      attempts: 0,
+    }).returning();
+    return result[0];
+  }
+
+  async getValidOtp(email: string): Promise<OtpVerification | undefined> {
+    const result = await db.select()
+      .from(otpVerifications)
+      .where(
+        and(
+          eq(otpVerifications.email, email),
+          eq(otpVerifications.verified, false),
+          sql`${otpVerifications.expiresAt} > NOW()`,
+          lt(otpVerifications.attempts, 5)
+        )
+      )
+      .orderBy(desc(otpVerifications.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async verifyOtp(email: string, otp: string): Promise<boolean> {
+    const otpRecord = await this.getValidOtp(email);
+    if (!otpRecord || otpRecord.otp !== otp) {
+      if (otpRecord) {
+        await this.incrementOtpAttempts(otpRecord.id);
+      }
+      return false;
+    }
+    await db.update(otpVerifications)
+      .set({ verified: true })
+      .where(eq(otpVerifications.id, otpRecord.id));
+    return true;
+  }
+
+  async incrementOtpAttempts(id: number): Promise<void> {
+    await db.update(otpVerifications)
+      .set({ attempts: sql`${otpVerifications.attempts} + 1` })
+      .where(eq(otpVerifications.id, id));
+  }
+
+  async deleteExpiredOtps(): Promise<void> {
+    await db.delete(otpVerifications)
+      .where(sql`${otpVerifications.expiresAt} < NOW()`);
   }
 }
 

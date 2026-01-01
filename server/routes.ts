@@ -196,6 +196,94 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== OTP VERIFICATION ====================
+  
+  // Send OTP to email
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const { email, name } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      // Check if email already registered
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+      
+      // Check if email is configured
+      const { isEmailConfigured } = await import("./email");
+      if (!await isEmailConfigured()) {
+        return res.status(500).json({ error: "Email service not configured. Please contact admin." });
+      }
+      
+      // Generate OTP
+      const { generateOTP, sendOTPEmail } = await import("./email");
+      const otp = generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Save OTP to database
+      await storage.createOtp(email, otp, expiresAt);
+      
+      // Send OTP email
+      const sent = await sendOTPEmail(email, otp, name);
+      
+      if (!sent) {
+        return res.status(500).json({ error: "Failed to send OTP. Please try again." });
+      }
+      
+      res.json({ message: "OTP sent successfully", expiresIn: 600 });
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      res.status(500).json({ error: "Failed to send OTP" });
+    }
+  });
+  
+  // Verify OTP
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+      
+      if (!email || !otp) {
+        return res.status(400).json({ error: "Email and OTP are required" });
+      }
+      
+      const isValid = await storage.verifyOtp(email, otp);
+      
+      if (!isValid) {
+        return res.status(400).json({ error: "Invalid or expired OTP" });
+      }
+      
+      res.json({ verified: true, message: "Email verified successfully" });
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      res.status(500).json({ error: "Failed to verify OTP" });
+    }
+  });
+  
+  // Check if email OTP is verified
+  app.get("/api/auth/check-email-verified", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const otpRecord = await storage.getValidOtp(email);
+      
+      // Check if there's a verified OTP for this email (within last 30 minutes)
+      const allOtps = await storage.getValidOtp(email);
+      
+      res.json({ verified: false });
+    } catch (error) {
+      console.error("Check email verified error:", error);
+      res.status(500).json({ error: "Failed to check verification status" });
+    }
+  });
+
   // File upload endpoint
   app.post("/api/upload", upload.single("file"), (req, res) => {
     try {

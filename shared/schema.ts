@@ -432,3 +432,21 @@ export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans
 });
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+
+// OTP Verification table for email verification
+export const otpVerifications = pgTable("otp_verifications", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  otp: text("otp").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  verified: boolean("verified").notNull().default(false),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).omit({ 
+  id: true, 
+  createdAt: true,
+});
+export type InsertOtpVerification = z.infer<typeof insertOtpVerificationSchema>;
+export type OtpVerification = typeof otpVerifications.$inferSelect;
