@@ -500,6 +500,28 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async convertCampaignToPromotional(campaignId: number, starReward: number): Promise<Campaign | undefined> {
+    const result = await db.update(campaigns)
+      .set({ 
+        isPromotional: true,
+        starReward: starReward
+      })
+      .where(eq(campaigns.id, campaignId))
+      .returning();
+    return result[0];
+  }
+
+  async convertCampaignToMoney(campaignId: number): Promise<Campaign | undefined> {
+    const result = await db.update(campaigns)
+      .set({ 
+        isPromotional: false,
+        starReward: 0
+      })
+      .where(eq(campaigns.id, campaignId))
+      .returning();
+    return result[0];
+  }
+
   async rejectCampaign(campaignId: number): Promise<void> {
     await db.delete(campaigns).where(eq(campaigns.id, campaignId));
   }

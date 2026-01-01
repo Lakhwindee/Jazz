@@ -1287,10 +1287,12 @@ function CampaignsTab() {
   const queryClient = useQueryClient();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<ApiCampaign | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [isPromotional, setIsPromotional] = useState(false);
   const [starReward, setStarReward] = useState(0);
+  const [convertStarReward, setConvertStarReward] = useState(1);
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["admin-campaigns"],
@@ -1339,6 +1341,47 @@ function CampaignsTab() {
       setRejectDialogOpen(false);
       setRejectReason("");
       toast.success("Campaign rejected");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const convertToStarsMutation = useMutation({
+    mutationFn: ({ campaignId, starReward }: { campaignId: number; starReward: number }) => 
+      fetch(`/api/admin/campaigns/${campaignId}/convert-to-promotional`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ starReward }),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to convert campaign");
+        return res.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      setConvertDialogOpen(false);
+      setConvertStarReward(1);
+      toast.success("Campaign converted to star-based promotional campaign!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const convertToMoneyMutation = useMutation({
+    mutationFn: (campaignId: number) => 
+      fetch(`/api/admin/campaigns/${campaignId}/convert-to-money`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to convert campaign");
+        return res.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      toast.success("Campaign converted back to money-based!");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -1548,33 +1591,68 @@ function CampaignsTab() {
                       </div>
                     </div>
                     
-                    {campaign.status === "active" || campaign.status === "paused" ? (
+                    {campaign.isPromotional && (
                       <div className="pt-2">
-                        {campaign.status === "active" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full text-white border-gray-500"
-                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
-                            data-testid={`button-pause-campaign-${campaign.id}`}
-                          >
-                            <Pause className="h-4 w-4 mr-1" />
-                            Pause Campaign
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full text-white border-gray-500"
-                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                            data-testid={`button-activate-campaign-${campaign.id}`}
-                          >
-                            <Play className="h-4 w-4 mr-1" />
-                            Activate Campaign
-                          </Button>
-                        )}
+                        <Badge className="bg-yellow-500 text-gray-900">
+                          <Star className="h-3 w-3 mr-1" />
+                          {campaign.starReward} Stars Reward
+                        </Badge>
                       </div>
-                    ) : null}
+                    )}
+                    
+                    <div className="pt-2 flex flex-col gap-2">
+                      {campaign.status === "active" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-white border-gray-500"
+                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
+                          data-testid={`button-pause-campaign-${campaign.id}`}
+                        >
+                          <Pause className="h-4 w-4 mr-1" />
+                          Pause Campaign
+                        </Button>
+                      ) : campaign.status === "paused" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-white border-gray-500"
+                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
+                          data-testid={`button-activate-campaign-${campaign.id}`}
+                        >
+                          <Play className="h-4 w-4 mr-1" />
+                          Activate Campaign
+                        </Button>
+                      ) : null}
+                      
+                      {campaign.isPromotional ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-yellow-300 border-yellow-500"
+                          onClick={() => convertToMoneyMutation.mutate(campaign.id)}
+                          data-testid={`button-convert-to-money-mobile-${campaign.id}`}
+                        >
+                          <IndianRupee className="h-4 w-4 mr-1" />
+                          Convert to Money
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-yellow-300 border-yellow-500"
+                          onClick={() => {
+                            setSelectedCampaign(campaign);
+                            setConvertStarReward(1);
+                            setConvertDialogOpen(true);
+                          }}
+                          data-testid={`button-convert-to-stars-mobile-${campaign.id}`}
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Convert to Stars
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1641,32 +1719,67 @@ function CampaignsTab() {
                         >
                           {campaign.escrowStatus === "completed" ? "Settled" : "Escrow"}
                         </Badge>
+                        {campaign.isPromotional && (
+                          <Badge className="bg-yellow-500 text-gray-900 text-xs">
+                            <Star className="h-3 w-3 mr-1" />
+                            {campaign.starReward} Stars
+                          </Badge>
+                        )}
                       </div>
                     </td>
                     <td className="p-4">
-                      {campaign.status === "active" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-white border-gray-500"
-                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
-                          data-testid={`button-pause-campaign-${campaign.id}`}
-                        >
-                          <Pause className="h-4 w-4 mr-1" />
-                          Pause
-                        </Button>
-                      ) : campaign.status === "paused" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-white border-gray-500"
-                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                          data-testid={`button-activate-campaign-${campaign.id}`}
-                        >
-                          <Play className="h-4 w-4 mr-1" />
-                          Activate
-                        </Button>
-                      ) : null}
+                      <div className="flex flex-col gap-1">
+                        {campaign.status === "active" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-white border-gray-500"
+                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
+                            data-testid={`button-pause-campaign-${campaign.id}`}
+                          >
+                            <Pause className="h-4 w-4 mr-1" />
+                            Pause
+                          </Button>
+                        ) : campaign.status === "paused" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-white border-gray-500"
+                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
+                            data-testid={`button-activate-campaign-${campaign.id}`}
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            Activate
+                          </Button>
+                        ) : null}
+                        {campaign.isPromotional ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-yellow-300 border-yellow-500"
+                            onClick={() => convertToMoneyMutation.mutate(campaign.id)}
+                            data-testid={`button-convert-to-money-${campaign.id}`}
+                          >
+                            <IndianRupee className="h-4 w-4 mr-1" />
+                            To Money
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-yellow-300 border-yellow-500"
+                            onClick={() => {
+                              setSelectedCampaign(campaign);
+                              setConvertStarReward(1);
+                              setConvertDialogOpen(true);
+                            }}
+                            data-testid={`button-convert-to-stars-${campaign.id}`}
+                          >
+                            <Star className="h-4 w-4 mr-1" />
+                            To Stars
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -1792,6 +1905,68 @@ function CampaignsTab() {
               disabled={rejectCampaignMutation.isPending}
             >
               {rejectCampaignMutation.isPending ? "Processing..." : "Reject Campaign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Stars Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="bg-gray-800 text-white border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-yellow-400 flex items-center gap-2">
+              <Star className="h-5 w-5" />
+              Convert to Star-Based Campaign
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Convert "{selectedCampaign?.title}" to a promotional campaign with star rewards
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="bg-gray-700/50 p-4 rounded-lg space-y-2">
+              <p className="text-white font-semibold">{selectedCampaign?.title}</p>
+              <p className="text-gray-300 text-sm">{selectedCampaign?.brand}</p>
+              <p className="text-gray-400 text-sm">{selectedCampaign?.tier}</p>
+            </div>
+            
+            <div className="space-y-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <Label className="text-yellow-300 font-semibold">Select Star Reward</Label>
+              <p className="text-sm text-gray-400 mb-2">How many stars will creators earn for this campaign?</p>
+              <div className="flex gap-2 flex-wrap">
+                {[1, 2, 3, 4, 5].map((stars) => (
+                  <Button
+                    key={stars}
+                    size="sm"
+                    variant={convertStarReward === stars ? "default" : "outline"}
+                    className={convertStarReward === stars ? "bg-yellow-500 text-gray-900" : "text-white border-gray-500"}
+                    onClick={() => setConvertStarReward(stars)}
+                  >
+                    {stars} Star{stars > 1 ? "s" : ""}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <p className="text-blue-300 text-sm">
+                Creators who complete this campaign will earn {convertStarReward} star{convertStarReward > 1 ? "s" : ""}.
+                When they collect 5 stars, they can redeem rewards!
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="text-white border-gray-500" onClick={() => setConvertDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-yellow-500 hover:bg-yellow-600 text-gray-900"
+              onClick={() => selectedCampaign && convertToStarsMutation.mutate({ 
+                campaignId: selectedCampaign.id, 
+                starReward: convertStarReward 
+              })}
+              disabled={convertToStarsMutation.isPending}
+            >
+              {convertToStarsMutation.isPending ? "Converting..." : `Convert to ${convertStarReward} Stars`}
             </Button>
           </DialogFooter>
         </DialogContent>

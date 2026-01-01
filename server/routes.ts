@@ -2144,6 +2144,81 @@ export async function registerRoutes(
     }
   });
 
+  // Convert campaign to promotional (admin action)
+  app.post("/api/admin/campaigns/:campaignId/convert-to-promotional", isAdmin, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const { starReward } = req.body;
+      
+      if (!starReward || starReward < 1 || starReward > 5) {
+        return res.status(400).json({ error: "Star reward must be between 1 and 5" });
+      }
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      if (!campaign.isApproved) {
+        return res.status(400).json({ error: "Campaign must be approved first" });
+      }
+      
+      const updatedCampaign = await storage.convertCampaignToPromotional(campaignId, starReward);
+      
+      // Notify sponsor about conversion
+      if (campaign.sponsorId) {
+        await storage.createNotification({
+          userId: campaign.sponsorId,
+          type: "campaign_updated",
+          title: "Campaign Converted to Promotional",
+          message: `Your campaign "${campaign.title}" has been converted to a promotional campaign with ${starReward} star rewards.`,
+          isRead: false,
+          campaignId: campaign.id,
+        });
+      }
+      
+      res.json(updatedCampaign);
+    } catch (error) {
+      console.error("Error converting campaign to promotional:", error);
+      res.status(500).json({ error: "Failed to convert campaign" });
+    }
+  });
+
+  // Convert campaign to money-based (admin action)
+  app.post("/api/admin/campaigns/:campaignId/convert-to-money", isAdmin, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      if (!campaign.isApproved) {
+        return res.status(400).json({ error: "Campaign must be approved first" });
+      }
+      
+      const updatedCampaign = await storage.convertCampaignToMoney(campaignId);
+      
+      // Notify sponsor about conversion
+      if (campaign.sponsorId) {
+        await storage.createNotification({
+          userId: campaign.sponsorId,
+          type: "campaign_updated",
+          title: "Campaign Converted to Money-Based",
+          message: `Your campaign "${campaign.title}" has been converted back to a money-based campaign.`,
+          isRead: false,
+          campaignId: campaign.id,
+        });
+      }
+      
+      res.json(updatedCampaign);
+    } catch (error) {
+      console.error("Error converting campaign to money:", error);
+      res.status(500).json({ error: "Failed to convert campaign" });
+    }
+  });
+
   // Reject campaign (admin action)
   app.post("/api/admin/campaigns/:campaignId/reject", isAdmin, async (req, res) => {
     try {
