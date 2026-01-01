@@ -303,23 +303,24 @@ export default function Profile() {
 
                     {!user.isInstagramVerified && (
                       <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-4 space-y-4">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                          <div>
-                            <h4 className="font-medium text-yellow-800 dark:text-yellow-200">Verify Your Instagram</h4>
-                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                              To verify account ownership, copy the code below and paste it in your Instagram bio. Then click "Verify".
-                            </p>
-                          </div>
-                        </div>
-
                         {user.instagramVerificationStatus === "pending" ? (
                           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
                             <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
                             <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
                             <p className="text-xs text-blue-600 dark:text-blue-300">We're verifying your Instagram bio. This usually takes a few hours.</p>
                           </div>
-                        ) : !user.instagramVerificationCode ? (
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                              <div>
+                                <h4 className="font-medium text-yellow-800 dark:text-yellow-200">Verify Your Instagram</h4>
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                  To verify account ownership, copy the code below and paste it in your Instagram bio. Then click "Verify".
+                                </p>
+                              </div>
+                            </div>
+                            {!user.instagramVerificationCode ? (
                           <Button
                             onClick={() => generateCodeMutation.mutate()}
                             disabled={generateCodeMutation.isPending}
@@ -361,6 +362,8 @@ export default function Profile() {
                               Submit for Verification
                             </Button>
                           </div>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
