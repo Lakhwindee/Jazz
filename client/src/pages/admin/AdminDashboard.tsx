@@ -1006,7 +1006,7 @@ function SubmissionsTab() {
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-bold text-white">Campaign Submissions</h2>
           {totalPending > 0 && (
-            <Badge className="bg-yellow-500 text-black">{totalPending} Pending</Badge>
+            <Badge className="bg-yellow-500 text-gray-900">{totalPending} Pending</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -1512,7 +1512,7 @@ function CampaignsTab() {
                         <Badge
                           className={
                             campaign.status === "active" ? "bg-green-500 text-white" :
-                            campaign.status === "paused" ? "bg-yellow-500 text-black" :
+                            campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
                             "bg-gray-500 text-white"
                           }
                         >
@@ -1627,7 +1627,7 @@ function CampaignsTab() {
                         <Badge
                           className={
                             campaign.status === "active" ? "bg-green-500 text-white" :
-                            campaign.status === "paused" ? "bg-yellow-500 text-black" :
+                            campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
                             "bg-gray-500 text-white"
                           }
                         >
@@ -1704,7 +1704,7 @@ function CampaignsTab() {
               <Button
                 size="sm"
                 variant={isPromotional ? "default" : "outline"}
-                className={isPromotional ? "bg-yellow-500 hover:bg-yellow-600 text-black" : ""}
+                className={isPromotional ? "bg-yellow-500 hover:bg-yellow-600 text-gray-900" : ""}
                 onClick={() => setIsPromotional(!isPromotional)}
               >
                 {isPromotional ? "Yes" : "No"}
@@ -1731,7 +1731,7 @@ function CampaignsTab() {
                       key={stars}
                       size="sm"
                       variant={starReward === stars ? "default" : "outline"}
-                      className={starReward === stars ? "bg-yellow-500 text-black" : ""}
+                      className={starReward === stars ? "bg-yellow-500 text-gray-900" : ""}
                       onClick={() => setStarReward(stars)}
                     >
                       {stars} Star{stars > 1 ? "s" : ""}
