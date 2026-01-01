@@ -215,6 +215,18 @@ export default function SponsorWallet() {
       toast.info("Payment was cancelled");
       setLocation("/sponsor/wallet");
     }
+    
+    // Handle PayU success/failure
+    if (params.get("payu_success") === "true") {
+      toast.success("Payment successful! Amount added to wallet.");
+      queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
+      queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+      setLocation("/sponsor/wallet");
+    } else if (params.get("payu_failed") === "true") {
+      const message = params.get("message") || "Payment failed";
+      toast.error(message);
+      setLocation("/sponsor/wallet");
+    }
   }, [sponsor, searchString, stripeSessionProcessed, setLocation]);
 
   const handleRazorpayPayment = async () => {
@@ -345,6 +357,70 @@ export default function SponsorWallet() {
         window.location.href = data.url;
       } else {
         throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to initiate payment");
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle PayU payment for Indian users (alternative to Razorpay)
+  const handlePayUPayment = async () => {
+    const baseAmount = parseFloat(depositAmount);
+    if (isNaN(baseAmount) || baseAmount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    if (!sponsor) {
+      toast.error("Sponsor not found");
+      return;
+    }
+
+    setIsProcessing(true);
+    
+    const breakdown = calculateDepositWithGST(baseAmount);
+
+    try {
+      const res = await fetch(`/api/sponsors/${sponsor.id}/payu/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseAmount: baseAmount,
+          gstAmount: breakdown.gstAmount,
+          totalAmount: breakdown.totalPayable,
+          firstname: sponsor.name || "User",
+          email: sponsor.email,
+          phone: (sponsor as any).phone || "9999999999",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to initiate PayU payment");
+      }
+
+      const data = await res.json();
+      
+      if (data.success && data.paymentData) {
+        // Create and submit form to PayU
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = data.paymentData.payuBaseUrl;
+        
+        const fields = ["key", "txnid", "amount", "productinfo", "firstname", "email", "phone", "surl", "furl", "hash"];
+        fields.forEach(field => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = field;
+          input.value = data.paymentData[field];
+          form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        throw new Error("Invalid payment data received");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to initiate payment");
@@ -546,7 +622,7 @@ export default function SponsorWallet() {
                       )}
                       
                       {isIndianUser ? (
-                        <>
+                        <div className="space-y-3">
                           <Button
                             className="w-full"
                             onClick={handleRazorpayPayment}
@@ -559,7 +635,30 @@ export default function SponsorWallet() {
                           <p className="text-xs text-center text-muted-foreground">
                             Secure payment powered by Razorpay (India)
                           </p>
-                        </>
+                          
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-background px-2 text-muted-foreground">or</span>
+                            </div>
+                          </div>
+                          
+                          <Button
+                            className="w-full"
+                            variant="outline"
+                            onClick={handlePayUPayment}
+                            disabled={isProcessing || !depositAmount}
+                            data-testid="button-confirm-deposit-payu"
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with PayU` : "Pay with PayU"}
+                          </Button>
+                          <p className="text-xs text-center text-muted-foreground">
+                            Alternative payment via PayU (India)
+                          </p>
+                        </div>
                       ) : (
                         <>
                           <Button
