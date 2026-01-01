@@ -280,23 +280,6 @@ export default function Profile() {
                       <h4 className="font-medium mb-3">Account Status</h4>
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
-                            <CheckCircle2 className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm">
-                            Instagram Account Connected
-                          </span>
-                          {user.instagramAccessToken && (
-                            <Badge variant="secondary" className="text-xs">Verified via OAuth</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
-                            <CheckCircle2 className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm">Follower Count: {user.followers.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
                           {user.isInstagramVerified ? (
                             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
                               <CheckCircle2 className="h-4 w-4" />
@@ -307,15 +290,28 @@ export default function Profile() {
                             </div>
                           )}
                           <span className="text-sm">
-                            {user.isInstagramVerified ? "Account Verified" : "Verification Pending"}
+                            {user.isInstagramVerified ? "Instagram Account Verified" : "Instagram Account Pending Review"}
                           </span>
+                          {user.instagramAccessToken && (
+                            <Badge variant="secondary" className="text-xs">Verified via OAuth</Badge>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
-                            <CheckCircle2 className="h-4 w-4" />
-                          </div>
-                          <span className="text-sm">Engagement Rate: {user.engagement}%</span>
-                        </div>
+                        {user.isInstagramVerified && (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </div>
+                              <span className="text-sm">Follower Count: {user.followers.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </div>
+                              <span className="text-sm">Engagement Rate: {user.engagement}%</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
