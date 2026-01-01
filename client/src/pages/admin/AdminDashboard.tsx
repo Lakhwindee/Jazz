@@ -1852,7 +1852,7 @@ function VerificationsTab() {
         <Button
           variant={activeSubTab === "pending" ? "default" : "outline"}
           onClick={() => setActiveSubTab("pending")}
-          className="flex items-center gap-2"
+          className={`flex items-center gap-2 ${activeSubTab !== "pending" ? "text-white border-gray-500" : ""}`}
           data-testid="button-pending-verifications"
         >
           <Clock className="h-4 w-4" />
@@ -1861,7 +1861,7 @@ function VerificationsTab() {
         <Button
           variant={activeSubTab === "verified" ? "default" : "outline"}
           onClick={() => setActiveSubTab("verified")}
-          className="flex items-center gap-2"
+          className={`flex items-center gap-2 ${activeSubTab !== "verified" ? "text-white border-gray-500" : ""}`}
           data-testid="button-verified-accounts"
         >
           <CheckCircle className="h-4 w-4" />
