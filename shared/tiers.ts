@@ -70,7 +70,8 @@ export function getPaymentByStyle(basePayment: number, promotionStyle: string): 
 // Tax and Fee Constants
 export const TAX_RATES = {
   PLATFORM_FEE_PERCENT: 10,      // 10% platform fee for sponsors on campaigns
-  GST_PERCENT: 18,               // 18% GST on wallet deposits
+  GST_PERCENT: 18,               // 18% GST on wallet deposits (India)
+  INTERNATIONAL_FEE_PERCENT: 5,  // 5% processing fee for international deposits
 };
 
 // Calculate sponsor campaign payment (platform fee only, no GST here)
@@ -106,5 +107,23 @@ export function calculateDepositWithGST(baseAmount: number): DepositBreakdown {
     baseAmount,
     gstAmount,
     totalPayable,
+  };
+}
+
+// Calculate international deposit with processing fee
+export interface InternationalDepositBreakdown {
+  baseAmount: number;            // Amount that goes to wallet
+  processingFee: number;         // 5% processing fee
+  totalPayable: number;          // Total amount user pays
+}
+
+export function calculateInternationalDeposit(baseAmount: number): InternationalDepositBreakdown {
+  const processingFee = Math.round(baseAmount * TAX_RATES.INTERNATIONAL_FEE_PERCENT) / 100;
+  const totalPayable = baseAmount + processingFee;
+  
+  return {
+    baseAmount,
+    processingFee: Math.round(processingFee * 100) / 100, // Round to 2 decimal places
+    totalPayable: Math.round(totalPayable * 100) / 100,
   };
 }

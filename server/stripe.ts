@@ -100,7 +100,9 @@ export function getAmountInSmallestUnit(amount: number, currency: string): numbe
 // Create a Stripe Checkout Session for wallet deposit
 export async function createStripeCheckoutSession(
   sponsorId: number,
-  amount: number,
+  totalAmount: number,      // Total amount user pays (includes processing fee)
+  baseAmount: number,       // Amount to credit to wallet
+  processingFee: number,    // Processing fee amount
   currency: string,
   successUrl: string,
   cancelUrl: string
@@ -110,7 +112,7 @@ export async function createStripeCheckoutSession(
     throw new Error('Stripe not configured');
   }
   
-  const amountInSmallestUnit = getAmountInSmallestUnit(amount, currency);
+  const amountInSmallestUnit = getAmountInSmallestUnit(totalAmount, currency);
   
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
@@ -121,7 +123,7 @@ export async function createStripeCheckoutSession(
           currency: currency.toLowerCase(),
           product_data: {
             name: 'Wallet Deposit',
-            description: `Add ${currency.toUpperCase()} ${amount} to your InstaCreator Hub wallet`,
+            description: `Add ${currency.toUpperCase()} ${baseAmount} to your InstaCreator Hub wallet (includes ${currency.toUpperCase()} ${processingFee} processing fee)`,
           },
           unit_amount: amountInSmallestUnit,
         },
@@ -130,7 +132,9 @@ export async function createStripeCheckoutSession(
     ],
     metadata: {
       sponsorId: sponsorId.toString(),
-      amount: amount.toString(),
+      totalAmount: totalAmount.toString(),
+      baseAmount: baseAmount.toString(),      // This is what gets credited to wallet
+      processingFee: processingFee.toString(),
       currency: currency.toLowerCase(),
       type: 'wallet_deposit',
     },
@@ -148,7 +152,9 @@ export async function createStripeCheckoutSession(
 export async function verifyStripeSession(sessionId: string): Promise<{
   success: boolean;
   sponsorId?: number;
-  amount?: number;
+  baseAmount?: number;       // Amount to credit to wallet
+  totalAmount?: number;      // Total paid by user
+  processingFee?: number;    // Processing fee
   currency?: string;
   paymentIntentId?: string;
 } | null> {
@@ -164,7 +170,9 @@ export async function verifyStripeSession(sessionId: string): Promise<{
       return {
         success: true,
         sponsorId: parseInt(session.metadata?.sponsorId || '0'),
-        amount: parseFloat(session.metadata?.amount || '0'),
+        baseAmount: parseFloat(session.metadata?.baseAmount || session.metadata?.amount || '0'),
+        totalAmount: parseFloat(session.metadata?.totalAmount || '0'),
+        processingFee: parseFloat(session.metadata?.processingFee || '0'),
         currency: session.metadata?.currency || 'usd',
         paymentIntentId: session.payment_intent as string,
       };

@@ -1849,7 +1849,7 @@ export async function registerRoutes(
   app.post("/api/sponsors/:sponsorId/stripe/create-checkout", async (req, res) => {
     try {
       const sponsorId = parseInt(req.params.sponsorId);
-      const { amount, countryCode } = req.body;
+      const { amount, baseAmount, processingFee, countryCode } = req.body;
 
       if (!amount || amount <= 0) {
         return res.status(400).json({ error: "Invalid amount" });
@@ -1872,7 +1872,9 @@ export async function registerRoutes(
 
       const session = await createStripeCheckoutSession(
         sponsorId,
-        amount,
+        amount,                          // Total amount with fee
+        baseAmount || amount,            // Base amount for wallet (fallback to amount if not provided)
+        processingFee || 0,              // Processing fee
         currencyInfo.currency,
         successUrl,
         cancelUrl
@@ -1919,8 +1921,9 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Sponsor not found" });
       }
 
-      // For international payments, we credit the full amount (no GST)
-      const walletCredit = result.amount || 0;
+      // For international payments, credit the base amount (excluding processing fee)
+      const walletCredit = result.baseAmount || 0;
+      const processingFee = result.processingFee || 0;
       const newBalance = parseFloat(sponsor.balance) + walletCredit;
 
       // Update balance
@@ -1933,9 +1936,9 @@ export async function registerRoutes(
         type: "credit",
         category: "deposit",
         amount: walletCredit.toFixed(2),
-        tax: "0.00",
+        tax: processingFee.toFixed(2),  // Store processing fee as tax
         net: walletCredit.toFixed(2),
-        description: `Wallet deposit via Stripe (${currencySymbol} ${walletCredit})`,
+        description: `Wallet deposit via Stripe (${currencySymbol} ${walletCredit}, Fee: ${currencySymbol} ${processingFee})`,
         status: "completed",
         paymentId: result.paymentIntentId || sessionId,
       });

@@ -12,7 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, CreditCard, Banknote, Building2, Trash2, AlertCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { calculateDepositWithGST, TAX_RATES } from "@shared/tiers";
+import { calculateDepositWithGST, calculateInternationalDeposit, TAX_RATES } from "@shared/tiers";
 import {
   Dialog,
   DialogContent,
@@ -305,8 +305,8 @@ export default function SponsorWallet() {
 
   // Handle Stripe payment for international users
   const handleStripePayment = async () => {
-    const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount <= 0) {
+    const baseAmount = parseFloat(depositAmount);
+    if (isNaN(baseAmount) || baseAmount <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
@@ -317,13 +317,18 @@ export default function SponsorWallet() {
     }
 
     setIsProcessing(true);
+    
+    // Calculate total with processing fee
+    const breakdown = calculateInternationalDeposit(baseAmount);
 
     try {
       const res = await fetch(`/api/sponsors/${sponsor.id}/stripe/create-checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          amount,
+          amount: breakdown.totalPayable,  // Total amount with fee
+          baseAmount: baseAmount,           // Amount to credit to wallet
+          processingFee: breakdown.processingFee,
           countryCode: sponsor.country 
         }),
       });
@@ -526,10 +531,16 @@ export default function SponsorWallet() {
                             </>
                           )}
                           {!isIndianUser && (
-                            <div className="flex justify-between pt-2 border-t">
-                              <span className="font-medium">Total Payable</span>
-                              <span className="font-bold text-lg">${parseFloat(depositAmount).toFixed(2)}</span>
-                            </div>
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Processing Fee ({TAX_RATES.INTERNATIONAL_FEE_PERCENT}%)</span>
+                                <span className="font-medium">${calculateInternationalDeposit(parseFloat(depositAmount)).processingFee.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="font-medium">Total Payable</span>
+                                <span className="font-bold text-lg">${calculateInternationalDeposit(parseFloat(depositAmount)).totalPayable.toFixed(2)}</span>
+                              </div>
+                            </>
                           )}
                         </div>
                       )}
@@ -558,10 +569,10 @@ export default function SponsorWallet() {
                             data-testid="button-confirm-deposit-stripe"
                           >
                             <Globe className="h-4 w-4 mr-2" />
-                            {isProcessing ? "Processing..." : depositAmount ? `Pay $${parseFloat(depositAmount).toFixed(2)} with Stripe` : "Pay with Stripe"}
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay $${calculateInternationalDeposit(parseFloat(depositAmount) || 0).totalPayable.toFixed(2)} with Stripe` : "Pay with Stripe"}
                           </Button>
                           <p className="text-xs text-center text-muted-foreground">
-                            Secure international payment powered by Stripe
+                            Secure international payment powered by Stripe (5% processing fee)
                           </p>
                         </>
                       )}
