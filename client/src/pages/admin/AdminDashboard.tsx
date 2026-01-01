@@ -1529,292 +1529,248 @@ function CampaignsTab() {
         </div>
       )}
 
-      {/* Approved Campaigns Section */}
-      <div>
-        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <h3 className="text-lg lg:text-xl font-bold text-white">All Campaigns ({campaigns.filter(c => c.isApproved).length})</h3>
-          <div className="flex gap-2 flex-wrap">
-            <Badge className="bg-green-500 text-white">
-              Active: {campaigns.filter(c => c.isApproved && c.status === "active").length}
-            </Badge>
-            <Badge className="bg-yellow-500 text-gray-900">
-              Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
-            </Badge>
-            <Badge className="bg-purple-500 text-white">
-              Completed: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
-            </Badge>
-          </div>
-        </div>
+      {/* Split Layout: Active (Left) | Completed History (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Mobile Cards */}
-        <div className="lg:hidden space-y-3">
-          {campaigns.filter(c => c.isApproved).map((campaign) => {
-            const totalBudget = parseFloat(campaign.totalBudget || "0");
-            const released = parseFloat(campaign.releasedAmount || "0");
-            const refunded = parseFloat(campaign.refundedAmount || "0");
-            const pending = totalBudget - released - refunded;
-            
-            return (
-              <Card key={campaign.id} className="bg-gray-800 border-gray-700" data-testid={`card-campaign-${campaign.id}`}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold truncate">{campaign.title}</p>
-                        <p className="text-sm text-gray-400">{campaign.brand}</p>
-                        <p className="text-xs text-gray-500">{campaign.tier}</p>
-                      </div>
-                      <div className="flex flex-col gap-1 flex-shrink-0">
-                        <Badge
-                          className={
-                            campaign.status === "active" ? "bg-green-500 text-white" :
-                            campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
-                            campaign.status === "completed" ? "bg-purple-500 text-white" :
-                            "bg-gray-500 text-white"
-                          }
-                        >
-                          {campaign.status}
-                        </Badge>
-                        <Badge
-                          className={
-                            campaign.escrowStatus === "completed" ? "bg-blue-500 text-white text-xs" :
-                            "bg-orange-500 text-white text-xs"
-                          }
-                        >
-                          {campaign.escrowStatus === "completed" ? "Settled" : "Escrow"}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-400">Spots Filled:</span>
-                        <span className="text-white ml-2">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Spots Left:</span>
-                        <span className={`ml-2 font-semibold ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-300"}`}>
-                          {campaign.spotsRemaining}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Per Creator:</span>
-                        <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Total Budget:</span>
-                        <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Released:</span>
-                        <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Pending:</span>
-                        <span className="text-yellow-300 ml-2 font-semibold">{formatINR(pending > 0 ? pending : 0)}</span>
-                      </div>
-                    </div>
-                    
-                    {campaign.isPromotional && (
-                      <div className="pt-2">
-                        <Badge className="bg-yellow-500 text-gray-900">
-                          <Star className="h-3 w-3 mr-1" />
-                          {campaign.starReward} Stars Reward
-                        </Badge>
-                      </div>
-                    )}
-                    
-                    <div className="pt-2 flex flex-col gap-2">
-                      {campaign.status === "active" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-white border-gray-500"
-                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
-                          data-testid={`button-pause-campaign-${campaign.id}`}
-                        >
-                          <Pause className="h-4 w-4 mr-1" />
-                          Pause Campaign
-                        </Button>
-                      ) : campaign.status === "paused" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-white border-gray-500"
-                          onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                          data-testid={`button-activate-campaign-${campaign.id}`}
-                        >
-                          <Play className="h-4 w-4 mr-1" />
-                          Activate Campaign
-                        </Button>
-                      ) : null}
-                      
-                      {campaign.isPromotional ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-yellow-300 border-yellow-500"
-                          onClick={() => convertToMoneyMutation.mutate(campaign.id)}
-                          data-testid={`button-convert-to-money-mobile-${campaign.id}`}
-                        >
-                          <IndianRupee className="h-4 w-4 mr-1" />
-                          Convert to Money
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-yellow-300 border-yellow-500"
-                          onClick={() => {
-                            setSelectedCampaign(campaign);
-                            setConvertStarReward(1);
-                            setConvertDialogOpen(true);
-                          }}
-                          data-testid={`button-convert-to-stars-mobile-${campaign.id}`}
-                        >
-                          <Star className="h-4 w-4 mr-1" />
-                          Convert to Stars
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Desktop Table */}
-        <div className="hidden lg:block bg-gray-700 rounded-lg overflow-hidden border border-gray-600">
-          <ScrollArea className="w-full">
-            <table className="w-full">
-              <thead className="bg-gray-600">
-                <tr>
-                  <th className="text-left p-4 text-sm font-bold text-white">Campaign</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Brand</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Spots (Filled/Total)</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Per Creator</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Total Budget</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Released</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Pending</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Status</th>
-                  <th className="text-left p-4 text-sm font-bold text-white">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800">
-                {campaigns.filter(c => c.isApproved).map((campaign) => {
+        {/* LEFT SIDE: Active & Paused Campaigns */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="text-lg font-bold text-green-400 flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Active Campaigns
+            </h3>
+            <div className="flex gap-2">
+              <Badge className="bg-green-500 text-white">
+                Active: {campaigns.filter(c => c.isApproved && c.status === "active").length}
+              </Badge>
+              <Badge className="bg-yellow-500 text-gray-900">
+                Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
+              </Badge>
+            </div>
+          </div>
+          
+          <ScrollArea className="h-[600px]">
+            <div className="space-y-3 pr-2">
+              {campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Play className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No active campaigns</p>
+                </div>
+              ) : (
+                campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).map((campaign) => {
                   const totalBudget = parseFloat(campaign.totalBudget || "0");
                   const released = parseFloat(campaign.releasedAmount || "0");
                   const refunded = parseFloat(campaign.refundedAmount || "0");
                   const pending = totalBudget - released - refunded;
                   
                   return (
-                  <tr key={campaign.id} className="border-t border-gray-600" data-testid={`row-campaign-${campaign.id}`}>
-                    <td className="p-4">
-                      <div>
-                        <p className="text-white font-semibold">{campaign.title}</p>
-                        <p className="text-sm text-gray-300">{campaign.tier}</p>
-                      </div>
-                    </td>
-                    <td className="p-4 text-white">{campaign.brand}</td>
-                    <td className="p-4">
-                      <div className="flex flex-col">
-                        <span className="text-white font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
-                        <span className={`text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
-                          {campaign.spotsRemaining === 0 ? "All filled" : `${campaign.spotsRemaining} left`}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-green-300 font-semibold">{formatINR(campaign.payAmount)}</td>
-                    <td className="p-4 text-blue-300 font-semibold">{formatINR(totalBudget)}</td>
-                    <td className="p-4 text-green-300 font-semibold">{formatINR(released)}</td>
-                    <td className="p-4 text-yellow-300 font-semibold">{formatINR(pending > 0 ? pending : 0)}</td>
-                    <td className="p-4">
-                      <div className="flex flex-col gap-1">
-                        <Badge
-                          className={
-                            campaign.status === "active" ? "bg-green-500 text-white" :
-                            campaign.status === "paused" ? "bg-yellow-500 text-gray-900" :
-                            campaign.status === "completed" ? "bg-purple-500 text-white" :
-                            "bg-gray-500 text-white"
-                          }
-                        >
-                          {campaign.status}
-                        </Badge>
-                        <Badge
-                          className={
-                            campaign.escrowStatus === "completed" ? "bg-blue-500 text-white text-xs" :
-                            "bg-orange-500 text-white text-xs"
-                          }
-                        >
-                          {campaign.escrowStatus === "completed" ? "Settled" : "Escrow"}
-                        </Badge>
-                        {campaign.isPromotional && (
-                          <Badge className="bg-yellow-500 text-gray-900 text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            {campaign.starReward} Stars
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-col gap-1">
-                        {campaign.status === "active" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-white border-gray-500"
-                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
-                            data-testid={`button-pause-campaign-${campaign.id}`}
-                          >
-                            <Pause className="h-4 w-4 mr-1" />
-                            Pause
-                          </Button>
-                        ) : campaign.status === "paused" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-white border-gray-500"
-                            onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                            data-testid={`button-activate-campaign-${campaign.id}`}
-                          >
-                            <Play className="h-4 w-4 mr-1" />
-                            Activate
-                          </Button>
-                        ) : null}
-                        {campaign.isPromotional ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-yellow-300 border-yellow-500"
-                            onClick={() => convertToMoneyMutation.mutate(campaign.id)}
-                            data-testid={`button-convert-to-money-${campaign.id}`}
-                          >
-                            <IndianRupee className="h-4 w-4 mr-1" />
-                            To Money
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-yellow-300 border-yellow-500"
-                            onClick={() => {
-                              setSelectedCampaign(campaign);
-                              setConvertStarReward(1);
-                              setConvertDialogOpen(true);
-                            }}
-                            data-testid={`button-convert-to-stars-${campaign.id}`}
-                          >
-                            <Star className="h-4 w-4 mr-1" />
-                            To Stars
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )})}
-              </tbody>
-            </table>
+                    <Card key={campaign.id} className={`border-2 ${campaign.status === "active" ? "bg-green-500/10 border-green-500/50" : "bg-yellow-500/10 border-yellow-500/50"}`} data-testid={`card-active-campaign-${campaign.id}`}>
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-semibold truncate">{campaign.title}</p>
+                              <p className="text-sm text-gray-400">{campaign.brand}</p>
+                              <p className="text-xs text-gray-500">{campaign.tier}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 flex-shrink-0">
+                              <Badge className={campaign.status === "active" ? "bg-green-500 text-white" : "bg-yellow-500 text-gray-900"}>
+                                {campaign.status}
+                              </Badge>
+                              {campaign.isPromotional && (
+                                <Badge className="bg-yellow-500 text-gray-900 text-xs">
+                                  <Star className="h-3 w-3 mr-1" />
+                                  {campaign.starReward} Stars
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Spots:</span>
+                              <span className="text-white ml-2 font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
+                              <span className={`ml-1 text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
+                                ({campaign.spotsRemaining} left)
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Per Creator:</span>
+                              <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Budget:</span>
+                              <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Released:</span>
+                              <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 flex-wrap pt-2">
+                            {campaign.status === "active" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-white border-gray-500"
+                                onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
+                                data-testid={`button-pause-campaign-${campaign.id}`}
+                              >
+                                <Pause className="h-4 w-4 mr-1" />
+                                Pause
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-white border-gray-500"
+                                onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
+                                data-testid={`button-activate-campaign-${campaign.id}`}
+                              >
+                                <Play className="h-4 w-4 mr-1" />
+                                Activate
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-purple-300 border-purple-500"
+                              onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "completed" })}
+                              data-testid={`button-complete-campaign-${campaign.id}`}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Complete
+                            </Button>
+                            {campaign.isPromotional ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-yellow-300 border-yellow-500"
+                                onClick={() => convertToMoneyMutation.mutate(campaign.id)}
+                                data-testid={`button-convert-to-money-${campaign.id}`}
+                              >
+                                <IndianRupee className="h-4 w-4 mr-1" />
+                                To Money
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-yellow-300 border-yellow-500"
+                                onClick={() => {
+                                  setSelectedCampaign(campaign);
+                                  setConvertStarReward(1);
+                                  setConvertDialogOpen(true);
+                                }}
+                                data-testid={`button-convert-to-stars-${campaign.id}`}
+                              >
+                                <Star className="h-4 w-4 mr-1" />
+                                To Stars
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* RIGHT SIDE: Completed History */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="text-lg font-bold text-purple-400 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              Completed History
+            </h3>
+            <Badge className="bg-purple-500 text-white">
+              Total: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
+            </Badge>
+          </div>
+          
+          <ScrollArea className="h-[600px]">
+            <div className="space-y-3 pr-2">
+              {campaigns.filter(c => c.isApproved && c.status === "completed").length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No completed campaigns yet</p>
+                  <p className="text-sm mt-2">Campaigns will appear here when marked as complete</p>
+                </div>
+              ) : (
+                campaigns.filter(c => c.isApproved && c.status === "completed").map((campaign) => {
+                  const totalBudget = parseFloat(campaign.totalBudget || "0");
+                  const released = parseFloat(campaign.releasedAmount || "0");
+                  const refunded = parseFloat(campaign.refundedAmount || "0");
+                  
+                  return (
+                    <Card key={campaign.id} className="bg-purple-500/10 border-2 border-purple-500/50" data-testid={`card-completed-campaign-${campaign.id}`}>
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-semibold truncate">{campaign.title}</p>
+                              <p className="text-sm text-gray-400">{campaign.brand}</p>
+                              <p className="text-xs text-gray-500">{campaign.tier}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 flex-shrink-0">
+                              <Badge className="bg-purple-500 text-white">Completed</Badge>
+                              {campaign.isPromotional && (
+                                <Badge className="bg-yellow-500 text-gray-900 text-xs">
+                                  <Star className="h-3 w-3 mr-1" />
+                                  {campaign.starReward} Stars
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Spots Used:</span>
+                              <span className="text-white ml-2 font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Per Creator:</span>
+                              <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Total Budget:</span>
+                              <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Released:</span>
+                              <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
+                            </div>
+                            {refunded > 0 && (
+                              <div>
+                                <span className="text-gray-400">Refunded:</span>
+                                <span className="text-red-300 ml-2 font-semibold">{formatINR(refunded)}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-300 border-green-500"
+                              onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
+                              data-testid={`button-reactivate-campaign-${campaign.id}`}
+                            >
+                              <Play className="h-4 w-4 mr-1" />
+                              Reactivate
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </ScrollArea>
         </div>
       </div>
