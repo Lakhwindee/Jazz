@@ -34,9 +34,9 @@ export default function SponsorCampaigns() {
 
   const getStatusBadge = (campaign: ApiCampaign) => {
     if (campaign.spotsRemaining === 0) {
-      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" /> Filled</Badge>;
+      return <Badge className="bg-gray-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
     }
-    return <Badge className="bg-blue-500"><Clock className="w-3 h-3 mr-1" /> Active</Badge>;
+    return <Badge className="bg-green-500"><Clock className="w-3 h-3 mr-1" /> Active</Badge>;
   };
 
   return (
@@ -80,8 +80,19 @@ export default function SponsorCampaigns() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.05 }}
                 >
-                  <Card className="flex h-full flex-col overflow-hidden" data-testid={`campaign-card-${campaign.id}`}>
-                    <div className="h-24 w-full bg-gradient-to-br from-indigo-100 to-purple-100 p-4 flex items-center justify-center relative">
+                  <Card 
+                    className={`flex h-full flex-col overflow-hidden transition-all ${
+                      campaign.spotsRemaining > 0 
+                        ? "ring-2 ring-green-500 shadow-green-100 dark:shadow-green-900/20" 
+                        : "opacity-75"
+                    }`} 
+                    data-testid={`campaign-card-${campaign.id}`}
+                  >
+                    <div className={`h-24 w-full p-4 flex items-center justify-center relative ${
+                      campaign.spotsRemaining > 0 
+                        ? "bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/20" 
+                        : "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700"
+                    }`}>
                       {campaign.brandLogo && (
                         <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-12 max-w-[120px] object-contain" />
                       )}
