@@ -18,6 +18,7 @@ International influencer marketing platform connecting Instagram creators with b
 - Instagram OAuth infrastructure (ready for Meta credentials)
 - Promo code system with trial support and configurable after-trial behavior
 - Cashfree payment integration
+- **PayU Payment Gateway**: Alternative payment option for Indian sponsors (in addition to Razorpay)
 - Professional checkout flow with GST-compliant billing details collection
 - Multi-tier campaign selection with cumulative pricing
 - Tax system: 10% platform fee on campaigns, 18% GST on wallet deposits, 18% GST on creator withdrawals
