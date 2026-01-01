@@ -1,0 +1,73 @@
+Step 1️⃣: Creator Dekha Available Campaigns
+Creator → "Earn" page open karta hai → 
+Available campaigns dikhti hein (based on his tier)
+
+Step 2️⃣: Campaign Reserve Karta Hai
+Creator → Campaign select karta hai → "Reserve" button click →
+System check karta hai:
+- Quota available hai? (e.g., 5 creators chahiye, 3 already reserved)
+- Creator eligible hai? (tier match)
+✓ Pass → Reservation created
+→ Creator ko 24-48 hours milte hein submit karne ke liye
+→ Campaign ka "Reserved" count +1 ho jaata hai
+
+Step 3️⃣: Content Create Karta Hai
+Creator apna video banata hai jisme:
+- Brand ka mention hai
+- Required hashtags use kiye
+- Ad content visible hai
+
+Step 4️⃣: Submission Upload Karta Hai
+Creator → "Submit" button click →
+Upload karta hai:
+- YouTube video link
+- Video clip (jo part ad dikhata hai)
+- Clip ka start time & end time
+→ Submission status = "Pending Review"
+
+Step 5️⃣: Admin Review Karta Hai
+Admin panel mein:
+- Admin submission dekhta hai
+- Video check karta hai ki ad sahi se visible hai
+- Decision: APPROVE ✓ ya REJECT ✗
+
+Step 6️⃣: Payment Calculate Hota Hai (If Approved)
+Example: Campaign payout = $100, Creator country = India (10% tax)
+Gross Amount:     $100.00
+Tax Withheld:     - $10.00  (10%)
+─────────────────────────
+Net Amount:       $90.00   → Creator ke wallet mein add
+→ Wallet balance update
+→ Tax record create (for audit)
+→ Transaction log create
+
+Step 7️⃣: Creator Withdraw Karta Hai
+Creator → Wallet page → "Withdraw" click →
+Amount enter karta hai →
+Stripe payout initiate hota hai →
+Money bank account mein jaata hai
+
+📊 Visual Flow Diagram
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Browse Ads │ ──▶ │   Reserve   │ ──▶ │Create Video │
+└─────────────┘     └─────────────┘     └─────────────┘
+                                               │
+                                               ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Withdraw   │ ◀── │   Wallet    │ ◀── │   Submit    │
+│   Money     │     │   Credit    │     │   Content   │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           ▲
+                           │
+                    ┌─────────────┐
+                    │Admin Approve│
+                    └─────────────┘
+
+🗃️ Database Records Created
+Step	Database Table	What's Stored
+Reserve	adReservations	adId, userId, expiresAt, status
+Submit	adSubmissions	videoLink, clipUrl, timestamps, status
+Approve	wallets	balance +amount
+Approve	walletTransactions	earning record
+Approve	taxRecords	tax details
+Withdraw	payouts	withdrawal record

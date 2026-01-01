@@ -1,0 +1,626 @@
+import { Sidebar } from "@/components/Sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw, MapPin, Phone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { MIN_FOLLOWERS } from "@shared/tiers";
+import { useLocation } from "wouter";
+
+export default function Profile() {
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
+  
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: api.getCurrentUser,
+  });
+
+  const [instagramUsername, setInstagramUsername] = useState("");
+  const [instagramProfileUrl, setInstagramProfileUrl] = useState("");
+  const [instagramFollowers, setInstagramFollowers] = useState("");
+  
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingCity, setShippingCity] = useState("");
+  const [shippingState, setShippingState] = useState("");
+  const [shippingPincode, setShippingPincode] = useState("");
+  const [shippingPhone, setShippingPhone] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setInstagramUsername(user.instagramUsername || "");
+      setInstagramProfileUrl(user.instagramProfileUrl || "");
+      setInstagramFollowers(user.instagramFollowers ? user.instagramFollowers.toString() : "");
+      setShippingAddress(user.shippingAddress || "");
+      setShippingCity(user.shippingCity || "");
+      setShippingState(user.shippingState || "");
+      setShippingPincode(user.shippingPincode || "");
+      setShippingPhone(user.shippingPhone || "");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('instagram_connected') === 'true') {
+      toast.success("Instagram connected successfully! Your account is verified.");
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      window.history.replaceState({}, '', '/profile');
+    }
+    const error = params.get('error');
+    if (error) {
+      if (error === 'min_followers') {
+        const required = params.get('required');
+        const actual = params.get('actual');
+        toast.error(`Minimum ${required} followers required. You have ${actual} followers.`);
+      } else {
+        toast.error(`Instagram connection failed: ${error.replace(/_/g, ' ')}`);
+      }
+      window.history.replaceState({}, '', '/profile');
+    }
+  }, [queryClient]);
+
+  const handleConnectInstagramOAuth = async () => {
+    if (!user) return;
+    setIsConnectingInstagram(true);
+    try {
+      const { authUrl } = await api.getInstagramAuthUrl(user.id);
+      window.location.href = authUrl;
+    } catch (error: any) {
+      if (error.message?.includes("not configured")) {
+        toast.error("Instagram OAuth is not configured yet. Please use manual entry below or contact admin.");
+      } else {
+        toast.error(error.message || "Failed to connect Instagram");
+      }
+      setIsConnectingInstagram(false);
+    }
+  };
+
+  const refreshInstagramMutation = useMutation({
+    mutationFn: () => api.refreshInstagramData(user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Instagram data refreshed!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to refresh Instagram data");
+    },
+  });
+
+
+  const updateInstagramMutation = useMutation({
+    mutationFn: ({ username, profileUrl, followers }: { username: string; profileUrl?: string; followers?: number }) => 
+      api.updateUserInstagram(user!.id, username, profileUrl, followers),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Instagram account linked successfully! Pending verification.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to link Instagram");
+    },
+  });
+
+  const handleLinkInstagram = () => {
+    if (!instagramUsername.trim()) {
+      toast.error("Please enter your Instagram username");
+      return;
+    }
+    const followers = parseInt(instagramFollowers);
+    if (isNaN(followers) || followers < MIN_FOLLOWERS) {
+      toast.error(`Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required to link your Instagram`);
+      return;
+    }
+    const username = instagramUsername.replace("@", "").trim();
+    const profileUrl = instagramProfileUrl || `https://instagram.com/${username}`;
+    updateInstagramMutation.mutate({ username, profileUrl, followers });
+  };
+
+  const handleDisconnect = () => {
+    updateInstagramMutation.mutate({ username: "", profileUrl: "", followers: undefined });
+    setInstagramUsername("");
+    setInstagramProfileUrl("");
+    setInstagramFollowers("");
+    toast.success("Instagram disconnected");
+  };
+
+  const generateCodeMutation = useMutation({
+    mutationFn: () => api.generateInstagramVerificationCode(user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Verification code generated! Copy it to your Instagram bio.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to generate code");
+    },
+  });
+
+  const submitVerificationMutation = useMutation({
+    mutationFn: () => api.submitInstagramForVerification(user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Submitted for verification! We'll review and verify your account soon.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to submit for verification");
+    },
+  });
+
+  const updateShippingMutation = useMutation({
+    mutationFn: (data: { shippingAddress: string; shippingCity: string; shippingState: string; shippingPincode: string; shippingPhone: string }) => 
+      api.updateUserShippingAddress(user!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Shipping address updated successfully!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update shipping address");
+    },
+  });
+
+  const handleUpdateShipping = () => {
+    if (!shippingAddress.trim() || !shippingCity.trim() || !shippingState.trim() || !shippingPincode.trim() || !shippingPhone.trim()) {
+      toast.error("Please fill in all shipping address fields");
+      return;
+    }
+    updateShippingMutation.mutate({
+      shippingAddress,
+      shippingCity,
+      shippingState,
+      shippingPincode,
+      shippingPhone,
+    });
+  };
+
+  const handleCopyCode = () => {
+    if (user?.instagramVerificationCode) {
+      navigator.clipboard.writeText(user.instagramVerificationCode);
+      toast.success("Code copied! Paste it in your Instagram bio.");
+    }
+  };
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <main className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+      </div>
+    );
+  }
+
+  const isInstagramLinked = !!user.instagramUsername;
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+        <div className="mx-auto max-w-4xl p-4 sm:p-6">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage your creator profile and Instagram connection.</p>
+          </div>
+
+          <div className="grid gap-6">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-8">
+                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-white shadow-lg ring-2 ring-indigo-100">
+                    <AvatarImage src={user.avatar || undefined} />
+                    <AvatarFallback className="text-xl sm:text-2xl">{user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-center sm:text-left">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                      <h2 className="text-xl sm:text-2xl font-bold">{user.name}</h2>
+                      {user.isVerified && (
+                        <Badge className="bg-blue-500 hover:bg-blue-600 gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Verified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground">{user.handle}</p>
+                    {isInstagramLinked && (
+                      <p className="text-sm text-muted-foreground mt-1">{user.tier} • {user.followers.toLocaleString()} followers</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Instagram className="h-5 w-5" />
+                  Instagram Account
+                </CardTitle>
+                <CardDescription>Link your Instagram account to participate in campaigns.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isInstagramLinked ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border-2 border-green-200 bg-green-50 dark:bg-green-900/20 p-4 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px] shrink-0">
+                          <div className="rounded-full bg-white dark:bg-gray-900 p-2">
+                            <Instagram className="h-5 w-5 sm:h-6 sm:w-6" />
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">@{user.instagramUsername}</p>
+                          <p className="text-xs sm:text-sm text-green-600">
+                            {user.instagramAccessToken ? "API Connected" : "Connected (Manual)"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 justify-end">
+                        {user.instagramAccessToken && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => refreshInstagramMutation.mutate()}
+                            disabled={refreshInstagramMutation.isPending}
+                            data-testid="button-refresh-instagram"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${refreshInstagramMutation.isPending ? 'animate-spin' : ''}`} />
+                          </Button>
+                        )}
+                        {user.instagramProfileUrl && (
+                          <Button variant="ghost" size="icon" asChild>
+                            <a 
+                              href={user.instagramProfileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              data-testid="link-instagram-profile"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={handleDisconnect}
+                          data-testid="button-disconnect-instagram"
+                        >
+                          Disconnect
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-muted/30 p-4">
+                      <h4 className="font-medium mb-3">Account Status</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                          <span className="text-sm">
+                            Instagram Account Connected
+                          </span>
+                          {user.instagramAccessToken && (
+                            <Badge variant="secondary" className="text-xs">Verified via OAuth</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                          <span className="text-sm">Follower Count: {user.followers.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {user.isInstagramVerified ? (
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                              <CheckCircle2 className="h-4 w-4" />
+                            </div>
+                          ) : (
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
+                              <Clock className="h-4 w-4" />
+                            </div>
+                          )}
+                          <span className="text-sm">
+                            {user.isInstagramVerified ? "Account Verified" : "Verification Pending"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                          <span className="text-sm">Engagement Rate: {user.engagement}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!user.isInstagramVerified && (
+                      <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-4 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-medium text-yellow-800 dark:text-yellow-200">Verify Your Instagram</h4>
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                              To verify account ownership, copy the code below and paste it in your Instagram bio. Then click "Verify".
+                            </p>
+                          </div>
+                        </div>
+
+                        {!user.instagramVerificationCode ? (
+                          <Button
+                            onClick={() => generateCodeMutation.mutate()}
+                            disabled={generateCodeMutation.isPending}
+                            variant="outline"
+                            className="w-full"
+                            data-testid="button-generate-code"
+                          >
+                            {generateCodeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Generate Verification Code
+                          </Button>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-white dark:bg-gray-800 border rounded-lg p-3 font-mono text-sm break-all">
+                                {user.instagramVerificationCode}
+                              </div>
+                              <Button
+                                onClick={handleCopyCode}
+                                variant="outline"
+                                size="icon"
+                                data-testid="button-copy-code"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                              Step 1: Copy the code above<br />
+                              Step 2: Open Instagram and paste it in your bio<br />
+                              Step 3: Click "Submit for Verification" button below
+                            </div>
+                            {user.instagramVerificationStatus === "pending" ? (
+                              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
+                                <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-300">We're verifying your Instagram bio. This usually takes a few hours.</p>
+                              </div>
+                            ) : (
+                              <Button
+                                onClick={() => submitVerificationMutation.mutate()}
+                                disabled={submitVerificationMutation.isPending}
+                                className="w-full"
+                                data-testid="button-submit-verification"
+                              >
+                                {submitVerificationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Submit for Verification
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 p-4 sm:p-6 text-center">
+                      <div className="flex flex-col items-center gap-3 sm:gap-4">
+                        <div className="rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px]">
+                          <div className="rounded-full bg-white dark:bg-gray-900 p-3 sm:p-4">
+                            <Instagram className="h-6 w-6 sm:h-8 sm:w-8" />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base sm:text-lg">Connect Instagram</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Add your Instagram details to start earning from campaigns</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3 sm:p-4 mb-4">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 mt-0.5 shrink-0" />
+                        <div>
+                          <h4 className="font-medium text-sm sm:text-base text-amber-800 dark:text-amber-200">Minimum Requirement</h4>
+                          <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 mt-1">
+                            You need at least {MIN_FOLLOWERS.toLocaleString()} followers on Instagram to join our creator platform.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-username">Instagram Username *</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                          <Input
+                            id="instagram-username"
+                            placeholder="your_username"
+                            value={instagramUsername.replace("@", "")}
+                            onChange={(e) => setInstagramUsername(e.target.value.replace("@", ""))}
+                            className="pl-8"
+                            data-testid="input-instagram-username"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Example: cristiano, or yourname (your public Instagram username)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-followers">Your Follower Count *</Label>
+                        <div className="relative">
+                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="instagram-followers"
+                            type="number"
+                            placeholder="e.g. 10000"
+                            value={instagramFollowers}
+                            onChange={(e) => setInstagramFollowers(e.target.value)}
+                            className="pl-10"
+                            min={MIN_FOLLOWERS}
+                            data-testid="input-instagram-followers"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-url">Profile URL (Optional)</Label>
+                        <div className="relative">
+                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="instagram-url"
+                            placeholder="https://instagram.com/your_username"
+                            value={instagramProfileUrl}
+                            onChange={(e) => setInstagramProfileUrl(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-instagram-url"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Leave blank to auto-generate from username</p>
+                      </div>
+
+                      <Button 
+                        onClick={handleLinkInstagram}
+                        disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
+                        className="w-full"
+                        variant="outline"
+                        data-testid="button-link-instagram"
+                      >
+                        {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Instagram className="mr-2 h-4 w-4" />
+                        Connect Instagram
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {isInstagramLinked && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <p className="text-sm text-muted-foreground">{user.name}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tier</Label>
+                      <p className="text-sm text-muted-foreground">{user.tier}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Wallet Balance</Label>
+                      <p className="text-sm font-medium text-green-600">₹{parseFloat(user.balance).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Shipping Address
+                </CardTitle>
+                <CardDescription>
+                  Add your shipping address to receive products from product giveaway campaigns.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="shipping-address">Street Address *</Label>
+                  <Input
+                    id="shipping-address"
+                    placeholder="House/Flat No., Street, Landmark"
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    data-testid="input-shipping-address"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping-city">City *</Label>
+                    <Input
+                      id="shipping-city"
+                      placeholder="Mumbai"
+                      value={shippingCity}
+                      onChange={(e) => setShippingCity(e.target.value)}
+                      data-testid="input-shipping-city"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping-state">State *</Label>
+                    <Input
+                      id="shipping-state"
+                      placeholder="Maharashtra"
+                      value={shippingState}
+                      onChange={(e) => setShippingState(e.target.value)}
+                      data-testid="input-shipping-state"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping-pincode">PIN Code *</Label>
+                    <Input
+                      id="shipping-pincode"
+                      placeholder="400001"
+                      value={shippingPincode}
+                      onChange={(e) => setShippingPincode(e.target.value)}
+                      maxLength={6}
+                      data-testid="input-shipping-pincode"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping-phone">Phone Number *</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="shipping-phone"
+                        placeholder="9876543210"
+                        value={shippingPhone}
+                        onChange={(e) => setShippingPhone(e.target.value)}
+                        className="pl-10"
+                        maxLength={10}
+                        data-testid="input-shipping-phone"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleUpdateShipping}
+                  disabled={updateShippingMutation.isPending}
+                  className="w-full"
+                  data-testid="button-save-shipping"
+                >
+                  {updateShippingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Shipping Address
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

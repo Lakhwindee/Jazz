@@ -1,0 +1,43 @@
+ objects: 100% (1187/1187), done.
+Writing objects: 100% (1201/1201), 106.07 MiB | 5.64 MiB/s, done.
+Total 1201 (delta 936), reused 110 (delta 12), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (936/936), done.
+remote: fatal: did not receive expected object 4d6388ea586b305f5eb1d051abec07175c9f1c3e
+error: remote unpack failed: index-pack failed
+To https://github.com/infoiambillboard-hash/instaearnnnn.git
+ ! [remote rejected] main -> main (failed)
+error: failed to push some refs to 'https://github.com/infoiambillboard-hash/instaearnnnn.git'
+~/workspace$ git gc --prune=now
+git push https://infoiambillboard-hash:$GITHUB_TOKEN@github.com/infoiambillboard-hash/instaearnnnn.git main --force
+Enumerating objects: 1373, done.
+Counting objects: 100% (1373/1373), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (1359/1359), done.
+Writing objects: 100% (1373/1373), done.
+Total 1373 (delta 1052), reused 110 (delta 12), pack-reused 0 (from 0)
+Enumerating objects: 1201, done.
+Counting objects: 100% (1201/1201), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (348/348), done.
+Writing objects: 100% (1201/1201), 106.07 MiB | 5.71 MiB/s, done.
+Total 1201 (delta 927), reused 1112 (delta 851), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (927/927), done.
+remote: fatal: did not receive expected object 4d6388ea586b305f5eb1d051abec07175c9f1c3e
+error: remote unpack failed: index-pack failed
+To https://github.com/infoiambillboard-hash/instaearnnnn.git
+ ! [remote rejected] main -> main (failed)
+error: failed to push some refs to 'https://github.com/infoiambillboard-hash/instaearnnnn.git'
+~/workspace$ git push https://infoiambillboard-hash:$GITHUB_TOKEN@github.com/infoiambillboard-hash/instaearnnnn.git main --force --no-thin
+Enumerating objects: 1201, done.
+Counting objects: 100% (1201/1201), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (348/348), done.
+Writing objects: 100% (1201/1201), 106.07 MiB | 5.69 MiB/s, done.
+Total 1201 (delta 925), reused 1112 (delta 851), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (925/925), done.
+remote: fatal: did not receive expected object 4d6388ea586b305f5eb1d051abec07175c9f1c3e
+error: remote unpack failed: index-pack failed
+To https://github.com/infoiambillboard-hash/instaearnnnn.git
+ ! [remote rejected] main -> main (failed)
+error: failed to push some refs to 'https://github.com/infoiambillboard-hash/instaearnnnn.git'
+~/workspace$ 
