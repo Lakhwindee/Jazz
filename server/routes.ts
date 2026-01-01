@@ -106,6 +106,7 @@ export async function registerRoutes(
       const user = await storage.createUser({
         name: data.name,
         email: data.email,
+        phone: data.phone || undefined,
         handle: handle,
         password: hashedPassword,
         role: role,

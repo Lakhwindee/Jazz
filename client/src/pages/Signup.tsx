@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ export default function Signup() {
   const [role, setRole] = useState<UserRole>("creator");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +109,7 @@ export default function Signup() {
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role, country: "IN" }),
+        body: JSON.stringify({ name, email, phone, password, role, country: "IN" }),
         credentials: "include",
       });
 
@@ -256,6 +257,18 @@ export default function Signup() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
                     data-testid="input-email"
+                  />
+                </div>
+
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
+                    data-testid="input-phone"
                   />
                 </div>
 

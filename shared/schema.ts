@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   handle: text("handle").notNull().unique(),
   email: text("email").notNull().unique(),
+  phone: text("phone"),
   password: text("password").notNull(), // Hashed password
   role: text("role").notNull().default("creator"), // creator, sponsor, or admin
   followers: integer("followers").notNull().default(0),
@@ -91,6 +92,7 @@ export type User = typeof users.$inferSelect;
 export const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   handle: z.string().min(3, "Handle must be at least 3 characters").regex(/^@?[a-zA-Z0-9._]+$/, "Handle can only contain letters, numbers, dots and underscores").optional(),
   role: z.enum(["creator", "sponsor"]).default("creator"),
