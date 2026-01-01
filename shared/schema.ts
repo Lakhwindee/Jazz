@@ -452,3 +452,59 @@ export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).
 });
 export type InsertOtpVerification = z.infer<typeof insertOtpVerificationSchema>;
 export type OtpVerification = typeof otpVerifications.$inferSelect;
+
+// Newsletters - sent by admin to users
+export const newsletters = pgTable("newsletters", {
+  id: serial("id").primaryKey(),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(), // HTML content
+  targetAudience: text("target_audience").notNull().default("all"), // all, creators, sponsors
+  recipientCount: integer("recipient_count").notNull().default(0),
+  sentBy: integer("sent_by").references(() => users.id),
+  status: text("status").notNull().default("sent"), // draft, sent
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNewsletterSchema = createInsertSchema(newsletters).omit({ 
+  id: true, 
+  createdAt: true,
+});
+export type InsertNewsletter = z.infer<typeof insertNewsletterSchema>;
+export type Newsletter = typeof newsletters.$inferSelect;
+
+// Support Tickets - help/chat system
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  subject: text("subject").notNull(),
+  category: text("category").notNull().default("general"), // general, payment, campaign, technical, other
+  priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
+  status: text("status").notNull().default("open"), // open, in_progress, resolved, closed
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+
+// Support Ticket Messages - conversation in ticket
+export const ticketMessages = pgTable("ticket_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => supportTickets.id),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  isAdminReply: boolean("is_admin_reply").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTicketMessageSchema = createInsertSchema(ticketMessages).omit({ 
+  id: true, 
+  createdAt: true,
+});
+export type InsertTicketMessage = z.infer<typeof insertTicketMessageSchema>;
+export type TicketMessage = typeof ticketMessages.$inferSelect;
