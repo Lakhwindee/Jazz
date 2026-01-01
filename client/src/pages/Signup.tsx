@@ -1,13 +1,57 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2, Phone } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2, Phone, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const COUNTRIES = [
+  { code: "IN", name: "India" },
+  { code: "US", name: "United States" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "AE", name: "UAE" },
+  { code: "SG", name: "Singapore" },
+  { code: "JP", name: "Japan" },
+  { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" },
+  { code: "ID", name: "Indonesia" },
+  { code: "PH", name: "Philippines" },
+  { code: "TH", name: "Thailand" },
+  { code: "MY", name: "Malaysia" },
+  { code: "ZA", name: "South Africa" },
+  { code: "NG", name: "Nigeria" },
+  { code: "KE", name: "Kenya" },
+  { code: "PK", name: "Pakistan" },
+  { code: "BD", name: "Bangladesh" },
+  { code: "VN", name: "Vietnam" },
+  { code: "EG", name: "Egypt" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "IT", name: "Italy" },
+  { code: "ES", name: "Spain" },
+  { code: "NL", name: "Netherlands" },
+  { code: "SE", name: "Sweden" },
+  { code: "CH", name: "Switzerland" },
+  { code: "PL", name: "Poland" },
+  { code: "RU", name: "Russia" },
+  { code: "KR", name: "South Korea" },
+  { code: "TW", name: "Taiwan" },
+  { code: "HK", name: "Hong Kong" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "AR", name: "Argentina" },
+  { code: "CL", name: "Chile" },
+  { code: "CO", name: "Colombia" },
+  { code: "PE", name: "Peru" },
+  { code: "TR", name: "Turkey" },
+];
 
 type UserRole = "creator" | "sponsor";
 
@@ -19,6 +63,7 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("IN");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -109,7 +154,7 @@ export default function Signup() {
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, role, country: "IN" }),
+        body: JSON.stringify({ name, email, phone, password, role, country }),
         credentials: "include",
       });
 
@@ -270,6 +315,25 @@ export default function Signup() {
                     className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
                     data-testid="input-phone"
                   />
+                </div>
+
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                  <Select value={country} onValueChange={setCountry}>
+                    <SelectTrigger 
+                      className="pl-10 bg-white/10 border-purple-500/30 text-white"
+                      data-testid="select-country"
+                    >
+                      <SelectValue placeholder="Select Country" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 bg-gray-900 border-purple-500/30">
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code} className="text-white hover:bg-purple-500/20">
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="relative">
