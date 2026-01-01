@@ -91,35 +91,55 @@ export default function CreateCampaign() {
 
   const [tierSelections, setTierSelections] = useState<TierSelection[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
-    try {
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-      
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formDataUpload,
-      });
-      
-      if (!response.ok) throw new Error("Upload failed");
-      
-      const data = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        assetUrl: data.url,
-        assetFileName: data.fileName,
-      }));
-      toast.success("File uploaded successfully!");
-    } catch (error) {
-      toast.error("Failed to upload file");
-    } finally {
+    setUploadProgress(0);
+    
+    const formDataUpload = new FormData();
+    formDataUpload.append("file", file);
+    
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        setUploadProgress(percent);
+      }
+    });
+    
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          setFormData(prev => ({
+            ...prev,
+            assetUrl: data.url,
+            assetFileName: data.fileName,
+          }));
+          toast.success("File uploaded successfully!");
+        } catch {
+          toast.error("Failed to parse upload response");
+        }
+      } else {
+        toast.error("Upload failed");
+      }
       setIsUploading(false);
-    }
+      setUploadProgress(0);
+    });
+    
+    xhr.addEventListener("error", () => {
+      toast.error("Failed to upload file");
+      setIsUploading(false);
+      setUploadProgress(0);
+    });
+    
+    xhr.open("POST", "/api/upload");
+    xhr.send(formDataUpload);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -574,9 +594,20 @@ export default function CreateCampaign() {
                         data-testid="input-file"
                       />
                       {isUploading ? (
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="flex flex-col items-center gap-3 w-full px-6">
                           <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                          <div className="w-full max-w-xs">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-muted-foreground">Uploading...</span>
+                              <span className="font-medium text-primary">{uploadProgress}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-3">

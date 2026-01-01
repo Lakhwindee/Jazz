@@ -114,10 +114,7 @@ export default function SponsorWallet() {
 
   const addBankMutation = useMutation({
     mutationFn: async (data: typeof bankForm) => {
-      return await apiRequest("/api/bank-accounts", {
-        method: "POST",
-        body: JSON.stringify({ ...data, isDefault: bankAccounts.length === 0 }),
-      });
+      return await apiRequest("POST", "/api/bank-accounts", { ...data, isDefault: bankAccounts.length === 0 });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
@@ -132,7 +129,7 @@ export default function SponsorWallet() {
 
   const deleteBankMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/bank-accounts/${id}`, { method: "DELETE" });
+      return await apiRequest("DELETE", `/api/bank-accounts/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bank-accounts"] });
@@ -145,10 +142,7 @@ export default function SponsorWallet() {
 
   const withdrawMutation = useMutation({
     mutationFn: async (data: { amount: number; bankAccountId: number }) => {
-      return await apiRequest("/api/withdrawal-requests", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("POST", "/api/withdrawal-requests", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests"] });
