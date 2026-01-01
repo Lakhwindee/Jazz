@@ -313,7 +313,13 @@ export default function Profile() {
                           </div>
                         </div>
 
-                        {!user.instagramVerificationCode ? (
+                        {user.instagramVerificationStatus === "pending" ? (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
+                            <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
+                            <p className="text-xs text-blue-600 dark:text-blue-300">We're verifying your Instagram bio. This usually takes a few hours.</p>
+                          </div>
+                        ) : !user.instagramVerificationCode ? (
                           <Button
                             onClick={() => generateCodeMutation.mutate()}
                             disabled={generateCodeMutation.isPending}
@@ -344,24 +350,16 @@ export default function Profile() {
                               Step 2: Open Instagram and paste it in your bio<br />
                               Step 3: Click "Submit for Verification" button below
                             </div>
-                            {user.instagramVerificationStatus === "pending" ? (
-                              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
-                                <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
-                                <p className="text-xs text-blue-600 dark:text-blue-300">We're verifying your Instagram bio. This usually takes a few hours.</p>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => submitVerificationMutation.mutate()}
-                                disabled={submitVerificationMutation.isPending}
-                                className="w-full"
-                                data-testid="button-submit-verification"
-                              >
-                                {submitVerificationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                <ShieldCheck className="mr-2 h-4 w-4" />
-                                Submit for Verification
-                              </Button>
-                            )}
+                            <Button
+                              onClick={() => submitVerificationMutation.mutate()}
+                              disabled={submitVerificationMutation.isPending}
+                              className="w-full"
+                              data-testid="button-submit-verification"
+                            >
+                              {submitVerificationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Submit for Verification
+                            </Button>
                           </div>
                         )}
                       </div>
