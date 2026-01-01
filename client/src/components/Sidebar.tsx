@@ -1,4 +1,5 @@
-import { Handshake, Home, LayoutDashboard, Settings, Wallet, LayoutList, Users, Crown, LogOut } from "lucide-react";
+import { Handshake, Home, LayoutDashboard, Settings, Wallet, LayoutList, Users, Crown, LogOut, MoreHorizontal, User } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const [location, setLocation] = useLocation();
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -32,14 +34,17 @@ export function Sidebar() {
     { href: "/groups", label: "Groups", icon: Users },
     { href: "/earnings", label: "Earnings", icon: Wallet },
     { href: "/subscription", label: "Subscription", icon: Crown },
-    { href: "/profile", label: "Profile", icon: Settings },
+    { href: "/profile", label: "Profile", icon: User },
   ];
+
+  const mobileLinks = links.slice(0, 4);
+  const moreLinks = links.slice(4);
 
   return (
     <>
       {/* Mobile Bottom Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-background/80 px-4 backdrop-blur-md md:hidden">
-        {links.slice(0, 5).map((link) => {
+        {mobileLinks.map((link) => {
           const Icon = link.icon;
           const isActive = location === link.href;
           return (
@@ -52,12 +57,46 @@ export function Sidebar() {
           );
         })}
         <div 
-          className="flex flex-col items-center gap-1 cursor-pointer text-red-500"
-          onClick={handleLogout}
-          data-testid="button-mobile-logout"
+          className="relative flex flex-col items-center gap-1 cursor-pointer text-muted-foreground"
+          onClick={() => setShowMoreMenu(!showMoreMenu)}
+          data-testid="button-mobile-more"
         >
-          <LogOut className="h-5 w-5" />
-          <span className="text-[10px] font-medium">Logout</span>
+          <MoreHorizontal className="h-5 w-5" />
+          <span className="text-[10px] font-medium">More</span>
+          
+          {showMoreMenu && (
+            <div className="absolute bottom-16 right-0 w-48 rounded-lg border bg-background p-2 shadow-lg">
+              {moreLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = location === link.href;
+                return (
+                  <Link key={link.href} href={link.href}>
+                    <div 
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium cursor-pointer",
+                        isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                      )}
+                      onClick={() => setShowMoreMenu(false)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                    </div>
+                  </Link>
+                );
+              })}
+              <div 
+                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-500 cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  handleLogout();
+                }}
+                data-testid="button-mobile-logout"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
