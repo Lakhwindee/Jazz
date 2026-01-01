@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { SponsorSidebar } from "@/components/SponsorSidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { api, formatINR, ApiTransaction } from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, CreditCard, Banknote, Building2, Trash2, AlertCircle } from "lucide-react";
+import { Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, CreditCard, Banknote, Building2, Trash2, AlertCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { calculateDepositWithGST, TAX_RATES } from "@shared/tiers";
@@ -73,6 +74,8 @@ interface WalletInfo {
 }
 
 export default function SponsorWallet() {
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -80,6 +83,7 @@ export default function SponsorWallet() {
   const [isAddBankOpen, setIsAddBankOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selectedBankId, setSelectedBankId] = useState<string>("");
+  const [stripeSessionProcessed, setStripeSessionProcessed] = useState(false);
   
   const [bankForm, setBankForm] = useState({
     accountHolderName: "",
@@ -158,15 +162,60 @@ export default function SponsorWallet() {
     },
   });
 
+  // Check if user is from India (use Razorpay) or international (use Stripe)
+  const isIndianUser = sponsor?.country === "IN";
+
+  // Load Razorpay script for Indian users
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+    if (isIndianUser) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, [isIndianUser]);
+
+  // Handle Stripe success callback
+  useEffect(() => {
+    if (!sponsor || stripeSessionProcessed) return;
+    
+    const params = new URLSearchParams(searchString);
+    const stripeSuccess = params.get("stripe_success");
+    const sessionId = params.get("session_id");
+    
+    if (stripeSuccess === "true" && sessionId) {
+      setStripeSessionProcessed(true);
+      
+      // Verify the Stripe session and credit wallet
+      fetch(`/api/sponsors/${sponsor.id}/stripe/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            toast.success(`Payment successful! ${data.currency?.toUpperCase()} ${data.walletCredit} added to wallet.`);
+            queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
+            queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+          } else {
+            toast.error(data.error || "Payment verification failed");
+          }
+          // Clean URL
+          setLocation("/sponsor/wallet");
+        })
+        .catch(() => {
+          toast.error("Failed to verify payment");
+          setLocation("/sponsor/wallet");
+        });
+    } else if (params.get("stripe_cancelled") === "true") {
+      toast.info("Payment was cancelled");
+      setLocation("/sponsor/wallet");
+    }
+  }, [sponsor, searchString, stripeSessionProcessed, setLocation]);
 
   const handleRazorpayPayment = async () => {
     const baseAmount = parseFloat(depositAmount);
@@ -250,6 +299,50 @@ export default function SponsorWallet() {
     } catch (error: any) {
       toast.error(error.message || "Failed to initiate payment");
     } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle Stripe payment for international users
+  const handleStripePayment = async () => {
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    if (!sponsor) {
+      toast.error("Sponsor not found");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const res = await fetch(`/api/sponsors/${sponsor.id}/stripe/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          amount,
+          countryCode: sponsor.country 
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create checkout session");
+      }
+
+      const data = await res.json();
+      
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to initiate payment");
       setIsProcessing(false);
     }
   };
@@ -384,12 +477,12 @@ export default function SponsorWallet() {
                     <DialogHeader>
                       <DialogTitle>Add Funds to Wallet</DialogTitle>
                       <DialogDescription>
-                        Enter the amount you want to add. GST will be applied.
+                        Enter the amount you want to add. {isIndianUser ? "GST will be applied." : "International payments via Stripe."}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
                       <div className="space-y-2">
-                        <Label htmlFor="amount">Amount to Add (INR)</Label>
+                        <Label htmlFor="amount">Amount to Add {isIndianUser ? "(INR)" : "(USD)"}</Label>
                         <Input
                           id="amount"
                           type="number"
@@ -401,7 +494,7 @@ export default function SponsorWallet() {
                         />
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {[1000, 5000, 10000, 25000].map((amt) => (
+                        {(isIndianUser ? [1000, 5000, 10000, 25000] : [50, 100, 250, 500]).map((amt) => (
                           <Button
                             key={amt}
                             variant="outline"
@@ -409,7 +502,7 @@ export default function SponsorWallet() {
                             onClick={() => setDepositAmount(amt.toString())}
                             data-testid={`button-quick-amount-${amt}`}
                           >
-                            {formatINR(amt)}
+                            {isIndianUser ? formatINR(amt) : `$${amt}`}
                           </Button>
                         ))}
                       </div>
@@ -418,31 +511,60 @@ export default function SponsorWallet() {
                         <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Amount to Wallet</span>
-                            <span className="font-medium">{formatINR(parseFloat(depositAmount))}</span>
+                            <span className="font-medium">{isIndianUser ? formatINR(parseFloat(depositAmount)) : `$${parseFloat(depositAmount).toFixed(2)}`}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">GST ({TAX_RATES.GST_PERCENT}%)</span>
-                            <span className="font-medium">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).gstAmount)}</span>
-                          </div>
-                          <div className="flex justify-between pt-2 border-t">
-                            <span className="font-medium">Total Payable</span>
-                            <span className="font-bold text-lg">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).totalPayable)}</span>
-                          </div>
+                          {isIndianUser && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">GST ({TAX_RATES.GST_PERCENT}%)</span>
+                                <span className="font-medium">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).gstAmount)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="font-medium">Total Payable</span>
+                                <span className="font-bold text-lg">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).totalPayable)}</span>
+                              </div>
+                            </>
+                          )}
+                          {!isIndianUser && (
+                            <div className="flex justify-between pt-2 border-t">
+                              <span className="font-medium">Total Payable</span>
+                              <span className="font-bold text-lg">${parseFloat(depositAmount).toFixed(2)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                       
-                      <Button
-                        className="w-full"
-                        onClick={handleRazorpayPayment}
-                        disabled={isProcessing || !depositAmount}
-                        data-testid="button-confirm-deposit"
-                      >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with Razorpay` : "Pay with Razorpay"}
-                      </Button>
-                      <p className="text-xs text-center text-muted-foreground">
-                        Secure payment powered by Razorpay
-                      </p>
+                      {isIndianUser ? (
+                        <>
+                          <Button
+                            className="w-full"
+                            onClick={handleRazorpayPayment}
+                            disabled={isProcessing || !depositAmount}
+                            data-testid="button-confirm-deposit"
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with Razorpay` : "Pay with Razorpay"}
+                          </Button>
+                          <p className="text-xs text-center text-muted-foreground">
+                            Secure payment powered by Razorpay (India)
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            className="w-full"
+                            onClick={handleStripePayment}
+                            disabled={isProcessing || !depositAmount}
+                            data-testid="button-confirm-deposit-stripe"
+                          >
+                            <Globe className="h-4 w-4 mr-2" />
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay $${parseFloat(depositAmount).toFixed(2)} with Stripe` : "Pay with Stripe"}
+                          </Button>
+                          <p className="text-xs text-center text-muted-foreground">
+                            Secure international payment powered by Stripe
+                          </p>
+                        </>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>

@@ -11,6 +11,7 @@ import { setupAuth, hashPassword, isAuthenticated, sanitizeUser } from "./auth";
 import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
 import { createOrder as createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId } from "./razorpay";
+import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -1817,6 +1818,137 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error verifying payment:", error);
+      res.status(500).json({ error: "Failed to verify payment" });
+    }
+  });
+
+  // ==================== STRIPE PAYMENT (International) ====================
+
+  // Check if Stripe is configured and get publishable key
+  app.get("/api/stripe/config", async (req, res) => {
+    try {
+      const configured = await isStripeConfigured();
+      const publishableKey = await getStripePublishableKey();
+      res.json({ 
+        configured, 
+        publishableKey: configured ? publishableKey : null 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check Stripe configuration" });
+    }
+  });
+
+  // Get currency info for a country
+  app.get("/api/stripe/currency/:countryCode", (req, res) => {
+    const { countryCode } = req.params;
+    const currencyInfo = getCurrencyForCountry(countryCode.toUpperCase());
+    res.json(currencyInfo);
+  });
+
+  // Create Stripe checkout session for international sponsors
+  app.post("/api/sponsors/:sponsorId/stripe/create-checkout", async (req, res) => {
+    try {
+      const sponsorId = parseInt(req.params.sponsorId);
+      const { amount, countryCode } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const sponsor = await storage.getUser(sponsorId);
+      if (!sponsor) {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
+
+      const currencyInfo = getCurrencyForCountry(countryCode || sponsor.country);
+      
+      // Build URLs for success and cancel
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+      
+      const successUrl = `${baseUrl}/sponsor/wallet?stripe_success=true&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${baseUrl}/sponsor/wallet?stripe_cancelled=true`;
+
+      const session = await createStripeCheckoutSession(
+        sponsorId,
+        amount,
+        currencyInfo.currency,
+        successUrl,
+        cancelUrl
+      );
+
+      if (!session) {
+        return res.status(500).json({ error: "Failed to create checkout session" });
+      }
+
+      res.json({
+        sessionId: session.sessionId,
+        url: session.url,
+        currency: currencyInfo.currency,
+        symbol: currencyInfo.symbol
+      });
+    } catch (error) {
+      console.error("Error creating Stripe checkout:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Verify Stripe payment and credit wallet
+  app.post("/api/sponsors/:sponsorId/stripe/verify", async (req, res) => {
+    try {
+      const sponsorId = parseInt(req.params.sponsorId);
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: "Missing session ID" });
+      }
+
+      const result = await verifyStripeSession(sessionId);
+      
+      if (!result || !result.success) {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      if (result.sponsorId !== sponsorId) {
+        return res.status(403).json({ error: "Session does not match sponsor" });
+      }
+
+      const sponsor = await storage.getUser(sponsorId);
+      if (!sponsor) {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
+
+      // For international payments, we credit the full amount (no GST)
+      const walletCredit = result.amount || 0;
+      const newBalance = parseFloat(sponsor.balance) + walletCredit;
+
+      // Update balance
+      await storage.updateUserBalance(sponsorId, newBalance.toFixed(2));
+
+      // Create transaction record
+      const currencySymbol = result.currency?.toUpperCase() || 'USD';
+      const transaction = await storage.createTransaction({
+        userId: sponsorId,
+        type: "credit",
+        category: "deposit",
+        amount: walletCredit.toFixed(2),
+        tax: "0.00",
+        net: walletCredit.toFixed(2),
+        description: `Wallet deposit via Stripe (${currencySymbol} ${walletCredit})`,
+        status: "completed",
+        paymentId: result.paymentIntentId || sessionId,
+      });
+
+      res.json({
+        success: true,
+        newBalance: newBalance.toFixed(2),
+        walletCredit: walletCredit.toFixed(2),
+        currency: result.currency,
+        transaction
+      });
+    } catch (error) {
+      console.error("Error verifying Stripe payment:", error);
       res.status(500).json({ error: "Failed to verify payment" });
     }
   });

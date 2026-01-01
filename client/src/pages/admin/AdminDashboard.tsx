@@ -2641,6 +2641,8 @@ function ApiKeysForm() {
     instagram_app_secret: "",
     razorpay_key_id: "",
     razorpay_key_secret: "",
+    stripe_publishable_key: "",
+    stripe_secret_key: "",
     gmail_user: "",
     gmail_app_password: "",
     rapidapi_key: "",
@@ -2665,6 +2667,8 @@ function ApiKeysForm() {
         instagram_app_secret: savedKeys.instagram_app_secret || "",
         razorpay_key_id: savedKeys.razorpay_key_id || "",
         razorpay_key_secret: savedKeys.razorpay_key_secret || "",
+        stripe_publishable_key: savedKeys.stripe_publishable_key || "",
+        stripe_secret_key: savedKeys.stripe_secret_key || "",
         gmail_user: savedKeys.gmail_user || "",
         gmail_app_password: savedKeys.gmail_app_password || "",
         rapidapi_key: savedKeys.rapidapi_key || "",
@@ -2912,6 +2916,34 @@ function ApiKeysForm() {
           <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
             <p className="text-xs text-gray-400">
               Get keys from <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener" className="text-blue-400 underline">Razorpay Dashboard</a> - Settings - API Keys
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-blue-500" />
+            Stripe (International Payments)
+          </CardTitle>
+          <p className="text-sm text-gray-400">For international sponsor wallet deposits (non-India)</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {renderKeyInputOnly("stripe_publishable_key", "Publishable Key", "pk_live_... or pk_test_...")}
+          {renderKeyInputOnly("stripe_secret_key", "Secret Key", "sk_live_... or sk_test_...", true)}
+          <Button
+            onClick={() => handleSaveGroup(["stripe_publishable_key", "stripe_secret_key"])}
+            disabled={(!apiKeys.stripe_publishable_key && !apiKeys.stripe_secret_key) || saveMultipleMutation.isPending}
+            className="w-full bg-blue-600"
+            data-testid="button-save-stripe"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMultipleMutation.isPending ? "Saving..." : "Save Stripe Settings"}
+          </Button>
+          <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+            <p className="text-xs text-gray-400">
+              Get keys from <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="text-blue-400 underline">Stripe Dashboard</a> - Developers - API Keys
             </p>
           </div>
         </CardContent>
