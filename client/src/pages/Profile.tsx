@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw, MapPin, Phone } from "lucide-react";
+import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { MIN_FOLLOWERS } from "@shared/tiers";
@@ -27,22 +27,11 @@ export default function Profile() {
   const [instagramProfileUrl, setInstagramProfileUrl] = useState("");
   const [instagramFollowers, setInstagramFollowers] = useState("");
   
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingCity, setShippingCity] = useState("");
-  const [shippingState, setShippingState] = useState("");
-  const [shippingPincode, setShippingPincode] = useState("");
-  const [shippingPhone, setShippingPhone] = useState("");
-
   useEffect(() => {
     if (user) {
       setInstagramUsername(user.instagramUsername || "");
       setInstagramProfileUrl(user.instagramProfileUrl || "");
       setInstagramFollowers(user.instagramFollowers ? user.instagramFollowers.toString() : "");
-      setShippingAddress(user.shippingAddress || "");
-      setShippingCity(user.shippingCity || "");
-      setShippingState(user.shippingState || "");
-      setShippingPincode(user.shippingPincode || "");
-      setShippingPhone(user.shippingPhone || "");
     }
   }, [user]);
 
@@ -150,32 +139,6 @@ export default function Profile() {
       toast.error(error.message || "Failed to submit for verification");
     },
   });
-
-  const updateShippingMutation = useMutation({
-    mutationFn: (data: { shippingAddress: string; shippingCity: string; shippingState: string; shippingPincode: string; shippingPhone: string }) => 
-      api.updateUserShippingAddress(user!.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      toast.success("Shipping address updated successfully!");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update shipping address");
-    },
-  });
-
-  const handleUpdateShipping = () => {
-    if (!shippingAddress.trim() || !shippingCity.trim() || !shippingState.trim() || !shippingPincode.trim() || !shippingPhone.trim()) {
-      toast.error("Please fill in all shipping address fields");
-      return;
-    }
-    updateShippingMutation.mutate({
-      shippingAddress,
-      shippingCity,
-      shippingState,
-      shippingPincode,
-      shippingPhone,
-    });
-  };
 
   const handleCopyCode = () => {
     if (user?.instagramVerificationCode) {
@@ -505,119 +468,6 @@ export default function Profile() {
               </CardContent>
             </Card>
 
-            {isInstagramLinked && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
-                      <p className="text-sm text-muted-foreground">{user.name}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tier</Label>
-                      <p className="text-sm text-muted-foreground">{user.tier}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Wallet Balance</Label>
-                      <p className="text-sm font-medium text-green-600">₹{parseFloat(user.balance).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Shipping Address
-                </CardTitle>
-                <CardDescription>
-                  Add your shipping address to receive products from product giveaway campaigns.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="shipping-address">Street Address *</Label>
-                  <Input
-                    id="shipping-address"
-                    placeholder="House/Flat No., Street, Landmark"
-                    value={shippingAddress}
-                    onChange={(e) => setShippingAddress(e.target.value)}
-                    data-testid="input-shipping-address"
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="shipping-city">City *</Label>
-                    <Input
-                      id="shipping-city"
-                      placeholder="Mumbai"
-                      value={shippingCity}
-                      onChange={(e) => setShippingCity(e.target.value)}
-                      data-testid="input-shipping-city"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="shipping-state">State *</Label>
-                    <Input
-                      id="shipping-state"
-                      placeholder="Maharashtra"
-                      value={shippingState}
-                      onChange={(e) => setShippingState(e.target.value)}
-                      data-testid="input-shipping-state"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="shipping-pincode">PIN Code *</Label>
-                    <Input
-                      id="shipping-pincode"
-                      placeholder="400001"
-                      value={shippingPincode}
-                      onChange={(e) => setShippingPincode(e.target.value)}
-                      maxLength={6}
-                      data-testid="input-shipping-pincode"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="shipping-phone">Phone Number *</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="shipping-phone"
-                        placeholder="9876543210"
-                        value={shippingPhone}
-                        onChange={(e) => setShippingPhone(e.target.value)}
-                        className="pl-10"
-                        maxLength={10}
-                        data-testid="input-shipping-phone"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleUpdateShipping}
-                  disabled={updateShippingMutation.isPending}
-                  className="w-full"
-                  data-testid="button-save-shipping"
-                >
-                  {updateShippingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Shipping Address
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>
