@@ -189,7 +189,7 @@ export default function Profile() {
                       )}
                     </div>
                     <p className="text-muted-foreground">{user.handle}</p>
-                    {isInstagramLinked && (
+                    {isInstagramLinked && user.isInstagramVerified && (
                       <p className="text-sm text-muted-foreground mt-1">{user.tier} • {user.followers.toLocaleString()} followers</p>
                     )}
                   </div>

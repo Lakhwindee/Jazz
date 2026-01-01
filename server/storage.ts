@@ -178,7 +178,7 @@ export class DatabaseStorage implements IStorage {
       instagramFollowers,
       isInstagramVerified: false,
       instagramVerificationCode: null,
-      instagramVerificationStatus: "none",
+      instagramVerificationStatus: instagramUsername ? "pending" : "none",
       instagramAccessToken: null,
       instagramUserId: null,
       instagramTokenExpiresAt: null
