@@ -385,7 +385,7 @@ export default function Signup() {
                           <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
                             type="text"
-                            placeholder="GST Number"
+                            placeholder="GST (optional)"
                             value={gstNumber}
                             onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                             className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
@@ -397,7 +397,7 @@ export default function Signup() {
                           <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
                             type="text"
-                            placeholder="PAN Number"
+                            placeholder="PAN (optional)"
                             value={panNumber}
                             onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
                             className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
