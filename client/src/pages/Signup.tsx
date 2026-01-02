@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2, Phone, Globe } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, UserPlus, ArrowLeft, Building2, Send, Loader2, Phone, Globe, FileText, MapPin, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,16 @@ export default function Signup() {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("IN");
   const [password, setPassword] = useState("");
+  
+  // Brand/Sponsor specific fields
+  const [companyName, setCompanyName] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingState, setBillingState] = useState("");
+  const [billingPincode, setBillingPincode] = useState("");
+  const [website, setWebsite] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState("");
@@ -154,7 +164,24 @@ export default function Signup() {
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, role, country }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          phone, 
+          password, 
+          role, 
+          country,
+          ...(role === "sponsor" && {
+            companyName,
+            gstNumber: country === "IN" ? gstNumber : undefined,
+            panNumber: country === "IN" ? panNumber : undefined,
+            billingAddress,
+            billingCity,
+            billingState,
+            billingPincode,
+            website,
+          })
+        }),
         credentials: "include",
       });
 
@@ -223,7 +250,7 @@ export default function Signup() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-sm"
+        className={`w-full ${role === "sponsor" ? "max-w-md" : "max-w-sm"}`}
       >
         <button
           onClick={() => step === "form" ? setLocation("/") : setStep("form")}
@@ -285,7 +312,7 @@ export default function Signup() {
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder="Full Name"
+                    placeholder={role === "sponsor" ? "Contact Person Name" : "Full Name"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
@@ -293,11 +320,25 @@ export default function Signup() {
                   />
                 </div>
 
+                {role === "sponsor" && (
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Company/Brand Name *"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
+                      data-testid="input-company-name"
+                    />
+                  </div>
+                )}
+
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="email"
-                    placeholder="Email"
+                    placeholder={role === "sponsor" ? "Business Email *" : "Email"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
@@ -336,6 +377,91 @@ export default function Signup() {
                   </Select>
                 </div>
 
+                {role === "sponsor" && (
+                  <>
+                    {country === "IN" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative">
+                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            type="text"
+                            placeholder="GST Number"
+                            value={gstNumber}
+                            onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                            className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
+                            data-testid="input-gst"
+                            maxLength={15}
+                          />
+                        </div>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            type="text"
+                            placeholder="PAN Number"
+                            value={panNumber}
+                            onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                            className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
+                            data-testid="input-pan"
+                            maxLength={10}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="Business Address"
+                        value={billingAddress}
+                        onChange={(e) => setBillingAddress(e.target.value)}
+                        className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
+                        data-testid="input-address"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        type="text"
+                        placeholder="City"
+                        value={billingCity}
+                        onChange={(e) => setBillingCity(e.target.value)}
+                        className="bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
+                        data-testid="input-city"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="State"
+                        value={billingState}
+                        onChange={(e) => setBillingState(e.target.value)}
+                        className="bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
+                        data-testid="input-state"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="Pincode"
+                        value={billingPincode}
+                        onChange={(e) => setBillingPincode(e.target.value)}
+                        className="bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500 text-sm"
+                        data-testid="input-pincode"
+                        maxLength={10}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="url"
+                        placeholder="Website (optional)"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
+                        data-testid="input-website"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -360,13 +486,13 @@ export default function Signup() {
                   type="button"
                   onClick={sendOtp}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                  disabled={isLoading || !name || !email || !password}
+                  disabled={isLoading || !name || !email || !password || (role === "sponsor" && !companyName)}
                   data-testid="button-signup"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    "Sign Up"
+                    role === "sponsor" ? "Register Brand" : "Sign Up"
                   )}
                 </Button>
 
