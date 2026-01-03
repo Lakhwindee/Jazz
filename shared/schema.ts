@@ -78,6 +78,10 @@ export const users = pgTable("users", {
   shippingState: text("shipping_state"),
   shippingPincode: text("shipping_pincode"),
   shippingPhone: text("shipping_phone"),
+  isBanned: boolean("is_banned").notNull().default(false),
+  bannedReason: text("banned_reason"),
+  bannedAt: timestamp("banned_at"),
+  isInstagramBanned: boolean("is_instagram_banned").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

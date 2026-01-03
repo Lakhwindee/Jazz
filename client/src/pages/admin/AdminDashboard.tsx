@@ -223,6 +223,9 @@ function StatsOverview({ stats }: { stats: AdminStats }) {
 function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
+  const [banReason, setBanReason] = useState("");
+  const [showBanDialog, setShowBanDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const verifyMutation = useMutation({
     mutationFn: async (userId: number) => {
@@ -233,6 +236,88 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast.success("User verified successfully");
+    },
+  });
+
+  const banMutation = useMutation({
+    mutationFn: async ({ userId, reason }: { userId: number; reason: string }) => {
+      const res = await fetch(`/api/admin/users/${userId}/ban`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      if (!res.ok) throw new Error("Failed to ban user");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User banned successfully");
+      setShowBanDialog(false);
+      setBanReason("");
+      onClose();
+    },
+  });
+
+  const unbanMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}/unban`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to unban user");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User unbanned successfully");
+      onClose();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete user");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User deleted successfully");
+      setShowDeleteDialog(false);
+      onClose();
+    },
+  });
+
+  const disconnectInstagramMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}/disconnect-instagram`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to disconnect Instagram");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Instagram disconnected successfully");
+    },
+  });
+
+  const banInstagramMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}/ban-instagram`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to ban Instagram");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Instagram banned successfully");
+    },
+  });
+
+  const unbanInstagramMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}/unban-instagram`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to unban Instagram");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Instagram unbanned successfully");
     },
   });
 
@@ -280,7 +365,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
         </DialogHeader>
 
         <div className="flex gap-2 border-b border-gray-700 pb-2 mt-4">
-          {["profile", "instagram", "wallet", "activity"].map((tab) => (
+          {["profile", "instagram", "wallet", "activity", "actions"].map((tab) => (
             <Button
               key={tab}
               variant={activeTab === tab ? "default" : "ghost"}
@@ -414,6 +499,50 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
                       </CardContent>
                     </Card>
                   </div>
+
+                  <Card className="bg-gray-900 border-gray-700 mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white text-sm">Instagram Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => disconnectInstagramMutation.mutate(user.id)}
+                          disabled={disconnectInstagramMutation.isPending}
+                          data-testid="button-disconnect-instagram"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Disconnect
+                        </Button>
+                        {(user as any).isInstagramBanned ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-green-600 text-green-500"
+                            onClick={() => unbanInstagramMutation.mutate(user.id)}
+                            disabled={unbanInstagramMutation.isPending}
+                            data-testid="button-unban-instagram"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Unban Instagram
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => banInstagramMutation.mutate(user.id)}
+                            disabled={banInstagramMutation.isPending}
+                            data-testid="button-ban-instagram"
+                          >
+                            <Ban className="h-4 w-4 mr-1" />
+                            Ban Instagram
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </>
               ) : (
                 <div className="text-center py-8">
@@ -499,7 +628,149 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
               </div>
             </div>
           )}
+
+          {activeTab === "actions" && (
+            <div className="space-y-4 pt-4">
+              {(user as any).isBanned && (
+                <Card className="bg-red-900/20 border-red-700">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 text-red-500 mb-2">
+                      <Ban className="h-5 w-5" />
+                      <span className="font-medium">This user is banned</span>
+                    </div>
+                    {(user as any).bannedReason && (
+                      <p className="text-sm text-gray-400">Reason: {(user as any).bannedReason}</p>
+                    )}
+                    {(user as any).bannedAt && (
+                      <p className="text-xs text-gray-500">
+                        Banned on: {new Date((user as any).bannedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="bg-gray-900 border-gray-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-white text-sm">Account Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    {(user as any).isBanned ? (
+                      <Button
+                        variant="outline"
+                        className="border-green-600 text-green-500"
+                        onClick={() => unbanMutation.mutate(user.id)}
+                        disabled={unbanMutation.isPending}
+                        data-testid="button-unban-user"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Unban User
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="border-yellow-600 text-yellow-500"
+                        onClick={() => setShowBanDialog(true)}
+                        data-testid="button-ban-user"
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
+                        Ban User
+                      </Button>
+                    )}
+                    
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      data-testid="button-delete-user"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete User
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-900 border-gray-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-white text-sm">Warning</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-gray-400 space-y-2">
+                    <p className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                      <span><strong>Banning</strong> will prevent the user from logging in and participating in campaigns.</span>
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                      <span><strong>Deleting</strong> is permanent and will remove all user data including wallet balance and history.</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </ScrollArea>
+
+        <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
+          <DialogContent className="bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Ban User</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Are you sure you want to ban {user.name}? They will not be able to access their account.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-gray-300">Reason for ban (optional)</Label>
+                <Input
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="Enter reason..."
+                  className="bg-gray-700 border-gray-600 text-white"
+                  data-testid="input-ban-reason"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBanDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => banMutation.mutate({ userId: user.id, reason: banReason })}
+                disabled={banMutation.isPending}
+                data-testid="button-confirm-ban"
+              >
+                {banMutation.isPending ? "Banning..." : "Confirm Ban"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Delete User</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                This action cannot be undone. This will permanently delete {user.name}'s account and all associated data.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate(user.id)}
+                disabled={deleteMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Permanently Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

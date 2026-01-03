@@ -33,6 +33,11 @@ International influencer marketing platform connecting Instagram creators with b
 - **Payment Flow**: Sponsor pays admin → Admin pays creators on approval → Refunds from admin wallet
 - **Campaign-Grouped Submissions**: Admin can view all submissions grouped by campaign with status tracking (reserved, submitted, approved, rejected), progress bars, and filter options
 - **Forgot Password System**: 3-step OTP-based password reset (enter email → verify OTP → set new password)
+- **Admin User Management**: Full user management capabilities in admin panel
+  - Ban/Unban users with optional reason
+  - Delete users permanently  
+  - Disconnect Instagram accounts
+  - Ban/Unban Instagram accounts separately
 
 ## Supported Countries
 195 countries worldwide with multi-country targeting support:

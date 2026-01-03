@@ -110,6 +110,12 @@ export interface IStorage {
   rejectInstagramVerification(id: number): Promise<void>;
   updateTransactionStatus(id: number, status: string): Promise<void>;
   getAllTransactions(): Promise<Transaction[]>;
+  banUser(id: number, reason: string): Promise<void>;
+  unbanUser(id: number): Promise<void>;
+  deleteUser(id: number): Promise<void>;
+  disconnectInstagram(id: number): Promise<void>;
+  banInstagram(id: number): Promise<void>;
+  unbanInstagram(id: number): Promise<void>;
   
   // App Settings
   getSetting(key: string): Promise<AppSetting | undefined>;
@@ -787,6 +793,53 @@ export class DatabaseStorage implements IStorage {
   async getAllTransactions(): Promise<Transaction[]> {
     return await db.select().from(transactions)
       .orderBy(desc(transactions.createdAt));
+  }
+
+  async banUser(id: number, reason: string): Promise<void> {
+    await db.update(users).set({ 
+      isBanned: true, 
+      bannedReason: reason,
+      bannedAt: new Date()
+    }).where(eq(users.id, id));
+  }
+
+  async unbanUser(id: number): Promise<void> {
+    await db.update(users).set({ 
+      isBanned: false, 
+      bannedReason: null,
+      bannedAt: null
+    }).where(eq(users.id, id));
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async disconnectInstagram(id: number): Promise<void> {
+    await db.update(users).set({ 
+      instagramUsername: null,
+      instagramProfileUrl: null,
+      instagramFollowers: null,
+      isInstagramVerified: false,
+      instagramVerificationCode: null,
+      instagramVerificationStatus: "none",
+      instagramAccessToken: null,
+      instagramUserId: null,
+      instagramTokenExpiresAt: null
+    }).where(eq(users.id, id));
+  }
+
+  async banInstagram(id: number): Promise<void> {
+    await db.update(users).set({ 
+      isInstagramBanned: true,
+      isInstagramVerified: false
+    }).where(eq(users.id, id));
+  }
+
+  async unbanInstagram(id: number): Promise<void> {
+    await db.update(users).set({ 
+      isInstagramBanned: false
+    }).where(eq(users.id, id));
   }
 
   // App Settings

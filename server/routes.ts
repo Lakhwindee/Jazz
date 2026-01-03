@@ -2686,6 +2686,173 @@ export async function registerRoutes(
     }
   });
 
+  // Ban user (admin action)
+  app.post("/api/admin/users/:userId/ban", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { reason } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.role === "admin") {
+        return res.status(400).json({ error: "Cannot ban admin users" });
+      }
+      
+      await storage.banUser(userId, reason || "Banned by admin");
+      
+      await storage.createNotification({
+        userId,
+        type: "account_banned",
+        title: "Account Banned",
+        message: reason || "Your account has been banned. Contact support for more information.",
+        isRead: false,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error banning user:", error);
+      res.status(500).json({ error: "Failed to ban user" });
+    }
+  });
+
+  // Unban user (admin action)
+  app.post("/api/admin/users/:userId/unban", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.unbanUser(userId);
+      
+      await storage.createNotification({
+        userId,
+        type: "account_unbanned",
+        title: "Account Restored",
+        message: "Your account has been restored. Welcome back!",
+        isRead: false,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error unbanning user:", error);
+      res.status(500).json({ error: "Failed to unban user" });
+    }
+  });
+
+  // Delete user (admin action)
+  app.delete("/api/admin/users/:userId", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.role === "admin") {
+        return res.status(400).json({ error: "Cannot delete admin users" });
+      }
+      
+      await storage.deleteUser(userId);
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Disconnect user's Instagram (admin action)
+  app.post("/api/admin/users/:userId/disconnect-instagram", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.disconnectInstagram(userId);
+      
+      await storage.createNotification({
+        userId,
+        type: "instagram_disconnected",
+        title: "Instagram Disconnected",
+        message: "Your Instagram account has been disconnected by admin. Please re-link if needed.",
+        isRead: false,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error disconnecting Instagram:", error);
+      res.status(500).json({ error: "Failed to disconnect Instagram" });
+    }
+  });
+
+  // Ban user's Instagram (admin action)
+  app.post("/api/admin/users/:userId/ban-instagram", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.banInstagram(userId);
+      
+      await storage.createNotification({
+        userId,
+        type: "instagram_banned",
+        title: "Instagram Banned",
+        message: "Your Instagram account has been banned. Contact support for more information.",
+        isRead: false,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error banning Instagram:", error);
+      res.status(500).json({ error: "Failed to ban Instagram" });
+    }
+  });
+
+  // Unban user's Instagram (admin action)
+  app.post("/api/admin/users/:userId/unban-instagram", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.unbanInstagram(userId);
+      
+      await storage.createNotification({
+        userId,
+        type: "instagram_unbanned",
+        title: "Instagram Restored",
+        message: "Your Instagram account has been restored.",
+        isRead: false,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error unbanning Instagram:", error);
+      res.status(500).json({ error: "Failed to unban Instagram" });
+    }
+  });
+
   // Update user verification status
   app.patch("/api/admin/users/:userId/status", isAdmin, async (req, res) => {
     try {
