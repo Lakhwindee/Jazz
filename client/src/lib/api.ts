@@ -195,9 +195,9 @@ export const api = {
     return res.json();
   },
 
-  // Sponsor
+  // Sponsor - uses same endpoint as user (authenticated session)
   async getCurrentSponsor(): Promise<ApiUser> {
-    const res = await fetch(`${API_BASE}/sponsors/current`);
+    const res = await fetch(`${API_BASE}/users/current`, { credentials: "include" });
     if (!res.ok) throw new Error("Failed to fetch sponsor");
     return res.json();
   },

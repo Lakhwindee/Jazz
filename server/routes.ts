@@ -1563,34 +1563,19 @@ export async function registerRoutes(
     }
   });
 
-  // Get or create default sponsor user
-  app.get("/api/sponsors/current", async (req, res) => {
+  // Get current sponsor - redirects to users/current (sponsors use same auth flow)
+  app.get("/api/sponsors/current", isAuthenticated, async (req, res) => {
     try {
-      const defaultEmail = "priya.marketing@brand.com";
-      let user = await storage.getUserByEmail(defaultEmail);
-      
-      if (!user) {
-        const hashedPassword = await hashPassword("sponsor123");
-        user = await storage.createUser({
-          name: "Priya Verma",
-          handle: "@priya.brand",
-          email: defaultEmail,
-          password: hashedPassword,
-          role: "sponsor",
-          followers: 0,
-          engagement: "0.00",
-          reach: 0,
-          avatar: "https://github.com/shadcn.png",
-          isVerified: true,
-          tier: "Sponsor",
-          balance: "50000.00",
-          companyName: "Brand Solutions Pvt Ltd",
-        });
+      if (!req.user || req.user.role !== "sponsor") {
+        return res.status(403).json({ error: "Not authorized as sponsor" });
       }
-      
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
       res.json(sanitizeUser(user));
     } catch (error) {
-      console.error("Error fetching/creating sponsor:", error);
+      console.error("Error fetching sponsor:", error);
       res.status(500).json({ error: "Failed to fetch sponsor" });
     }
   });
