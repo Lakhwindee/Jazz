@@ -2474,6 +2474,12 @@ function VerificationsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UserDetailDialog
+        user={selectedUser}
+        open={!!selectedUser && !rejectDialogOpen}
+        onClose={() => setSelectedUser(null)}
+      />
     </div>
   );
 }
