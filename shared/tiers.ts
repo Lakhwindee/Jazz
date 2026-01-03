@@ -8,8 +8,8 @@ export interface Tier {
 
 // Updated pricing with reduced rates
 export const TIERS: Tier[] = [
-  // Nano Influencers (5K - 50K)
-  { id: 1, name: "Tier 1", minFollowers: 5000, maxFollowers: 8000, basePayment: 50 },
+  // Nano Influencers (10 - 50K) - Testing mode: starts at 10
+  { id: 1, name: "Tier 1", minFollowers: 10, maxFollowers: 8000, basePayment: 50 },
   { id: 2, name: "Tier 2", minFollowers: 8000, maxFollowers: 12000, basePayment: 80 },
   { id: 3, name: "Tier 3", minFollowers: 12000, maxFollowers: 18000, basePayment: 150 },
   { id: 4, name: "Tier 4", minFollowers: 18000, maxFollowers: 25000, basePayment: 200 },
@@ -39,7 +39,7 @@ export const TIERS: Tier[] = [
   { id: 20, name: "Tier 20", minFollowers: 5000000, maxFollowers: 10000000, basePayment: 15000 },
 ];
 
-export const MIN_FOLLOWERS = 5000;
+export const MIN_FOLLOWERS = 10; // Testing mode - change back to 5000 for production
 
 export function getTierByFollowers(followers: number): Tier | null {
   if (followers < MIN_FOLLOWERS) return null;
