@@ -3870,6 +3870,7 @@ export async function registerRoutes(
         type: promoCode.type,
         discountPercent: promoCode.discountPercent,
         trialDays: promoCode.trialDays,
+        creditAmount: promoCode.creditAmount,
         afterTrialAction: promoCode.afterTrialAction,
       });
     } catch (error) {
@@ -3914,12 +3915,38 @@ export async function registerRoutes(
       }
       
       // Apply the code based on type
+      let message = "Promo code applied successfully!";
+      
       if (promoCode.type === "trial" && promoCode.trialDays) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + promoCode.trialDays);
-        // Set autoRenew based on afterTrialAction: "continue" means user wants to pay after trial (autoRenew=true), "downgrade" means downgrade to free (autoRenew=false)
         const autoRenew = promoCode.afterTrialAction === "continue" ? true : false;
         await storage.updateUserSubscription(userId, "pro", expiresAt, true, autoRenew);
+        message = `Congratulations! You now have ${promoCode.trialDays} days of Pro access.`;
+      } else if (promoCode.type === "credit" && promoCode.creditAmount) {
+        // Add credit to user's wallet
+        const user = await storage.getUser(userId);
+        if (user) {
+          const currentBalance = parseFloat(user.balance);
+          const creditAmount = parseFloat(promoCode.creditAmount);
+          const newBalance = currentBalance + creditAmount;
+          await storage.updateUserBalance(userId, newBalance.toFixed(2));
+          
+          // Create transaction record
+          await storage.createTransaction({
+            userId,
+            amount: creditAmount.toFixed(2),
+            net: creditAmount.toFixed(2),
+            type: "credit",
+            category: "promo_credit",
+            description: `Promo code credit: ${promoCode.code}`,
+            status: "completed",
+          });
+          
+          message = `Congratulations! ₹${creditAmount.toFixed(0)} has been added to your wallet!`;
+        }
+      } else if (promoCode.type === "tax_exempt") {
+        message = `Tax exemption code applied! Your next deposit will be tax-free.`;
       }
       
       // Record usage
@@ -3928,12 +3955,11 @@ export async function registerRoutes(
       
       res.json({
         success: true,
-        message: promoCode.type === "trial" 
-          ? `Congratulations! You now have ${promoCode.trialDays} days of Pro access.`
-          : `Promo code applied successfully!`,
+        message,
         type: promoCode.type,
         trialDays: promoCode.trialDays,
         discountPercent: promoCode.discountPercent,
+        creditAmount: promoCode.creditAmount,
       });
     } catch (error) {
       console.error("Error applying promo code:", error);

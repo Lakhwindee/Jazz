@@ -341,13 +341,14 @@ export const insertAppSettingSchema = createInsertSchema(appSettings).omit({
 export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;
 export type AppSetting = typeof appSettings.$inferSelect;
 
-// Promo Codes - for discounts and trials
+// Promo Codes - for discounts, trials, tax exemptions, and credits
 export const promoCodes = pgTable("promo_codes", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
-  type: text("type").notNull(), // "discount" | "trial"
+  type: text("type").notNull(), // "discount" | "trial" | "tax_exempt" | "credit"
   discountPercent: integer("discount_percent"), // for discount type
   trialDays: integer("trial_days"), // for trial type
+  creditAmount: decimal("credit_amount", { precision: 10, scale: 2 }), // for credit type - free wallet credits
   afterTrialAction: text("after_trial_action").default("downgrade"), // "downgrade" | "continue" - what happens after trial expires
   maxUses: integer("max_uses"), // null = unlimited
   currentUses: integer("current_uses").notNull().default(0),

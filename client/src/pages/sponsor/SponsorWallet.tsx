@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { api, formatINR, ApiTransaction } from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, CreditCard, Banknote, Building2, Trash2, AlertCircle, Globe } from "lucide-react";
+import { Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle, CreditCard, Banknote, Building2, Trash2, AlertCircle, Globe, Ticket, Gift, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { calculateDepositWithGST, calculateInternationalDeposit, TAX_RATES } from "@shared/tiers";
@@ -84,6 +84,10 @@ export default function SponsorWallet() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selectedBankId, setSelectedBankId] = useState<string>("");
   const [stripeSessionProcessed, setStripeSessionProcessed] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoCodeStatus, setPromoCodeStatus] = useState<{ valid: boolean; type: string; creditAmount?: string; message?: string } | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
   
   const [bankForm, setBankForm] = useState({
     accountHolderName: "",
@@ -141,6 +145,63 @@ export default function SponsorWallet() {
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to remove bank account");
+    },
+  });
+
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) return;
+    setIsValidatingPromo(true);
+    try {
+      const response = await fetch("/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setPromoCodeStatus({ valid: false, type: "", message: data.error });
+        toast.error(data.error || "Invalid promo code");
+      } else {
+        setPromoCodeStatus({ valid: true, type: data.type, creditAmount: data.creditAmount, message: "Code valid!" });
+        if (data.type === "tax_exempt") {
+          setIsTaxExempt(true);
+          toast.success("Tax exemption applied! GST waived on this deposit.");
+        } else if (data.type === "credit") {
+          toast.success(`Valid credit code! Apply to get ₹${parseFloat(data.creditAmount || "0").toFixed(0)} free credits.`);
+        }
+      }
+    } catch (error) {
+      setPromoCodeStatus({ valid: false, type: "", message: "Failed to validate code" });
+      toast.error("Failed to validate promo code");
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const applyPromoMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await fetch("/api/promo-codes/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to apply promo code");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+      queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
+      toast.success(data.message || "Promo code applied!");
+      setPromoCode("");
+      setPromoCodeStatus(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 
@@ -247,7 +308,11 @@ export default function SponsorWallet() {
       const orderRes = await fetch(`/api/sponsors/${sponsor.id}/wallet/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: baseAmount }),
+        body: JSON.stringify({ 
+          amount: baseAmount,
+          isTaxExempt: isTaxExempt,
+          promoCode: isTaxExempt && promoCodeStatus?.valid ? promoCode : undefined,
+        }),
       });
 
       if (!orderRes.ok) {
@@ -379,7 +444,9 @@ export default function SponsorWallet() {
 
     setIsProcessing(true);
     
-    const breakdown = calculateDepositWithGST(baseAmount);
+    const breakdown = isTaxExempt 
+      ? { gstAmount: 0, totalPayable: baseAmount }
+      : calculateDepositWithGST(baseAmount);
 
     try {
       const res = await fetch(`/api/sponsors/${sponsor.id}/payu/initiate`, {
@@ -392,6 +459,8 @@ export default function SponsorWallet() {
           firstname: sponsor.name || "User",
           email: sponsor.email,
           phone: (sponsor as any).phone || "9999999999",
+          isTaxExempt: isTaxExempt,
+          promoCode: isTaxExempt && promoCodeStatus?.valid ? promoCode : undefined,
         }),
       });
 
@@ -587,6 +656,42 @@ export default function SponsorWallet() {
                           </Button>
                         ))}
                       </div>
+
+                      {isIndianUser && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Have a promo code? (Optional)</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter promo code"
+                              value={promoCode}
+                              onChange={(e) => {
+                                setPromoCode(e.target.value.toUpperCase());
+                                setPromoCodeStatus(null);
+                                setIsTaxExempt(false);
+                              }}
+                              className="font-mono"
+                              data-testid="input-promo-code"
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={validatePromoCode}
+                              disabled={!promoCode.trim() || isValidatingPromo}
+                              data-testid="button-validate-promo"
+                            >
+                              {isValidatingPromo ? "..." : "Apply"}
+                            </Button>
+                          </div>
+                          {promoCodeStatus && (
+                            <div className={`text-xs p-2 rounded ${promoCodeStatus.valid ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+                              {promoCodeStatus.valid ? (
+                                promoCodeStatus.type === "tax_exempt" ? "GST waived on this deposit!" : 
+                                promoCodeStatus.type === "credit" ? `You'll get ₹${parseFloat(promoCodeStatus.creditAmount || "0").toFixed(0)} free credits!` :
+                                "Code applied!"
+                              ) : promoCodeStatus.message}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       
                       {depositAmount && parseFloat(depositAmount) > 0 && (
                         <div className="p-4 rounded-lg bg-muted/50 space-y-2">
@@ -598,12 +703,29 @@ export default function SponsorWallet() {
                             <>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">GST ({TAX_RATES.GST_PERCENT}%)</span>
-                                <span className="font-medium">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).gstAmount)}</span>
+                                {isTaxExempt ? (
+                                  <span className="font-medium text-green-500 line-through">
+                                    {formatINR(calculateDepositWithGST(parseFloat(depositAmount)).gstAmount)}
+                                    <span className="ml-2 no-underline">WAIVED</span>
+                                  </span>
+                                ) : (
+                                  <span className="font-medium">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).gstAmount)}</span>
+                                )}
                               </div>
                               <div className="flex justify-between pt-2 border-t">
                                 <span className="font-medium">Total Payable</span>
-                                <span className="font-bold text-lg">{formatINR(calculateDepositWithGST(parseFloat(depositAmount)).totalPayable)}</span>
+                                <span className="font-bold text-lg">
+                                  {isTaxExempt 
+                                    ? formatINR(parseFloat(depositAmount)) 
+                                    : formatINR(calculateDepositWithGST(parseFloat(depositAmount)).totalPayable)}
+                                </span>
                               </div>
+                              {isTaxExempt && (
+                                <div className="text-xs text-green-500 flex items-center gap-1">
+                                  <Gift className="h-3 w-3" />
+                                  GST waived with promo code!
+                                </div>
+                              )}
                             </>
                           )}
                           {!isIndianUser && (
@@ -630,7 +752,7 @@ export default function SponsorWallet() {
                             data-testid="button-confirm-deposit"
                           >
                             <CreditCard className="h-4 w-4 mr-2" />
-                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with Razorpay` : "Pay with Razorpay"}
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with Razorpay` : "Pay with Razorpay"}
                           </Button>
                           <p className="text-xs text-center text-muted-foreground">
                             Secure payment powered by Razorpay (India)
@@ -653,7 +775,7 @@ export default function SponsorWallet() {
                             data-testid="button-confirm-deposit-payu"
                           >
                             <CreditCard className="h-4 w-4 mr-2" />
-                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with PayU` : "Pay with PayU"}
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with PayU` : "Pay with PayU"}
                           </Button>
                           <p className="text-xs text-center text-muted-foreground">
                             Alternative payment via PayU (India)
@@ -678,6 +800,54 @@ export default function SponsorWallet() {
                     </div>
                   </DialogContent>
                 </Dialog>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium">Redeem Code</CardTitle>
+                <Ticket className="h-5 w-5 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Have a credit promo code? Redeem it to get free credits.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter code"
+                    value={promoCode}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value.toUpperCase());
+                      setPromoCodeStatus(null);
+                    }}
+                    className="font-mono text-sm"
+                    data-testid="input-redeem-promo"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (promoCodeStatus?.valid && promoCodeStatus.type === "credit") {
+                        applyPromoMutation.mutate(promoCode);
+                      } else {
+                        validatePromoCode();
+                      }
+                    }}
+                    disabled={!promoCode.trim() || isValidatingPromo || applyPromoMutation.isPending}
+                    data-testid="button-redeem-promo"
+                  >
+                    {applyPromoMutation.isPending ? "..." : promoCodeStatus?.valid && promoCodeStatus.type === "credit" ? "Redeem" : "Check"}
+                  </Button>
+                </div>
+                {promoCodeStatus && (
+                  <div className={`text-xs p-2 rounded mt-2 ${promoCodeStatus.valid && promoCodeStatus.type === "credit" ? "bg-green-900/30 text-green-400" : promoCodeStatus.valid ? "bg-yellow-900/30 text-yellow-400" : "bg-red-900/30 text-red-400"}`}>
+                    {promoCodeStatus.valid 
+                      ? promoCodeStatus.type === "credit" 
+                        ? `Click Redeem to get ${formatINR(parseFloat(promoCodeStatus.creditAmount || "0"))} free!`
+                        : "This code is not for credits. Use it during deposit."
+                      : promoCodeStatus.message}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

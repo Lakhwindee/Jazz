@@ -55,7 +55,9 @@ import {
   X,
   Home,
   MessageCircle,
-  Send
+  Send,
+  Ban,
+  Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -3054,6 +3056,7 @@ interface PromoCode {
   type: string;
   discountPercent: number | null;
   trialDays: number | null;
+  creditAmount: string | null;
   afterTrialAction: string | null;
   maxUses: number | null;
   currentUses: number;
@@ -3071,6 +3074,7 @@ function PromoCodesTab() {
     type: "trial",
     discountPercent: 20,
     trialDays: 7,
+    creditAmount: 500,
     afterTrialAction: "downgrade" as "downgrade" | "continue",
     maxUses: "",
     validUntil: "",
@@ -3091,6 +3095,7 @@ function PromoCodesTab() {
           type: data.type,
           discountPercent: data.type === "discount" ? data.discountPercent : null,
           trialDays: data.type === "trial" ? data.trialDays : null,
+          creditAmount: data.type === "credit" ? data.creditAmount.toString() : null,
           afterTrialAction: data.type === "trial" ? data.afterTrialAction : null,
           maxUses: data.maxUses ? parseInt(data.maxUses) : null,
           validUntil: data.validUntil || null,
@@ -3105,7 +3110,7 @@ function PromoCodesTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/promo-codes"] });
       setShowCreateDialog(false);
-      setNewCode({ code: "", type: "trial", discountPercent: 20, trialDays: 7, afterTrialAction: "downgrade", maxUses: "", validUntil: "" });
+      setNewCode({ code: "", type: "trial", discountPercent: 20, trialDays: 7, creditAmount: 500, afterTrialAction: "downgrade", maxUses: "", validUntil: "" });
       toast.success("Promo code created successfully");
     },
     onError: (error: Error) => {
@@ -3280,22 +3285,38 @@ function PromoCodesTab() {
 
             <div className="space-y-2">
               <Label className="text-gray-300">Type</Label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={newCode.type === "trial" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "trial" })}
-                  className="flex-1"
+                  size="sm"
                 >
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <Calendar className="h-4 w-4 mr-1" />
                   Free Trial
                 </Button>
                 <Button
                   variant={newCode.type === "discount" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "discount" })}
-                  className="flex-1"
+                  size="sm"
                 >
-                  <Percent className="h-4 w-4 mr-2" />
+                  <Percent className="h-4 w-4 mr-1" />
                   Discount
+                </Button>
+                <Button
+                  variant={newCode.type === "tax_exempt" ? "default" : "outline"}
+                  onClick={() => setNewCode({ ...newCode, type: "tax_exempt" })}
+                  size="sm"
+                >
+                  <Ban className="h-4 w-4 mr-1" />
+                  Tax Exempt
+                </Button>
+                <Button
+                  variant={newCode.type === "credit" ? "default" : "outline"}
+                  onClick={() => setNewCode({ ...newCode, type: "credit" })}
+                  size="sm"
+                >
+                  <Gift className="h-4 w-4 mr-1" />
+                  Free Credit
                 </Button>
               </div>
             </div>
@@ -3358,6 +3379,31 @@ function PromoCodesTab() {
                   className="bg-gray-700 border-gray-600 text-white"
                   data-testid="input-discount-percent"
                 />
+              </div>
+            )}
+
+            {newCode.type === "tax_exempt" && (
+              <div className="p-3 bg-green-900/30 border border-green-700 rounded-lg">
+                <p className="text-sm text-green-300">
+                  This code will waive GST/taxes on wallet deposits. Users won't pay any tax when adding money to their wallet.
+                </p>
+              </div>
+            )}
+
+            {newCode.type === "credit" && (
+              <div className="space-y-2">
+                <Label className="text-gray-300">Credit Amount (INR)</Label>
+                <Input
+                  type="number"
+                  value={newCode.creditAmount}
+                  onChange={(e) => setNewCode({ ...newCode, creditAmount: parseInt(e.target.value) || 500 })}
+                  min={1}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  data-testid="input-credit-amount"
+                />
+                <p className="text-xs text-gray-500">
+                  This amount will be added to the user's wallet for free when they apply this code.
+                </p>
               </div>
             )}
 

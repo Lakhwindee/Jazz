@@ -16,7 +16,11 @@ International influencer marketing platform connecting Instagram creators with b
 - Sponsor wallet with deposits (GST applied), withdrawals, and campaign payment deductions
 - Subscription system with admin-managed plans
 - Instagram OAuth infrastructure (ready for Meta credentials)
-- Promo code system with trial support and configurable after-trial behavior
+- **Enhanced Promo Code System**: 4 types (discount, trial, tax_exempt, credit)
+  - Discount: Percentage off on subscriptions
+  - Trial: Free Pro days with configurable after-trial behavior
+  - Tax Exempt: Waives GST on sponsor wallet deposits (India only)
+  - Credit: Gives free wallet balance when redeemed
 - Cashfree payment integration
 - **PayU Payment Gateway**: Alternative payment option for Indian sponsors (in addition to Razorpay)
 - Professional checkout flow with GST-compliant billing details collection
