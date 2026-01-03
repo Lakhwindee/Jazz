@@ -2345,6 +2345,18 @@ function VerificationsTab() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedUser(user);
+                        }}
+                        className="h-8 w-8 p-0"
+                        data-testid={`button-view-verification-user-${user.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
                         className="bg-green-600 hover:bg-green-700"
                         onClick={() => approveMutation.mutate(user.id)}
                         disabled={approveMutation.isPending}
@@ -2412,6 +2424,18 @@ function VerificationsTab() {
                         Country: {user.country || "Not specified"}
                       </p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedUser(user);
+                      }}
+                      className="h-8 w-8 p-0"
+                      data-testid={`button-view-verified-user-${user.id}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
