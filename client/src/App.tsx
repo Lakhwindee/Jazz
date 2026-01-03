@@ -26,6 +26,7 @@ import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import Subscription from "@/pages/Subscription";
 import Support from "@/pages/Support";
+import ForgotPassword from "@/pages/ForgotPassword";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       {/* Creator Auth Routes */}
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       
       {/* Sponsor Auth Routes */}
       <Route path="/sponsor/login" component={SponsorLogin} />

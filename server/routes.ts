@@ -288,6 +288,107 @@ export async function registerRoutes(
     }
   });
 
+  // Forgot Password - Send OTP
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "No account found with this email" });
+      }
+      
+      // Generate OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Store OTP
+      await storage.createOtp(email, otp, expiresAt);
+      
+      // Send email with OTP
+      const emailSent = await sendEmail({
+        to: email,
+        subject: "Reset Your Password - InstaCreator Hub",
+        html: `<p>Your password reset code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p><p>If you did not request this, please ignore this email.</p>`
+      });
+      
+      if (!emailSent) {
+        return res.status(500).json({ error: "Failed to send reset code. Please try again." });
+      }
+      
+      res.json({ message: "Reset code sent successfully", expiresIn: 600 });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Failed to send reset code" });
+    }
+  });
+
+  // Verify Reset OTP
+  app.post("/api/auth/verify-reset-otp", async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+      
+      if (!email || !otp) {
+        return res.status(400).json({ error: "Email and OTP are required" });
+      }
+      
+      const otpRecord = await storage.getValidOtp(email);
+      
+      if (!otpRecord || otpRecord.otp !== otp) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+      
+      res.json({ verified: true, message: "Code verified successfully" });
+    } catch (error) {
+      console.error("Verify reset OTP error:", error);
+      res.status(500).json({ error: "Failed to verify code" });
+    }
+  });
+
+  // Reset Password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+      
+      if (!email || !otp || !newPassword) {
+        return res.status(400).json({ error: "Email, OTP and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      // Verify OTP again
+      const otpRecord = await storage.getValidOtp(email);
+      if (!otpRecord || otpRecord.otp !== otp) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+      
+      // Get user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Hash new password and update
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUserPassword(user.id, hashedPassword);
+      
+      // Delete used OTP
+      await storage.deleteOtp(email);
+      
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
   // File upload endpoint
   app.post("/api/upload", upload.single("file"), (req, res) => {
     try {

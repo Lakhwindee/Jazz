@@ -28,6 +28,7 @@ International influencer marketing platform connecting Instagram creators with b
 - **Admin Settings Panel**: Three tabs for Admin Wallet, Subscription Plans (CRUD), and API Keys setup
 - **Payment Flow**: Sponsor pays admin → Admin pays creators on approval → Refunds from admin wallet
 - **Campaign-Grouped Submissions**: Admin can view all submissions grouped by campaign with status tracking (reserved, submitted, approved, rejected), progress bars, and filter options
+- **Forgot Password System**: 3-step OTP-based password reset (enter email → verify OTP → set new password)
 
 ## Supported Countries
 195 countries worldwide with multi-country targeting support:

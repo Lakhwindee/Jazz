@@ -150,6 +150,10 @@ export interface IStorage {
   verifyOtp(email: string, otp: string): Promise<boolean>;
   incrementOtpAttempts(id: number): Promise<void>;
   deleteExpiredOtps(): Promise<void>;
+  deleteOtp(email: string): Promise<void>;
+
+  // Password Management
+  updateUserPassword(id: number, hashedPassword: string): Promise<void>;
 
   // Newsletters
   getAllNewsletters(): Promise<Newsletter[]>;
@@ -1015,6 +1019,14 @@ export class DatabaseStorage implements IStorage {
   async deleteExpiredOtps(): Promise<void> {
     await db.delete(otpVerifications)
       .where(sql`${otpVerifications.expiresAt} < NOW()`);
+  }
+
+  async deleteOtp(email: string): Promise<void> {
+    await db.delete(otpVerifications).where(eq(otpVerifications.email, email));
+  }
+
+  async updateUserPassword(id: number, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, id));
   }
 
   // Newsletters

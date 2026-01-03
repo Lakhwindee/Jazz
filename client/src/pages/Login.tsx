@@ -142,6 +142,17 @@ export default function Login() {
               </Button>
             </form>
 
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setLocation("/forgot-password")}
+                className="text-purple-400 hover:text-purple-300 text-sm"
+                data-testid="link-forgot-password"
+              >
+                Forgot Password?
+              </button>
+            </div>
+
             <div className="mt-6 text-center">
               <p className="text-gray-400">
                 Don't have an account?{" "}
