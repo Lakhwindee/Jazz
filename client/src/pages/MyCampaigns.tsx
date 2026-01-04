@@ -71,7 +71,7 @@ export default function MyCampaigns() {
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ["campaigns"],
-    queryFn: api.getCampaigns,
+    queryFn: () => api.getCampaigns(),
   });
 
   const { data: reservations = [] } = useQuery({

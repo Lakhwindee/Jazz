@@ -470,7 +470,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get user reservations
+  // Get user reservations (with campaign data included)
   app.get("/api/users/:userId/reservations", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
@@ -481,7 +481,19 @@ export async function registerRoutes(
       // Then fetch the user's reservations (excluding expired ones)
       const reservations = await storage.getReservationsByUser(userId);
       const activeReservations = reservations.filter(r => r.status !== "expired");
-      res.json(activeReservations);
+      
+      // Include campaign data for each reservation
+      const reservationsWithCampaigns = await Promise.all(
+        activeReservations.map(async (reservation) => {
+          const campaign = await storage.getCampaign(reservation.campaignId);
+          return {
+            ...reservation,
+            campaign: campaign || null,
+          };
+        })
+      );
+      
+      res.json(reservationsWithCampaigns);
     } catch (error) {
       console.error("Error fetching reservations:", error);
       res.status(500).json({ error: "Failed to fetch reservations" });

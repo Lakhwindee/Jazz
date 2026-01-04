@@ -102,6 +102,7 @@ export interface ApiReservation {
   shippedAt?: string | null;
   deliveryConfirmed?: boolean | null;
   deliveredAt?: string | null;
+  campaign?: ApiCampaign | null;
 }
 
 export interface ApiTransaction {
