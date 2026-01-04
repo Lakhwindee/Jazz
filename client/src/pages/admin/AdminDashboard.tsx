@@ -3578,7 +3578,7 @@ function PromoCodesTab() {
                   className="bg-gray-700 border-gray-600 text-white font-mono"
                   data-testid="input-promo-code"
                 />
-                <Button variant="outline" onClick={generateRandomCode} className="shrink-0">
+                <Button variant="outline" onClick={generateRandomCode} className="shrink-0 text-white border-gray-500">
                   Generate
                 </Button>
               </div>
@@ -3591,6 +3591,7 @@ function PromoCodesTab() {
                   variant={newCode.type === "trial" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "trial" })}
                   size="sm"
+                  className={newCode.type !== "trial" ? "text-white border-gray-500" : ""}
                 >
                   <Calendar className="h-4 w-4 mr-1" />
                   Free Trial
@@ -3599,6 +3600,7 @@ function PromoCodesTab() {
                   variant={newCode.type === "discount" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "discount" })}
                   size="sm"
+                  className={newCode.type !== "discount" ? "text-white border-gray-500" : ""}
                 >
                   <Percent className="h-4 w-4 mr-1" />
                   Discount
@@ -3607,6 +3609,7 @@ function PromoCodesTab() {
                   variant={newCode.type === "tax_exempt" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "tax_exempt" })}
                   size="sm"
+                  className={newCode.type !== "tax_exempt" ? "text-white border-gray-500" : ""}
                 >
                   <Ban className="h-4 w-4 mr-1" />
                   Tax Exempt
@@ -3615,6 +3618,7 @@ function PromoCodesTab() {
                   variant={newCode.type === "credit" ? "default" : "outline"}
                   onClick={() => setNewCode({ ...newCode, type: "credit" })}
                   size="sm"
+                  className={newCode.type !== "credit" ? "text-white border-gray-500" : ""}
                 >
                   <Gift className="h-4 w-4 mr-1" />
                   Free Credit
@@ -3642,7 +3646,7 @@ function PromoCodesTab() {
                       type="button"
                       variant={newCode.afterTrialAction === "downgrade" ? "default" : "outline"}
                       onClick={() => setNewCode({ ...newCode, afterTrialAction: "downgrade" })}
-                      className="flex-1"
+                      className={`flex-1 ${newCode.afterTrialAction !== "downgrade" ? "text-white border-gray-500" : ""}`}
                       data-testid="button-after-trial-downgrade"
                     >
                       <ArrowDown className="h-4 w-4 mr-2" />
@@ -3652,7 +3656,7 @@ function PromoCodesTab() {
                       type="button"
                       variant={newCode.afterTrialAction === "continue" ? "default" : "outline"}
                       onClick={() => setNewCode({ ...newCode, afterTrialAction: "continue" })}
-                      className="flex-1"
+                      className={`flex-1 ${newCode.afterTrialAction !== "continue" ? "text-white border-gray-500" : ""}`}
                       data-testid="button-after-trial-continue"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -3734,7 +3738,7 @@ function PromoCodesTab() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="text-white border-gray-500">
               Cancel
             </Button>
             <Button
