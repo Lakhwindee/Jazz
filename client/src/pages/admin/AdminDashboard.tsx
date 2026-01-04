@@ -3631,7 +3631,7 @@ function PromoCodesTab() {
                     value={newCode.trialDays}
                     onChange={(e) => setNewCode({ ...newCode, trialDays: parseInt(e.target.value) || 7 })}
                     min={1}
-                    className="bg-gray-700 border-gray-600 text-white"
+                    className="bg-gray-700 border-gray-600 text-white [color-scheme:dark]"
                     data-testid="input-trial-days"
                   />
                 </div>
@@ -3677,7 +3677,7 @@ function PromoCodesTab() {
                   onChange={(e) => setNewCode({ ...newCode, discountPercent: parseInt(e.target.value) || 20 })}
                   min={1}
                   max={100}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-gray-700 border-gray-600 text-white [color-scheme:dark]"
                   data-testid="input-discount-percent"
                 />
               </div>
@@ -3699,7 +3699,7 @@ function PromoCodesTab() {
                   value={newCode.creditAmount}
                   onChange={(e) => setNewCode({ ...newCode, creditAmount: parseInt(e.target.value) || 500 })}
                   min={1}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-gray-700 border-gray-600 text-white [color-scheme:dark]"
                   data-testid="input-credit-amount"
                 />
                 <p className="text-xs text-gray-500">
@@ -3716,7 +3716,7 @@ function PromoCodesTab() {
                 onChange={(e) => setNewCode({ ...newCode, maxUses: e.target.value })}
                 placeholder="Unlimited"
                 min={1}
-                className="bg-gray-700 border-gray-600 text-white"
+                className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 [color-scheme:dark]"
                 data-testid="input-max-uses"
               />
             </div>
@@ -3727,7 +3727,7 @@ function PromoCodesTab() {
                 type="date"
                 value={newCode.validUntil}
                 onChange={(e) => setNewCode({ ...newCode, validUntil: e.target.value })}
-                className="bg-gray-700 border-gray-600 text-white"
+                className="bg-gray-700 border-gray-600 text-white [color-scheme:dark]"
                 data-testid="input-valid-until"
               />
             </div>
