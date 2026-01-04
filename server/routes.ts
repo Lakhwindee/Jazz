@@ -3034,19 +3034,60 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Campaign not found" });
       }
       
+      // Refund sponsor if they paid for the campaign (non-product campaigns)
+      if (campaign.sponsorId && campaign.campaignType !== "product") {
+        const sponsor = await storage.getUser(campaign.sponsorId);
+        if (sponsor) {
+          // Calculate refund amount (totalBudget includes platform fee)
+          const refundAmount = parseFloat(campaign.totalBudget);
+          
+          if (refundAmount > 0) {
+            // Refund to sponsor wallet
+            const currentBalance = parseFloat(sponsor.balance);
+            const newBalance = currentBalance + refundAmount;
+            await storage.updateUserBalance(campaign.sponsorId, newBalance.toFixed(2));
+            
+            // Deduct from admin wallet
+            await storage.updateAdminWalletBalance(refundAmount, 'subtract');
+            await storage.updateAdminWalletStats(0, 0, refundAmount);
+            
+            // Record refund transaction for sponsor
+            await storage.createTransaction({
+              userId: campaign.sponsorId,
+              type: "credit",
+              amount: refundAmount.toFixed(2),
+              tax: "0",
+              net: refundAmount.toFixed(2),
+              description: `Refund: Campaign "${campaign.title}" rejected`,
+              status: "completed",
+            });
+            
+            // Record refund in admin wallet
+            await storage.createAdminWalletTransaction({
+              category: "campaign_refund",
+              type: "debit",
+              amount: refundAmount.toFixed(2),
+              description: `Campaign refund to ${sponsor.companyName || sponsor.name}: "${campaign.title}"`,
+              relatedUserId: campaign.sponsorId,
+              campaignId: campaign.id,
+            });
+          }
+        }
+      }
+      
       // Notify sponsor before deleting
       if (campaign.sponsorId) {
         await storage.createNotification({
           userId: campaign.sponsorId,
           type: "campaign_rejected",
           title: "Campaign Rejected",
-          message: reason || `Your campaign "${campaign.title}" was rejected. Please review guidelines and try again.`,
+          message: reason || `Your campaign "${campaign.title}" was rejected. Your wallet has been refunded.`,
           isRead: false,
         });
       }
       
       await storage.rejectCampaign(campaignId);
-      res.json({ success: true, message: "Campaign rejected" });
+      res.json({ success: true, message: "Campaign rejected and sponsor refunded" });
     } catch (error) {
       console.error("Error rejecting campaign:", error);
       res.status(500).json({ error: "Failed to reject campaign" });
