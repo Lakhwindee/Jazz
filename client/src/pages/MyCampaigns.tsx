@@ -69,11 +69,6 @@ export default function MyCampaigns() {
     queryFn: api.getCurrentUser,
   });
 
-  const { data: campaigns = [] } = useQuery({
-    queryKey: ["campaigns"],
-    queryFn: () => api.getCampaigns(),
-  });
-
   const { data: reservations = [] } = useQuery({
     queryKey: ["reservations", user?.id],
     queryFn: () => user ? api.getUserReservations(user.id) : [],
@@ -109,10 +104,6 @@ export default function MyCampaigns() {
   const handleSubmit = () => {
     if (!selectedReservationId) return;
     submitMutation.mutate({ reservationId: selectedReservationId, data: submissionData });
-  };
-
-  const getCampaignById = (id: number): ApiCampaign | undefined => {
-    return campaigns.find(c => c.id === id);
   };
 
   const getStatusBadge = (status: string) => {
@@ -153,7 +144,7 @@ export default function MyCampaigns() {
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {reservations.map((reservation, i) => {
-                const campaign = getCampaignById(reservation.campaignId);
+                const campaign = reservation.campaign;
                 if (!campaign) return null;
                 
                 return (

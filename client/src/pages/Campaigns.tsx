@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, type ApiCategorySubscription, type ApiCampaign, formatINR } from "@/lib/api";
+import { api, type ApiCategorySubscription, type ApiCampaign, type ApiReservation, formatINR } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe } from "lucide-react";
 import { useLocation } from "wouter";
@@ -60,6 +61,16 @@ export default function Campaigns() {
     queryKey: ["allCampaigns", countryFilter],
     queryFn: () => api.getCampaigns(countryFilter && countryFilter !== "all" ? countryFilter : undefined),
   });
+
+  const { data: reservations = [] } = useQuery({
+    queryKey: ["reservations", user?.id],
+    queryFn: () => user ? api.getUserReservations(user.id) : [],
+    enabled: !!user?.id,
+  });
+
+  const isAlreadyReserved = (campaignId: number): boolean => {
+    return reservations.some((r: ApiReservation) => r.campaignId === campaignId && r.status !== "expired");
+  };
 
   const joinedCategories = Array.from(new Set(subscriptions.map((s: ApiCategorySubscription) => s.category)));
 
@@ -281,6 +292,7 @@ export default function Campaigns() {
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {activeCampaigns.map((campaign: ApiCampaign, index: number) => {
                       const isLocked = isCampaignLocked(campaign);
+                      const isReserved = isAlreadyReserved(campaign.id);
                       const campaignTier = TIERS.find(t => t.name === campaign.tier);
                       
                       return (
@@ -340,6 +352,61 @@ export default function Campaigns() {
                               </TooltipTrigger>
                               <TooltipContent side="top" className="bg-red-500 text-white border-red-500">
                                 <p>Requires {campaignTier ? formatFollowers(campaignTier.minFollowers) : campaign.tier}+ followers</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : isReserved ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="relative group cursor-not-allowed" data-testid={`card-campaign-reserved-${campaign.id}`}>
+                                  <Card className="transition-all border-green-300">
+                                    <CardContent className="p-5">
+                                      <div className="flex items-start gap-4">
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
+                                          {campaign.brandLogo ? (
+                                            <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                                          ) : (
+                                            <Building2 className="h-7 w-7" />
+                                          )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h3 className="font-bold text-lg truncate">{campaign.title}</h3>
+                                          <p className="text-sm text-muted-foreground truncate">{campaign.brand}</p>
+                                          <div className="flex flex-wrap gap-2 mt-2">
+                                            {campaign.campaignType === "product" ? (
+                                              <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
+                                                <Gift className="h-3 w-3" />
+                                                Free Product
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                                {formatINR(campaign.payAmount)}
+                                              </Badge>
+                                            )}
+                                            <Badge variant="outline" className="text-xs">
+                                              {campaign.tier}
+                                            </Badge>
+                                          </div>
+                                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{new Date(campaign.deadline).toLocaleDateString()}</span>
+                                            <span className="ml-2">{campaign.spotsRemaining} spots left</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 rounded-lg flex flex-col items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <div className="bg-red-500 rounded-full p-3 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-200 mb-2">
+                                      <X className="h-8 w-8 text-white stroke-[3]" />
+                                    </div>
+                                    <span className="text-white font-bold text-sm bg-red-500 px-3 py-1 rounded-full transform scale-0 group-hover:scale-100 transition-transform duration-200 delay-75">
+                                      Already Reserved
+                                    </span>
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-green-500 text-white border-green-500">
+                                <p>You've already reserved this campaign</p>
                               </TooltipContent>
                             </Tooltip>
                           ) : (
