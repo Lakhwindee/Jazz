@@ -38,6 +38,10 @@ International influencer marketing platform connecting Instagram creators with b
   - Delete users permanently  
   - Disconnect Instagram accounts
   - Ban/Unban Instagram accounts separately
+- **Campaign Folder View**: Sponsor campaigns grouped by title with collapsible tiers
+  - Same title campaigns shown as folder
+  - Expand to see individual tier cards
+  - Summary stats (total spots, budget) per group
 
 ## Supported Countries
 195 countries worldwide with multi-country targeting support:
