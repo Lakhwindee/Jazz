@@ -326,7 +326,7 @@ export default function SponsorWallet() {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: "InstaCreator Hub",
+        name: "Mingree",
         description: `Wallet Deposit (Base: ${formatINR(orderData.baseAmount)}, GST: ${formatINR(orderData.gstAmount)})`,
         order_id: orderData.orderId,
         handler: async function (response: any) {

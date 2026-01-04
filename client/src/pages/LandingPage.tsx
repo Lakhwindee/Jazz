@@ -93,7 +93,7 @@ export default function LandingPage() {
               <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                 <Instagram className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">InstaCreator Hub</span>
+              <span className="text-xl font-bold text-white">Mingree</span>
             </div>
             <div className="flex items-center gap-3">
               <Button 
@@ -389,10 +389,10 @@ export default function LandingPage() {
               <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                 <Instagram className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-white">InstaCreator Hub</span>
+              <span className="text-lg font-bold text-white">Mingree</span>
             </div>
             <div className="text-gray-400 text-sm">
-              © 2025 InstaCreator Hub. All rights reserved.
+              © 2025 Mingree. All rights reserved.
             </div>
           </div>
         </div>

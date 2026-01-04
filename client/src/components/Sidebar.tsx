@@ -107,7 +107,7 @@ export function Sidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-insta-gradient text-white">
               <LayoutDashboard className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold tracking-tight">InstaCreator</span>
+            <span className="text-xl font-bold tracking-tight">Mingree</span>
           </div>
           {user && <NotificationDropdown userId={user.id} />}
         </div>

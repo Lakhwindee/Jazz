@@ -313,7 +313,7 @@ export async function registerRoutes(
       // Send email with OTP
       const emailSent = await sendEmail({
         to: email,
-        subject: "Reset Your Password - InstaCreator Hub",
+        subject: "Reset Your Password - Mingree",
         html: `<p>Your password reset code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p><p>If you did not request this, please ignore this email.</p>`
       });
       

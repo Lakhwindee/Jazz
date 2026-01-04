@@ -85,7 +85,7 @@ export default function Login() {
             </div>
             <CardTitle className="text-2xl font-bold text-white">Welcome</CardTitle>
             <CardDescription className="text-gray-400">
-              Sign in to access your InstaCreator Hub account
+              Sign in to access your Mingree account
             </CardDescription>
           </CardHeader>
           <CardContent>

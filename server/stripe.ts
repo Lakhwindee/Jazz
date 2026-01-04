@@ -123,7 +123,7 @@ export async function createStripeCheckoutSession(
           currency: currency.toLowerCase(),
           product_data: {
             name: 'Wallet Deposit',
-            description: `Add ${currency.toUpperCase()} ${baseAmount} to your InstaCreator Hub wallet (includes ${currency.toUpperCase()} ${processingFee} processing fee)`,
+            description: `Add ${currency.toUpperCase()} ${baseAmount} to your Mingree wallet (includes ${currency.toUpperCase()} ${processingFee} processing fee)`,
           },
           unit_amount: amountInSmallestUnit,
         },

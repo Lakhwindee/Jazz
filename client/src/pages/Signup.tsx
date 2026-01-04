@@ -193,7 +193,7 @@ export default function Signup() {
 
       toast({
         title: "Account Created!",
-        description: "Welcome to InstaCreator Hub!",
+        description: "Welcome to Mingree!",
       });
 
       if (role === "sponsor") {
@@ -267,7 +267,7 @@ export default function Signup() {
               {step === "otp" ? <Mail className="h-8 w-8 text-white" /> : <UserPlus className="h-8 w-8 text-white" />}
             </div>
             <CardTitle className="text-xl font-bold text-white">
-              {step === "form" ? "InstaCreator Hub" : "Verify Email"}
+              {step === "form" ? "Mingree" : "Verify Email"}
             </CardTitle>
             <CardDescription className="text-gray-400 text-sm">
               {step === "form" 

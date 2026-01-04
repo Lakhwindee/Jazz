@@ -77,7 +77,7 @@ export default function AdminLogin() {
             <Shield className="h-10 w-10 text-white" />
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">Admin Portal</h1>
-          <p className="text-gray-400">InstaCreator Hub Management</p>
+          <p className="text-gray-400">Mingree Management</p>
         </div>
 
         <Card className="bg-gray-800/80 backdrop-blur-xl border-gray-700 shadow-2xl">
@@ -164,7 +164,7 @@ export default function AdminLogin() {
         </Card>
 
         <p className="text-center text-gray-500 text-sm mt-6">
-          Protected by InstaCreator Hub Security
+          Protected by Mingree Security
         </p>
       </motion.div>
     </div>

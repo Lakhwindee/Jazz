@@ -47,13 +47,13 @@ export async function sendOTPEmail(
     });
     
     const mailOptions = {
-      from: `"InstaCreator Hub" <${config.smtpEmail}>`,
+      from: `"Mingree" <${config.smtpEmail}>`,
       to: toEmail,
-      subject: "Your OTP for Email Verification - InstaCreator Hub",
+      subject: "Your OTP for Email Verification - Mingree",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; text-align: center;">InstaCreator Hub</h1>
+            <h1 style="color: white; margin: 0; text-align: center;">Mingree</h1>
           </div>
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
             <h2 style="color: #333; margin-top: 0;">Email Verification</h2>
@@ -114,7 +114,7 @@ export async function sendEmail(options: {
     });
     
     const mailOptions = {
-      from: `"InstaCreator Hub" <${config.smtpEmail}>`,
+      from: `"Mingree" <${config.smtpEmail}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,

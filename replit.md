@@ -1,4 +1,4 @@
-# InstaCreator Hub - Project Documentation
+# Mingree - Project Documentation
 
 ## Project Overview
 International influencer marketing platform connecting Instagram creators with brand campaigns across 25+ countries. Tier-based system (Tier 1-20) with follower requirements and multi-currency support.
