@@ -1935,9 +1935,26 @@ export async function registerRoutes(
   
   // Cashfree payment callback/return handler
   app.get("/api/cashfree/callback", async (req, res) => {
-    const { order_id, order_status } = req.query;
-    // Redirect to wallet page with status
-    res.redirect(`/sponsor/wallet?order_id=${order_id}&status=${order_status}`);
+    const { order_id } = req.query;
+    
+    if (!order_id) {
+      return res.redirect(`/sponsor/wallet?error=missing_order_id`);
+    }
+    
+    try {
+      // Fetch actual order status from Cashfree API
+      const orderDetails = await fetchCashfreeOrder(order_id as string);
+      const orderStatus = orderDetails.order_status || "UNKNOWN";
+      
+      console.log(`Cashfree callback: order_id=${order_id}, status=${orderStatus}`);
+      
+      // Redirect to wallet page with actual status from API
+      res.redirect(`/sponsor/wallet?order_id=${order_id}&status=${orderStatus}`);
+    } catch (error) {
+      console.error("Error fetching Cashfree order status:", error);
+      // Redirect without status, frontend will handle verification
+      res.redirect(`/sponsor/wallet?order_id=${order_id}&status=PENDING_VERIFICATION`);
+    }
   });
 
   // ==================== STRIPE PAYMENT (International) ====================

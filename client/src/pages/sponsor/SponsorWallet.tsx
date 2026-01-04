@@ -247,8 +247,9 @@ export default function SponsorWallet() {
     const orderId = params.get("order_id");
     const orderStatus = params.get("status");
     
-    if (orderId && orderStatus) {
-      if (orderStatus === "PAID") {
+    if (orderId) {
+      // Always try to verify payment when we have an order_id
+      if (orderStatus === "PAID" || orderStatus === "PENDING_VERIFICATION" || !orderStatus) {
         // Verify payment and credit wallet
         const storedBaseAmount = sessionStorage.getItem(`cashfree_base_${orderId}`);
         const storedTaxExempt = sessionStorage.getItem(`cashfree_taxexempt_${orderId}`);
@@ -272,7 +273,12 @@ export default function SponsorWallet() {
               sessionStorage.removeItem(`cashfree_base_${orderId}`);
               sessionStorage.removeItem(`cashfree_taxexempt_${orderId}`);
             } else {
-              toast.error(data.error || "Payment verification failed");
+              // Payment not yet completed or failed
+              if (data.status === "ACTIVE") {
+                toast.info("Payment not completed yet. Please try again.");
+              } else {
+                toast.error(data.error || "Payment verification failed");
+              }
             }
             setLocation("/sponsor/wallet");
           })
