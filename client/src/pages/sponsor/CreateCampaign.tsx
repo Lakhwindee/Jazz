@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { TIERS, getPaymentByStyle, calculateSponsorPayment, TAX_RATES } from "@shared/tiers";
+import { TIERS, getPaymentByStyle, calculateSponsorPayment, TAX_RATES, formatTierRange } from "@shared/tiers";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe } from "lucide-react";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
@@ -510,7 +510,7 @@ export default function CreateCampaign() {
                         >
                           <div className="font-semibold text-sm">{tier.name.replace("Tier ", "T")}</div>
                           <div className="text-[10px] text-muted-foreground">
-                            {tier.minFollowers >= 1000000 ? `${(tier.minFollowers / 1000000).toFixed(1)}M` : tier.minFollowers >= 1000 ? `${tier.minFollowers / 1000}K` : tier.minFollowers}-{tier.maxFollowers >= 1000000 ? `${(tier.maxFollowers / 1000000).toFixed(0)}M` : `${tier.maxFollowers / 1000}K`}
+                            {formatTierRange(tier.minFollowers, tier.maxFollowers)}
                           </div>
                         </button>
                       );
@@ -532,9 +532,7 @@ export default function CreateCampaign() {
                             <div className="flex-1">
                               <div className="font-medium">{selection.tierName}</div>
                               <div className="text-xs text-muted-foreground">
-                                {selection.minFollowers >= 1000000 
-                                  ? `${(selection.minFollowers / 1000000).toFixed(1)}M` 
-                                  : selection.minFollowers >= 1000 ? `${selection.minFollowers / 1000}K` : selection.minFollowers} - {selection.maxFollowers >= 1000000 ? `${(selection.maxFollowers / 1000000).toFixed(0)}M` : `${selection.maxFollowers / 1000}K`} followers | {formatINR(selection.paymentPerCreator)}/creator
+                                {formatTierRange(selection.minFollowers, selection.maxFollowers)} followers | {formatINR(selection.paymentPerCreator)}/creator
                               </div>
                             </div>
                             <div className="flex items-center gap-2">

@@ -42,9 +42,16 @@ export function getTierById(id: number): Tier | undefined {
 }
 
 export function formatFollowers(count: number): string {
-  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000000) {
+    const millions = count / 1000000;
+    return millions % 1 === 0 ? `${millions}M` : `${millions.toFixed(1)}M`;
+  }
   if (count >= 1000) return `${(count / 1000).toFixed(0)}K`;
   return count.toString();
+}
+
+export function formatTierRange(minFollowers: number, maxFollowers: number): string {
+  return `${formatFollowers(minFollowers)}-${formatFollowers(maxFollowers)}`;
 }
 
 export const PROMOTION_STYLE_MULTIPLIERS: Record<string, number> = {
