@@ -50,3 +50,6 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
+
+[userenv.development]
+CASHFREE_ENVIRONMENT = "sandbox"

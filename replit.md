@@ -21,8 +21,8 @@ International influencer marketing platform connecting Instagram creators with b
   - Trial: Free Pro days with configurable after-trial behavior
   - Tax Exempt: Waives GST on sponsor wallet deposits (India only)
   - Credit: Gives free wallet balance when redeemed
-- Cashfree payment integration
-- **PayU Payment Gateway**: Alternative payment option for Indian sponsors (in addition to Razorpay)
+- **Cashfree Payment Gateway**: Primary payment gateway for Indian sponsors (UPI, Cards, Net Banking)
+- Stripe payment integration for international sponsors
 - Professional checkout flow with GST-compliant billing details collection
 - Multi-tier campaign selection with cumulative pricing
 - Tax system: 10% platform fee on campaigns, 18% GST on wallet deposits, 18% GST on creator withdrawals
@@ -189,6 +189,9 @@ Password: sponsor123
 - Production ready
 - Environment variables required:
   - Database credentials (auto-managed by Replit)
+  - `CASHFREE_APP_ID` - Cashfree App ID (required for payments)
+  - `CASHFREE_SECRET_KEY` - Cashfree Secret Key (required for payments)
+  - `CASHFREE_ENVIRONMENT` - "sandbox" for testing, "production" for live
   - `INSTAGRAM_ACCESS_TOKEN` (when Meta approves)
   - `INSTAGRAM_USER_ID` (when Meta approves)
 
@@ -223,5 +226,5 @@ Password: sponsor123
 
 ---
 
-**Last Updated:** Dec 27, 2025
-**Status:** Ready for Meta API integration
+**Last Updated:** Jan 04, 2026
+**Status:** Cashfree payment gateway integrated, Ready for Meta API integration

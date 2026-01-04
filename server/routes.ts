@@ -10,7 +10,6 @@ import passport from "passport";
 import { setupAuth, hashPassword, isAuthenticated, sanitizeUser } from "./auth";
 import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
-import { createOrder as createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId } from "./razorpay";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
 import { sendEmail } from "./email";
@@ -4263,8 +4262,6 @@ export async function registerRoutes(
         "cashfree_secret_key",
         "instagram_app_id",
         "instagram_app_secret",
-        "razorpay_key_id",
-        "razorpay_key_secret",
         "gmail_user",
         "gmail_app_password",
         "rapidapi_key",
@@ -4303,8 +4300,6 @@ export async function registerRoutes(
         "cashfree_secret_key",
         "instagram_app_id",
         "instagram_app_secret",
-        "razorpay_key_id",
-        "razorpay_key_secret",
         "gmail_user",
         "gmail_app_password",
         "rapidapi_key",
