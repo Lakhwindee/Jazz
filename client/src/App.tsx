@@ -27,6 +27,10 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import Subscription from "@/pages/Subscription";
 import Support from "@/pages/Support";
 import ForgotPassword from "@/pages/ForgotPassword";
+import Terms from "@/pages/legal/Terms";
+import Privacy from "@/pages/legal/Privacy";
+import Refunds from "@/pages/legal/Refunds";
+import Contact from "@/pages/legal/Contact";
 
 function Router() {
   return (
@@ -64,6 +68,12 @@ function Router() {
       {/* Admin Routes */}
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      
+      {/* Legal Pages */}
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/refunds" component={Refunds} />
+      <Route path="/contact" component={Contact} />
       
       <Route component={NotFound} />
     </Switch>
