@@ -26,8 +26,8 @@ export const TIERS: Tier[] = [
   { id: 16, name: "Tier 16", minFollowers: 1000000, maxFollowers: 2000000, basePayment: 320 },
   { id: 17, name: "Tier 17", minFollowers: 2000000, maxFollowers: 3000000, basePayment: 340 },
   { id: 18, name: "Tier 18", minFollowers: 3000000, maxFollowers: 5000000, basePayment: 360 },
-  { id: 19, name: "Tier 19", minFollowers: 5000000, maxFollowers: 10000000, basePayment: 380 },
-  { id: 20, name: "Tier 20", minFollowers: 10000000, maxFollowers: 100000000, basePayment: 400 },
+  { id: 19, name: "Tier 19", minFollowers: 5000000, maxFollowers: 7000000, basePayment: 380 },
+  { id: 20, name: "Tier 20", minFollowers: 7000000, maxFollowers: 10000000, basePayment: 400 },
 ];
 
 export const MIN_FOLLOWERS = 500;

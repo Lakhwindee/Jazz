@@ -332,7 +332,7 @@ export default function LandingPage() {
                 { tier: "Tier 1", followers: "500-1K", pay: "₹20" },
                 { tier: "Tier 5", followers: "10K-20K", pay: "₹100" },
                 { tier: "Tier 10", followers: "100K-150K", pay: "₹200" },
-                { tier: "Tier 20", followers: "10M+", pay: "₹400" }
+                { tier: "Tier 20", followers: "7M-10M", pay: "₹400" }
               ].map((item, index) => (
                 <motion.div
                   key={item.tier}
