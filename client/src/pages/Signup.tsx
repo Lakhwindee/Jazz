@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
 
 const COUNTRIES = [
   { code: "IN", name: "India" },
@@ -263,9 +264,13 @@ export default function Signup() {
         
         <Card className="border-purple-500/20 bg-black/40 backdrop-blur-xl">
           <CardHeader className="text-center pb-4">
-            <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-              {step === "otp" ? <Mail className="h-8 w-8 text-white" /> : <UserPlus className="h-8 w-8 text-white" />}
-            </div>
+            {step === "otp" ? (
+              <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                <Mail className="h-8 w-8 text-white" />
+              </div>
+            ) : (
+              <img src={mingreeLogo} alt="Mingree" className="mx-auto mb-3 h-16 w-16 object-contain" />
+            )}
             <CardTitle className="text-xl font-bold text-white">
               {step === "form" ? "Mingree" : "Verify Email"}
             </CardTitle>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -80,9 +81,7 @@ export default function Login() {
         </button>
         <Card className="border-purple-500/20 bg-black/40 backdrop-blur-xl">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-              <LogIn className="h-6 w-6 text-white" />
-            </div>
+            <img src={mingreeLogo} alt="Mingree" className="mx-auto mb-4 h-16 w-16 object-contain" />
             <CardTitle className="text-2xl font-bold text-white">Welcome</CardTitle>
             <CardDescription className="text-gray-400">
               Sign in to access your Mingree account

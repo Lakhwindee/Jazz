@@ -5,6 +5,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
 
 export function SponsorSidebar() {
   const [location, setLocation] = useLocation();
@@ -63,10 +64,8 @@ export function SponsorSidebar() {
       <aside className="hidden h-screen w-64 flex-col border-r bg-sidebar px-4 py-6 md:flex">
         <div className="mb-8 flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">Sponsor Hub</span>
+            <img src={mingreeLogo} alt="Mingree" className="h-8 w-8 rounded-lg object-cover" />
+            <span className="text-xl font-bold tracking-tight">Mingree</span>
           </div>
           {sponsor && <NotificationDropdown userId={sponsor.id} />}
         </div>
