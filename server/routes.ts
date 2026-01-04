@@ -1831,12 +1831,17 @@ export async function registerRoutes(
       // Generate unique order ID
       const orderId = `order_${sponsorId}_${Date.now()}`;
       
-      // Get return URL
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : process.env.REPLIT_DOMAINS?.split(',')[0] 
-          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-          : 'http://localhost:5000';
+      // Get return URL - check production domain first, then dev domain
+      let baseUrl = 'http://localhost:5000';
+      if (process.env.NODE_ENV === 'production' && process.env.REPLIT_DOMAINS) {
+        // In production, use the first domain from REPLIT_DOMAINS
+        baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+      } else if (process.env.REPLIT_DEV_DOMAIN) {
+        // In development, use dev domain
+        baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+      } else if (process.env.REPLIT_DOMAINS) {
+        baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+      }
       
       const returnUrl = `${baseUrl}/sponsor/wallet?order_id=${orderId}&status={order_status}`;
       
