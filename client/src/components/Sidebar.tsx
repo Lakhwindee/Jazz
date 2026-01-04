@@ -1,4 +1,4 @@
-import { Handshake, Home, LayoutDashboard, Settings, Wallet, LayoutList, Users, Crown, LogOut, MoreHorizontal, User } from "lucide-react";
+import { Handshake, Home, LayoutDashboard, Settings, Wallet, LayoutList, Users, Crown, LogOut, MoreHorizontal, User, HelpCircle } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
