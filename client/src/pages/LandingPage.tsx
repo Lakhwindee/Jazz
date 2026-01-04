@@ -19,7 +19,7 @@ import {
   BadgeCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
+import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();

@@ -9,7 +9,7 @@ import { Shield, Lock, Mail, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
+import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
@@ -75,7 +75,7 @@ export default function AdminLogin() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="inline-flex mb-4"
           >
-            <img src={mingreeLogo} alt="Mingree" className="w-20 h-20 object-contain" />
+            <img src={mingreeLogo} alt="Mingree" className="w-20 h-20 object-cover rounded-full" />
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">Admin Portal</h1>
           <p className="text-gray-400">Mingree Management</p>

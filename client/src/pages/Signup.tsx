@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import mingreeLogo from "@assets/Gemini_Generated_Image_79ha8h79ha8h79ha_1767510042588.png";
+import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
 
 const COUNTRIES = [
   { code: "IN", name: "India" },
@@ -269,7 +269,7 @@ export default function Signup() {
                 <Mail className="h-8 w-8 text-white" />
               </div>
             ) : (
-              <img src={mingreeLogo} alt="Mingree" className="mx-auto mb-3 h-16 w-16 object-contain" />
+              <img src={mingreeLogo} alt="Mingree" className="mx-auto mb-3 h-16 w-16 object-cover rounded-full" />
             )}
             <CardTitle className="text-xl font-bold text-white">
               {step === "form" ? "Mingree" : "Verify Email"}
