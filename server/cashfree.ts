@@ -1,10 +1,6 @@
 import { Cashfree } from 'cashfree-pg';
 
-let cashfreeInstance: any = null;
-
-export function initCashfree() {
-  if (cashfreeInstance) return cashfreeInstance;
-  
+function getCashfreeClient() {
   const clientId = process.env.CASHFREE_APP_ID;
   const clientSecret = process.env.CASHFREE_SECRET_KEY;
   
@@ -17,8 +13,7 @@ export function initCashfree() {
     ? CashfreeClass.PRODUCTION 
     : CashfreeClass.SANDBOX;
   
-  cashfreeInstance = new CashfreeClass(environment, clientId, clientSecret);
-  return cashfreeInstance;
+  return new CashfreeClass(environment, clientId, clientSecret);
 }
 
 export async function createCashfreeOrder(
@@ -32,7 +27,7 @@ export async function createCashfreeOrder(
   },
   returnUrl: string
 ) {
-  const cashfree = initCashfree();
+  const cashfree = getCashfreeClient();
   
   const request = {
     order_amount: amount,
@@ -49,13 +44,13 @@ export async function createCashfreeOrder(
     },
   };
   
-  const response = await cashfree.PGCreateOrder(request);
+  const response = await cashfree.PGCreateOrder("2023-08-01", request);
   return response.data;
 }
 
 export async function fetchCashfreeOrder(orderId: string) {
-  const cashfree = initCashfree();
-  const response = await cashfree.PGFetchOrder(orderId);
+  const cashfree = getCashfreeClient();
+  const response = await cashfree.PGFetchOrder("2023-08-01", orderId);
   return response.data;
 }
 
@@ -65,7 +60,7 @@ export function verifyCashfreeWebhook(
   timestamp: string
 ): boolean {
   try {
-    const cashfree = initCashfree();
+    const cashfree = getCashfreeClient();
     cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp);
     return true;
   } catch (error) {
