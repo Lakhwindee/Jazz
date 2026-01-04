@@ -50,6 +50,6 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
+CASHFREE_ENVIRONMENT = "production"
 
 [userenv.development]
-CASHFREE_ENVIRONMENT = "production"
