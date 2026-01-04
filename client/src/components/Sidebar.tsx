@@ -36,6 +36,7 @@ export function Sidebar() {
     { href: "/earnings", label: "Earnings", icon: Wallet },
     { href: "/subscription", label: "Subscription", icon: Crown },
     { href: "/profile", label: "Profile", icon: User },
+    { href: "/support", label: "Help & Support", icon: HelpCircle },
   ];
 
   const mobileLinks = links.slice(0, 4);

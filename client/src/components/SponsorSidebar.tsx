@@ -1,4 +1,4 @@
-import { Home, LayoutList, PlusCircle, Settings, Building2, LogOut, Wallet } from "lucide-react";
+import { Home, LayoutList, PlusCircle, Settings, Building2, LogOut, Wallet, HelpCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -32,6 +32,7 @@ export function SponsorSidebar() {
     { href: "/sponsor/create-campaign", label: "Create Campaign", icon: PlusCircle },
     { href: "/sponsor/wallet", label: "Wallet", icon: Wallet },
     { href: "/sponsor/settings", label: "Settings", icon: Settings },
+    { href: "/support", label: "Help & Support", icon: HelpCircle },
   ];
 
   return (
