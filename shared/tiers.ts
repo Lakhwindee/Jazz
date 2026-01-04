@@ -6,40 +6,31 @@ export interface Tier {
   basePayment: number; // in INR
 }
 
-// Updated pricing with reduced rates
+// 20 tiers starting from 500 followers, 20 INR per tier
 export const TIERS: Tier[] = [
-  // Nano Influencers (10 - 50K) - Testing mode: starts at 10
-  { id: 1, name: "Tier 1", minFollowers: 10, maxFollowers: 8000, basePayment: 50 },
-  { id: 2, name: "Tier 2", minFollowers: 8000, maxFollowers: 12000, basePayment: 80 },
-  { id: 3, name: "Tier 3", minFollowers: 12000, maxFollowers: 18000, basePayment: 150 },
-  { id: 4, name: "Tier 4", minFollowers: 18000, maxFollowers: 25000, basePayment: 200 },
-  { id: 5, name: "Tier 5", minFollowers: 25000, maxFollowers: 35000, basePayment: 300 },
-  { id: 6, name: "Tier 6", minFollowers: 35000, maxFollowers: 50000, basePayment: 500 },
-  
-  // Micro Influencers (50K - 100K)
-  { id: 7, name: "Tier 7", minFollowers: 50000, maxFollowers: 75000, basePayment: 700 },
-  { id: 8, name: "Tier 8", minFollowers: 75000, maxFollowers: 100000, basePayment: 900 },
-  
-  // Mid-Tier Influencers (100K - 500K)
-  { id: 9, name: "Tier 9", minFollowers: 100000, maxFollowers: 150000, basePayment: 1200 },
-  { id: 10, name: "Tier 10", minFollowers: 150000, maxFollowers: 200000, basePayment: 1500 },
-  { id: 11, name: "Tier 11", minFollowers: 200000, maxFollowers: 300000, basePayment: 2000 },
-  { id: 12, name: "Tier 12", minFollowers: 300000, maxFollowers: 400000, basePayment: 2500 },
-  { id: 13, name: "Tier 13", minFollowers: 400000, maxFollowers: 500000, basePayment: 3000 },
-  
-  // Macro Influencers (500K - 1M)
-  { id: 14, name: "Tier 14", minFollowers: 500000, maxFollowers: 750000, basePayment: 4000 },
-  { id: 15, name: "Tier 15", minFollowers: 750000, maxFollowers: 1000000, basePayment: 5000 },
-  
-  // Mega Influencers (1M+)
-  { id: 16, name: "Tier 16", minFollowers: 1000000, maxFollowers: 1500000, basePayment: 7000 },
-  { id: 17, name: "Tier 17", minFollowers: 1500000, maxFollowers: 2000000, basePayment: 9000 },
-  { id: 18, name: "Tier 18", minFollowers: 2000000, maxFollowers: 3000000, basePayment: 11000 },
-  { id: 19, name: "Tier 19", minFollowers: 3000000, maxFollowers: 5000000, basePayment: 13000 },
-  { id: 20, name: "Tier 20", minFollowers: 5000000, maxFollowers: 10000000, basePayment: 15000 },
+  { id: 1, name: "Tier 1", minFollowers: 500, maxFollowers: 1000, basePayment: 20 },
+  { id: 2, name: "Tier 2", minFollowers: 1000, maxFollowers: 2000, basePayment: 40 },
+  { id: 3, name: "Tier 3", minFollowers: 2000, maxFollowers: 5000, basePayment: 60 },
+  { id: 4, name: "Tier 4", minFollowers: 5000, maxFollowers: 10000, basePayment: 80 },
+  { id: 5, name: "Tier 5", minFollowers: 10000, maxFollowers: 20000, basePayment: 100 },
+  { id: 6, name: "Tier 6", minFollowers: 20000, maxFollowers: 35000, basePayment: 120 },
+  { id: 7, name: "Tier 7", minFollowers: 35000, maxFollowers: 50000, basePayment: 140 },
+  { id: 8, name: "Tier 8", minFollowers: 50000, maxFollowers: 75000, basePayment: 160 },
+  { id: 9, name: "Tier 9", minFollowers: 75000, maxFollowers: 100000, basePayment: 180 },
+  { id: 10, name: "Tier 10", minFollowers: 100000, maxFollowers: 150000, basePayment: 200 },
+  { id: 11, name: "Tier 11", minFollowers: 150000, maxFollowers: 200000, basePayment: 220 },
+  { id: 12, name: "Tier 12", minFollowers: 200000, maxFollowers: 300000, basePayment: 240 },
+  { id: 13, name: "Tier 13", minFollowers: 300000, maxFollowers: 500000, basePayment: 260 },
+  { id: 14, name: "Tier 14", minFollowers: 500000, maxFollowers: 750000, basePayment: 280 },
+  { id: 15, name: "Tier 15", minFollowers: 750000, maxFollowers: 1000000, basePayment: 300 },
+  { id: 16, name: "Tier 16", minFollowers: 1000000, maxFollowers: 2000000, basePayment: 320 },
+  { id: 17, name: "Tier 17", minFollowers: 2000000, maxFollowers: 3000000, basePayment: 340 },
+  { id: 18, name: "Tier 18", minFollowers: 3000000, maxFollowers: 5000000, basePayment: 360 },
+  { id: 19, name: "Tier 19", minFollowers: 5000000, maxFollowers: 10000000, basePayment: 380 },
+  { id: 20, name: "Tier 20", minFollowers: 10000000, maxFollowers: 100000000, basePayment: 400 },
 ];
 
-export const MIN_FOLLOWERS = 10; // Testing mode - change back to 5000 for production
+export const MIN_FOLLOWERS = 500;
 
 export function getTierByFollowers(followers: number): Tier | null {
   if (followers < MIN_FOLLOWERS) return null;
