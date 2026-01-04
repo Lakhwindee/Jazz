@@ -744,42 +744,57 @@ export default function SponsorWallet() {
                       )}
                       
                       {isIndianUser ? (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap justify-center gap-3 py-2">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border flex items-center justify-center text-xs font-bold text-blue-600">GPay</div>
+                              <span className="text-[10px] text-muted-foreground">Google Pay</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border flex items-center justify-center text-xs font-bold text-purple-600">PhPe</div>
+                              <span className="text-[10px] text-muted-foreground">PhonePe</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border flex items-center justify-center text-xs font-bold text-blue-500">Pytm</div>
+                              <span className="text-[10px] text-muted-foreground">Paytm</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border flex items-center justify-center text-xs font-bold text-green-600">BHIM</div>
+                              <span className="text-[10px] text-muted-foreground">BHIM UPI</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border flex items-center justify-center text-[10px] font-bold text-gray-600">Cards</div>
+                              <span className="text-[10px] text-muted-foreground">Debit/Credit</span>
+                            </div>
+                          </div>
+                          
                           <Button
-                            className="w-full"
+                            className="w-full bg-blue-600 hover:bg-blue-700"
                             onClick={handleRazorpayPayment}
                             disabled={isProcessing || !depositAmount}
                             data-testid="button-confirm-deposit"
                           >
                             <CreditCard className="h-4 w-4 mr-2" />
-                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with Razorpay` : "Pay with Razorpay"}
+                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)}` : "Pay Now"}
                           </Button>
                           <p className="text-xs text-center text-muted-foreground">
-                            Secure payment powered by Razorpay (India)
+                            UPI, Cards, Net Banking - Powered by Razorpay
                           </p>
                           
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                              <span className="bg-background px-2 text-muted-foreground">or</span>
-                            </div>
+                          <div className="flex items-center gap-2 justify-center text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              Secure
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              Instant
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              100% Safe
+                            </span>
                           </div>
-                          
-                          <Button
-                            className="w-full"
-                            variant="outline"
-                            onClick={handlePayUPayment}
-                            disabled={isProcessing || !depositAmount}
-                            data-testid="button-confirm-deposit-payu"
-                          >
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)} with PayU` : "Pay with PayU"}
-                          </Button>
-                          <p className="text-xs text-center text-muted-foreground">
-                            Alternative payment via PayU (India)
-                          </p>
                         </div>
                       ) : (
                         <>
