@@ -5,7 +5,18 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { api, formatINR, type ApiCampaign } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Plus, Users, Clock, CheckCircle, Pause, ChevronDown, ChevronRight, FolderOpen, Folder } from "lucide-react";
+import { Instagram, Plus, Users, Clock, CheckCircle, Pause, Play, Trash2, ChevronDown, ChevronRight, FolderOpen, Folder, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -43,10 +54,25 @@ export default function SponsorCampaigns() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => api.updateCampaignStatus(id, status),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["sponsorCampaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success(variables.status === "paused" ? "Campaign paused" : "Campaign activated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update campaign");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.deleteCampaign(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sponsorCampaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      toast.success("Campaign status updated");
+      toast.success("Campaign deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete campaign");
     },
   });
 
@@ -105,6 +131,9 @@ export default function SponsorCampaigns() {
   const getStatusBadge = (campaign: ApiCampaign) => {
     if (campaign.spotsRemaining === 0) {
       return <Badge className="bg-gray-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
+    }
+    if (campaign.status === "paused") {
+      return <Badge className="bg-yellow-500"><Pause className="w-3 h-3 mr-1" /> Paused</Badge>;
     }
     return <Badge className="bg-green-500"><Clock className="w-3 h-3 mr-1" /> Active</Badge>;
   };
@@ -254,20 +283,68 @@ export default function SponsorCampaigns() {
                                         <p className="text-xs text-muted-foreground">Per Creator</p>
                                         <p className="text-lg font-bold text-green-600" data-testid={`pay-${campaign.id}`}>{formatINR(campaign.payAmount)}</p>
                                       </div>
-                                      <div className="flex gap-2">
-                                        {campaign.spotsRemaining > 0 && (
+                                      <div className="flex gap-1">
+                                        {campaign.spotsRemaining > 0 && campaign.status !== "paused" && (
                                           <Button
-                                            size="sm"
+                                            size="icon"
                                             variant="outline"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               statusMutation.mutate({ id: campaign.id, status: "paused" });
                                             }}
+                                            disabled={statusMutation.isPending}
                                             data-testid={`pause-${campaign.id}`}
                                           >
                                             <Pause className="w-4 h-4" />
                                           </Button>
                                         )}
+                                        {campaign.status === "paused" && (
+                                          <Button
+                                            size="icon"
+                                            variant="outline"
+                                            className="border-green-500 text-green-600"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              statusMutation.mutate({ id: campaign.id, status: "active" });
+                                            }}
+                                            disabled={statusMutation.isPending}
+                                            data-testid={`play-${campaign.id}`}
+                                          >
+                                            <Play className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="outline"
+                                              className="border-red-500 text-red-600"
+                                              onClick={(e) => e.stopPropagation()}
+                                              disabled={deleteMutation.isPending}
+                                              data-testid={`delete-${campaign.id}`}
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete Campaign?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Are you sure you want to delete "{campaign.title}" ({campaign.tier})? 
+                                                This action cannot be undone. Campaigns with active reservations cannot be deleted.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                className="bg-red-600 hover:bg-red-700"
+                                                onClick={() => deleteMutation.mutate(campaign.id)}
+                                              >
+                                                Delete
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
                                       </div>
                                     </div>
                                   </CardFooter>

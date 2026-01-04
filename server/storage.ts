@@ -29,6 +29,7 @@ export interface IStorage {
   updateCampaignSpots(id: number, spotsRemaining: number): Promise<void>;
   getCampaignsBySponsor(sponsorId: number): Promise<Campaign[]>;
   updateCampaignStatus(id: number, status: string): Promise<void>;
+  deleteCampaign(id: number): Promise<void>;
   getReservationsForCampaign(campaignId: number): Promise<Reservation[]>;
   updateCampaignEscrow(id: number, releasedAmount: string, refundedAmount: string, escrowStatus: string): Promise<void>;
   getExpiredCampaignsForRefund(): Promise<Campaign[]>;
@@ -323,6 +324,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateCampaignStatus(id: number, status: string): Promise<void> {
     await db.update(campaigns).set({ status }).where(eq(campaigns.id, id));
+  }
+
+  async deleteCampaign(id: number): Promise<void> {
+    await db.delete(campaigns).where(eq(campaigns.id, id));
   }
 
   async getReservationsForCampaign(campaignId: number): Promise<Reservation[]> {

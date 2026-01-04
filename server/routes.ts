@@ -1734,10 +1734,47 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const { status } = req.body;
       await storage.updateCampaignStatus(id, status);
-      res.json({ success: true });
+      const campaign = await storage.getCampaign(id);
+      res.json(campaign);
     } catch (error) {
       console.error("Error updating campaign status:", error);
       res.status(500).json({ error: "Failed to update campaign status" });
+    }
+  });
+
+  // Delete campaign (sponsor can delete their own campaigns)
+  app.delete("/api/campaigns/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      // Check if user owns this campaign
+      if (req.user && req.user.id !== campaign.sponsorId && req.user.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized to delete this campaign" });
+      }
+      
+      // Check for active reservations
+      const reservations = await storage.getReservationsForCampaign(id);
+      const activeReservations = reservations.filter(r => 
+        r.status === "reserved" || r.status === "submitted"
+      );
+      
+      if (activeReservations.length > 0) {
+        return res.status(400).json({ 
+          error: "Cannot delete campaign with active reservations",
+          activeCount: activeReservations.length
+        });
+      }
+      
+      await storage.deleteCampaign(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ error: "Failed to delete campaign" });
     }
   });
 

@@ -260,6 +260,17 @@ export const api = {
     return res.json();
   },
 
+  async deleteCampaign(campaignId: number) {
+    const res = await fetch(`${API_BASE}/campaigns/${campaignId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to delete campaign");
+    }
+    return res.json();
+  },
+
   // Sponsor Wallet
   async getSponsorWallet(sponsorId: number): Promise<ApiWallet> {
     const res = await fetch(`${API_BASE}/sponsors/${sponsorId}/wallet`);
