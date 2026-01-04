@@ -1097,82 +1097,10 @@ export default function SponsorWallet() {
                     <CardTitle>Bank Accounts</CardTitle>
                     <CardDescription>Manage your bank accounts for withdrawals</CardDescription>
                   </div>
-                  <Dialog open={isAddBankOpen} onOpenChange={setIsAddBankOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" data-testid="button-add-bank">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Bank
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Bank Account</DialogTitle>
-                        <DialogDescription>
-                          Add your bank details for receiving withdrawals
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="accountHolderName">Account Holder Name</Label>
-                          <Input
-                            id="accountHolderName"
-                            placeholder="As per bank records"
-                            value={bankForm.accountHolderName}
-                            onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
-                            data-testid="input-account-holder"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bankName">Bank Name</Label>
-                          <Input
-                            id="bankName"
-                            placeholder="e.g., HDFC Bank"
-                            value={bankForm.bankName}
-                            onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
-                            data-testid="input-bank-name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="accountNumber">Account Number</Label>
-                          <Input
-                            id="accountNumber"
-                            placeholder="Your bank account number"
-                            value={bankForm.accountNumber}
-                            onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
-                            data-testid="input-account-number"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="ifscCode">IFSC Code</Label>
-                          <Input
-                            id="ifscCode"
-                            placeholder="e.g., HDFC0001234"
-                            value={bankForm.ifscCode}
-                            onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value.toUpperCase() })}
-                            data-testid="input-ifsc"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="upiId">UPI ID (Optional)</Label>
-                          <Input
-                            id="upiId"
-                            placeholder="yourname@upi"
-                            value={bankForm.upiId}
-                            onChange={(e) => setBankForm({ ...bankForm, upiId: e.target.value })}
-                            data-testid="input-upi"
-                          />
-                        </div>
-                        <Button
-                          className="w-full"
-                          onClick={() => addBankMutation.mutate(bankForm)}
-                          disabled={addBankMutation.isPending || !bankForm.accountHolderName || !bankForm.bankName || !bankForm.accountNumber || !bankForm.ifscCode}
-                          data-testid="button-save-bank"
-                        >
-                          {addBankMutation.isPending ? "Saving..." : "Save Bank Account"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button size="sm" onClick={() => setIsAddBankOpen(true)} data-testid="button-add-bank">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Bank
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {bankAccounts.length === 0 ? (
@@ -1219,6 +1147,77 @@ export default function SponsorWallet() {
           </Tabs>
         </div>
       </main>
+
+      <Dialog open={isAddBankOpen} onOpenChange={setIsAddBankOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Bank Account</DialogTitle>
+            <DialogDescription>
+              Add your bank details for receiving withdrawals
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="accountHolderName">Account Holder Name</Label>
+              <Input
+                id="accountHolderName"
+                placeholder="As per bank records"
+                value={bankForm.accountHolderName}
+                onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+                data-testid="input-account-holder"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Input
+                id="bankName"
+                placeholder="e.g., HDFC Bank"
+                value={bankForm.bankName}
+                onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                data-testid="input-bank-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account Number</Label>
+              <Input
+                id="accountNumber"
+                placeholder="Your bank account number"
+                value={bankForm.accountNumber}
+                onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                data-testid="input-account-number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ifscCode">IFSC Code</Label>
+              <Input
+                id="ifscCode"
+                placeholder="e.g., HDFC0001234"
+                value={bankForm.ifscCode}
+                onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value.toUpperCase() })}
+                data-testid="input-ifsc"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="upiId">UPI ID (Optional)</Label>
+              <Input
+                id="upiId"
+                placeholder="yourname@upi"
+                value={bankForm.upiId}
+                onChange={(e) => setBankForm({ ...bankForm, upiId: e.target.value })}
+                data-testid="input-upi"
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => addBankMutation.mutate(bankForm)}
+              disabled={addBankMutation.isPending || !bankForm.accountHolderName || !bankForm.bankName || !bankForm.accountNumber || !bankForm.ifscCode}
+              data-testid="button-save-bank"
+            >
+              {addBankMutation.isPending ? "Saving..." : "Save Bank Account"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
