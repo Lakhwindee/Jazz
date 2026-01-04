@@ -1796,23 +1796,24 @@ export async function registerRoutes(
     }
   });
 
-  // Get Razorpay key for frontend
-  app.get("/api/razorpay/key", (req, res) => {
+  // Get Cashfree config for frontend
+  app.get("/api/cashfree/config", (req, res) => {
     try {
-      const keyId = getRazorpayKeyId();
-      res.json({ keyId });
+      const appId = getCashfreeAppId();
+      const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+      res.json({ appId, environment, configured: true });
     } catch (error) {
-      res.status(500).json({ error: "Razorpay not configured" });
+      res.status(500).json({ error: "Cashfree not configured", configured: false });
     }
   });
 
-  // Create Razorpay order for sponsor wallet deposit (with GST)
+  // Create Cashfree order for sponsor wallet deposit (with GST)
   const DEPOSIT_GST_RATE = 18; // 18% GST on wallet deposits
   
   app.post("/api/sponsors/:sponsorId/wallet/create-order", async (req, res) => {
     try {
       const sponsorId = parseInt(req.params.sponsorId);
-      const { amount } = req.body; // Base amount user wants to add to wallet
+      const { amount, isTaxExempt, promoCode } = req.body;
       
       if (!amount || parseFloat(amount) <= 0) {
         return res.status(400).json({ error: "Invalid amount" });
@@ -1825,49 +1826,69 @@ export async function registerRoutes(
       
       // Calculate GST and total payable
       const baseAmount = parseFloat(amount);
-      const gstAmount = Math.round(baseAmount * DEPOSIT_GST_RATE / 100);
+      const gstAmount = isTaxExempt ? 0 : Math.round(baseAmount * DEPOSIT_GST_RATE / 100);
       const totalPayable = baseAmount + gstAmount;
       
-      const order = await createRazorpayOrder(totalPayable, "INR", {
-        sponsorId: sponsorId.toString(),
-        type: "wallet_deposit",
-        baseAmount: baseAmount.toString(),
-        gstAmount: gstAmount.toString(),
-      });
+      // Generate unique order ID
+      const orderId = `order_${sponsorId}_${Date.now()}`;
+      
+      // Get return URL
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.REPLIT_DOMAINS?.split(',')[0] 
+          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+          : 'http://localhost:5000';
+      
+      const returnUrl = `${baseUrl}/sponsor/wallet?order_id=${orderId}&status={order_status}`;
+      
+      const order = await createCashfreeOrder(
+        orderId,
+        totalPayable,
+        {
+          customerId: `sponsor_${sponsorId}`,
+          customerPhone: (sponsor as any).phone || "9999999999",
+          customerName: sponsor.name || "Sponsor",
+          customerEmail: sponsor.email,
+        },
+        returnUrl
+      );
       
       res.json({
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        keyId: getRazorpayKeyId(),
+        orderId: order.order_id,
+        cfOrderId: order.cf_order_id,
+        paymentSessionId: order.payment_session_id,
+        orderStatus: order.order_status,
         baseAmount: baseAmount,
         gstAmount: gstAmount,
         totalPayable: totalPayable,
+        environment: process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
       });
-    } catch (error) {
-      console.error("Error creating Razorpay order:", error);
-      res.status(500).json({ error: "Failed to create payment order" });
+    } catch (error: any) {
+      console.error("Error creating Cashfree order:", error);
+      res.status(500).json({ error: error.message || "Failed to create payment order" });
     }
   });
 
-  // Verify Razorpay payment and credit wallet (GST is included in the payment)
-  // User pays: Base Amount + 18% GST
-  // Wallet receives: Base Amount (GST goes to platform)
+  // Verify Cashfree payment and credit wallet
   const DEPOSIT_GST_PERCENT = 18;
   
   app.post("/api/sponsors/:sponsorId/wallet/verify-payment", async (req, res) => {
     try {
       const sponsorId = parseInt(req.params.sponsorId);
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, baseAmount } = req.body;
+      const { orderId, baseAmount, isTaxExempt } = req.body;
       
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({ error: "Missing payment details" });
+      if (!orderId) {
+        return res.status(400).json({ error: "Missing order ID" });
       }
       
-      // Verify payment signature
-      const isValid = verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-      if (!isValid) {
-        return res.status(400).json({ error: "Invalid payment signature" });
+      // Fetch order status from Cashfree
+      const orderStatus = await fetchCashfreeOrder(orderId);
+      
+      if (orderStatus.order_status !== "PAID") {
+        return res.status(400).json({ 
+          error: "Payment not completed", 
+          status: orderStatus.order_status 
+        });
       }
       
       const sponsor = await storage.getUser(sponsorId);
@@ -1875,17 +1896,16 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Sponsor not found" });
       }
       
-      // baseAmount is what user wanted to add, amount includes GST
-      const walletCredit = parseFloat(baseAmount || amount);
-      const totalPaid = parseFloat(amount);
-      const gstAmount = Math.round(walletCredit * DEPOSIT_GST_PERCENT / 100);
+      const walletCredit = parseFloat(baseAmount);
+      const totalPaid = orderStatus.order_amount;
+      const gstAmount = isTaxExempt ? 0 : Math.round(walletCredit * DEPOSIT_GST_PERCENT / 100);
       const newBalance = parseFloat(sponsor.balance) + walletCredit;
       
-      // Update balance (only base amount goes to wallet)
+      // Update balance
       await storage.updateUserBalance(sponsorId, newBalance.toFixed(2));
       
-      // Create transaction record with GST breakdown
-      const transaction = await storage.createTransaction({
+      // Create completed transaction record
+      await storage.createTransaction({
         userId: sponsorId,
         type: "credit",
         category: "deposit",
@@ -1894,7 +1914,7 @@ export async function registerRoutes(
         net: walletCredit.toFixed(2),
         description: `Wallet deposit (Paid: ₹${totalPaid}, GST ${DEPOSIT_GST_PERCENT}%: ₹${gstAmount}, Credited: ₹${walletCredit})`,
         status: "completed",
-        paymentId: razorpay_payment_id,
+        paymentId: orderId,
       });
       
       res.json({ 
@@ -1902,12 +1922,18 @@ export async function registerRoutes(
         newBalance: newBalance.toFixed(2),
         walletCredit: walletCredit.toFixed(2),
         gstPaid: gstAmount.toFixed(2),
-        transaction 
       });
-    } catch (error) {
-      console.error("Error verifying payment:", error);
-      res.status(500).json({ error: "Failed to verify payment" });
+    } catch (error: any) {
+      console.error("Error verifying Cashfree payment:", error);
+      res.status(500).json({ error: error.message || "Failed to verify payment" });
     }
+  });
+  
+  // Cashfree payment callback/return handler
+  app.get("/api/cashfree/callback", async (req, res) => {
+    const { order_id, order_status } = req.query;
+    // Redirect to wallet page with status
+    res.redirect(`/sponsor/wallet?order_id=${order_id}&status=${order_status}`);
   });
 
   // ==================== STRIPE PAYMENT (International) ====================
