@@ -3984,7 +3984,7 @@ export async function registerRoutes(
   // Create promo code
   app.post("/api/admin/promo-codes", isAdmin, async (req, res) => {
     try {
-      const { code, type, discountPercent, trialDays, afterTrialAction, maxUses, validFrom, validUntil, isActive } = req.body;
+      const { code, type, discountPercent, trialDays, afterTrialAction, creditAmount, maxUses, validFrom, validUntil, isActive } = req.body;
       
       if (!code || !type) {
         return res.status(400).json({ error: "Code and type are required" });
@@ -3996,6 +3996,10 @@ export async function registerRoutes(
       
       if (type === "trial" && (!trialDays || trialDays < 1)) {
         return res.status(400).json({ error: "Trial days must be at least 1" });
+      }
+      
+      if (type === "credit" && (!creditAmount || creditAmount < 1)) {
+        return res.status(400).json({ error: "Credit amount must be at least 1" });
       }
 
       // Check if code already exists
@@ -4010,6 +4014,7 @@ export async function registerRoutes(
         discountPercent: type === "discount" ? discountPercent : null,
         trialDays: type === "trial" ? trialDays : null,
         afterTrialAction: type === "trial" ? (afterTrialAction || "downgrade") : null,
+        creditAmount: type === "credit" ? creditAmount.toString() : null,
         maxUses: maxUses || null,
         validFrom: validFrom ? new Date(validFrom) : new Date(),
         validUntil: validUntil ? new Date(validUntil) : null,
