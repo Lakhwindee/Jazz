@@ -316,7 +316,7 @@ export default function LandingPage() {
                 {[
                   { icon: <Zap />, text: "Tier 1 starts at just 500 followers" },
                   { icon: <Shield />, text: "Higher tiers access all lower-tier campaigns" },
-                  { icon: <Gift />, text: "Top tiers earn up to ₹400 per campaign" }
+                  { icon: <Gift />, text: "Top tiers earn up to ₹15,000 per campaign" }
                 ].map((item, index) => (
                   <div key={index} className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
@@ -329,10 +329,10 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { tier: "Tier 1", followers: "500-1K", pay: "₹20" },
-                { tier: "Tier 5", followers: "10K-20K", pay: "₹100" },
-                { tier: "Tier 10", followers: "100K-150K", pay: "₹200" },
-                { tier: "Tier 20", followers: "7M-10M", pay: "₹400" }
+                { tier: "Tier 1", followers: "0.5K-1K", pay: "₹20" },
+                { tier: "Tier 5", followers: "10K-20K", pay: "₹200" },
+                { tier: "Tier 10", followers: "100K-150K", pay: "₹1,200" },
+                { tier: "Tier 20", followers: "7M-10M", pay: "₹15,000" }
               ].map((item, index) => (
                 <motion.div
                   key={item.tier}
