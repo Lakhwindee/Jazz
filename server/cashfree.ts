@@ -1,6 +1,12 @@
-import { Cashfree } from 'cashfree-pg';
+import axios from 'axios';
 
-function getCashfreeClient() {
+function getBaseUrl() {
+  return process.env.CASHFREE_ENVIRONMENT === 'production'
+    ? 'https://api.cashfree.com/pg'
+    : 'https://sandbox.cashfree.com/pg';
+}
+
+function getHeaders() {
   const clientId = process.env.CASHFREE_APP_ID;
   const clientSecret = process.env.CASHFREE_SECRET_KEY;
   
@@ -8,12 +14,12 @@ function getCashfreeClient() {
     throw new Error('CASHFREE_APP_ID and CASHFREE_SECRET_KEY are required');
   }
   
-  const CashfreeClass = Cashfree as any;
-  const environment = process.env.CASHFREE_ENVIRONMENT === 'production' 
-    ? CashfreeClass.PRODUCTION 
-    : CashfreeClass.SANDBOX;
-  
-  return new CashfreeClass(environment, clientId, clientSecret);
+  return {
+    'Content-Type': 'application/json',
+    'x-client-id': clientId,
+    'x-client-secret': clientSecret,
+    'x-api-version': '2023-08-01',
+  };
 }
 
 export async function createCashfreeOrder(
@@ -27,7 +33,7 @@ export async function createCashfreeOrder(
   },
   returnUrl: string
 ) {
-  const cashfree = getCashfreeClient();
+  const baseUrl = getBaseUrl();
   
   const request = {
     order_amount: amount,
@@ -44,29 +50,23 @@ export async function createCashfreeOrder(
     },
   };
   
-  const response = await cashfree.PGCreateOrder("2023-08-01", request);
+  console.log('Creating Cashfree order:', { baseUrl, orderId, amount });
+  
+  const response = await axios.post(`${baseUrl}/orders`, request, {
+    headers: getHeaders(),
+  });
+  
   return response.data;
 }
 
 export async function fetchCashfreeOrder(orderId: string) {
-  const cashfree = getCashfreeClient();
-  const response = await cashfree.PGFetchOrder("2023-08-01", orderId);
+  const baseUrl = getBaseUrl();
+  
+  const response = await axios.get(`${baseUrl}/orders/${orderId}`, {
+    headers: getHeaders(),
+  });
+  
   return response.data;
-}
-
-export function verifyCashfreeWebhook(
-  signature: string,
-  rawBody: string,
-  timestamp: string
-): boolean {
-  try {
-    const cashfree = getCashfreeClient();
-    cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp);
-    return true;
-  } catch (error) {
-    console.error('Webhook verification failed:', error);
-    return false;
-  }
 }
 
 export function getCashfreeAppId(): string {
