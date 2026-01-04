@@ -47,6 +47,7 @@ export function formatFollowers(count: number): string {
     return millions % 1 === 0 ? `${millions}M` : `${millions.toFixed(1)}M`;
   }
   if (count >= 1000) return `${(count / 1000).toFixed(0)}K`;
+  if (count >= 500) return `0.5K`;
   return count.toString();
 }
 
