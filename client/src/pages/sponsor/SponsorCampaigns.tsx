@@ -106,7 +106,7 @@ export default function SponsorCampaigns() {
       group.totalSpots += campaign.totalSpots;
       group.filledSpots += (campaign.totalSpots - campaign.spotsRemaining);
       group.totalBudget += parseFloat(campaign.payAmount) * campaign.totalSpots;
-      if (campaign.spotsRemaining > 0 && campaign.status !== "paused") {
+      if (campaign.spotsRemaining > 0 && campaign.status === "active" && campaign.isApproved) {
         group.isActive = true;
       }
     });
@@ -138,10 +138,13 @@ export default function SponsorCampaigns() {
     if (campaign.spotsRemaining === 0) {
       return <Badge className="bg-gray-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
     }
+    if (campaign.status === "pending" || !campaign.isApproved) {
+      return <Badge className="bg-orange-500"><Clock className="w-3 h-3 mr-1" /> Pending Approval</Badge>;
+    }
     if (campaign.status === "paused") {
       return <Badge className="bg-yellow-500"><Pause className="w-3 h-3 mr-1" /> Paused</Badge>;
     }
-    return <Badge className="bg-green-500"><Clock className="w-3 h-3 mr-1" /> Active</Badge>;
+    return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" /> Active</Badge>;
   };
 
   return (

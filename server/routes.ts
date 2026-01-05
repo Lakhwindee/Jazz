@@ -1640,7 +1640,7 @@ export async function registerRoutes(
         ...req.body,
         sponsorId,
         spotsRemaining: req.body.totalSpots,
-        status: "active",
+        status: "pending",
         deadline: new Date(req.body.deadline),
         // Escrow tracking - totalBudget is the creator payment portion (not platform fee)
         totalBudget: creatorPayment.toFixed(2),
