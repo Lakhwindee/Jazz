@@ -908,7 +908,51 @@ export const api = {
       return res.json();
     },
   },
+
+  async getAccountStatus(): Promise<AccountStatus> {
+    const res = await fetch(`${API_BASE}/account/status`, {
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to get account status");
+    }
+    return res.json();
+  },
+
+  async cancelSubscription(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/subscription/cancel`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to cancel subscription");
+    }
+    return res.json();
+  },
+
+  async deleteAccount(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/account`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to delete account");
+    }
+    return res.json();
+  },
 };
+
+export interface AccountStatus {
+  balance: number;
+  activeCampaigns: number;
+  pendingWithdrawals: number;
+  subscriptionPlan: string;
+  subscriptionExpiresAt: string | null;
+  autoRenew: boolean;
+}
 
 // Admin types
 export interface AdminStats {

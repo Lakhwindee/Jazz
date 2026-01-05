@@ -4,17 +4,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { User, Mail, Building2, LogOut } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { User, Mail, Building2, LogOut, AlertCircle, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useState } from "react";
 
 export default function SponsorSettings() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   
   const { data: sponsor } = useQuery({
     queryKey: ["currentSponsor"],
     queryFn: api.getCurrentSponsor,
+  });
+
+  const { data: accountStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ["accountStatus"],
+    queryFn: api.getAccountStatus,
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: api.deleteAccount,
+    onSuccess: () => {
+      toast.success("Account deleted successfully");
+      navigate("/");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete account");
+    },
   });
 
   const handleLogout = async () => {
@@ -26,6 +46,19 @@ export default function SponsorSettings() {
       toast.error("Failed to logout");
     }
   };
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast.error("Please type DELETE to confirm");
+      return;
+    }
+    deleteAccountMutation.mutate();
+  };
+
+  const canDelete = accountStatus && 
+    accountStatus.balance === 0 && 
+    accountStatus.pendingWithdrawals === 0 && 
+    accountStatus.activeCampaigns === 0;
 
   if (!sponsor) {
     return (
@@ -102,9 +135,9 @@ export default function SponsorSettings() {
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   onClick={handleLogout}
                   className="w-full"
                   data-testid="button-logout"
@@ -112,6 +145,80 @@ export default function SponsorSettings() {
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
+
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full"
+                    data-testid="button-show-delete-account"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Delete Account
+                  </Button>
+                ) : (
+                  <div className="space-y-3 p-4 border border-destructive/50 rounded-md">
+                    <p className="text-sm font-medium text-destructive">
+                      This action cannot be undone!
+                    </p>
+                    {statusLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : !canDelete ? (
+                      <div className="text-sm space-y-1">
+                        {accountStatus && accountStatus.balance > 0 && (
+                          <p className="text-amber-600 dark:text-amber-400">
+                            Withdraw your balance of ${accountStatus.balance.toFixed(2)} first.
+                          </p>
+                        )}
+                        {accountStatus && accountStatus.pendingWithdrawals > 0 && (
+                          <p className="text-amber-600 dark:text-amber-400">
+                            You have {accountStatus.pendingWithdrawals} pending withdrawal(s).
+                          </p>
+                        )}
+                        {accountStatus && accountStatus.activeCampaigns > 0 && (
+                          <p className="text-amber-600 dark:text-amber-400">
+                            You have {accountStatus.activeCampaigns} active campaign(s). Complete or cancel them first.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Type <span className="font-bold">DELETE</span> to confirm:
+                        </p>
+                        <Input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="Type DELETE"
+                          data-testid="input-delete-confirm"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowDeleteConfirm(false);
+                              setDeleteConfirmText("");
+                            }}
+                            className="flex-1"
+                            data-testid="button-cancel-delete"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteAccount}
+                            disabled={deleteAccountMutation.isPending || deleteConfirmText !== "DELETE"}
+                            className="flex-1"
+                            data-testid="button-confirm-delete-account"
+                          >
+                            {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Delete
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -483,9 +483,203 @@ export default function Profile() {
               </CardContent>
             </Card>
 
+            <SettingsCard user={user} onNavigate={setLocation} />
+
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+function SettingsCard({ user, onNavigate }: { user: any; onNavigate: (path: string) => void }) {
+  const queryClient = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const { data: accountStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ["accountStatus"],
+    queryFn: api.getAccountStatus,
+  });
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: api.cancelSubscription,
+    onSuccess: (data) => {
+      toast.success(data.message || "Subscription cancelled successfully");
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      queryClient.invalidateQueries({ queryKey: ["accountStatus"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: api.deleteAccount,
+    onSuccess: () => {
+      toast.success("Account deleted successfully");
+      onNavigate("/");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete account");
+    },
+  });
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      toast.success("Logged out successfully");
+      onNavigate("/");
+    } catch (error) {
+      toast.error("Failed to logout");
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    cancelSubscriptionMutation.mutate();
+  };
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast.error("Please type DELETE to confirm");
+      return;
+    }
+    deleteAccountMutation.mutate();
+  };
+
+  const hasActiveSubscription = accountStatus?.subscriptionPlan && accountStatus.subscriptionPlan !== "free";
+  const canDelete = accountStatus && accountStatus.balance === 0 && accountStatus.pendingWithdrawals === 0;
+
+  return (
+    <>
+      {hasActiveSubscription && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Subscription
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium capitalize">{accountStatus?.subscriptionPlan} Plan</p>
+                {accountStatus?.subscriptionExpiresAt && (
+                  <p className="text-sm text-muted-foreground">
+                    {accountStatus.autoRenew ? "Renews" : "Expires"}: {new Date(accountStatus.subscriptionExpiresAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+              {accountStatus?.autoRenew && (
+                <Badge variant="outline">Auto-Renew On</Badge>
+              )}
+            </div>
+            {accountStatus?.autoRenew && (
+              <Button
+                variant="outline"
+                onClick={handleCancelSubscription}
+                disabled={cancelSubscriptionMutation.isPending}
+                className="w-full"
+                data-testid="button-cancel-subscription"
+              >
+                {cancelSubscriptionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Cancel Auto-Renewal
+              </Button>
+            )}
+            {!accountStatus?.autoRenew && hasActiveSubscription && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Your subscription will end on {accountStatus?.subscriptionExpiresAt ? new Date(accountStatus.subscriptionExpiresAt).toLocaleDateString() : "period end"}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="w-full"
+            data-testid="button-logout"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+
+          {!showDeleteConfirm ? (
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full"
+              data-testid="button-show-delete-account"
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Delete Account
+            </Button>
+          ) : (
+            <div className="space-y-3 p-4 border border-destructive/50 rounded-md">
+              <p className="text-sm font-medium text-destructive">
+                This action cannot be undone!
+              </p>
+              {statusLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : !canDelete ? (
+                <div className="text-sm space-y-1">
+                  {accountStatus && accountStatus.balance > 0 && (
+                    <p className="text-amber-600 dark:text-amber-400">
+                      Withdraw your balance of ${accountStatus.balance.toFixed(2)} first.
+                    </p>
+                  )}
+                  {accountStatus && accountStatus.pendingWithdrawals > 0 && (
+                    <p className="text-amber-600 dark:text-amber-400">
+                      You have {accountStatus.pendingWithdrawals} pending withdrawal(s).
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Type <span className="font-bold">DELETE</span> to confirm:
+                  </p>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE"
+                    data-testid="input-delete-confirm"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmText("");
+                      }}
+                      className="flex-1"
+                      data-testid="button-cancel-delete"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteAccount}
+                      disabled={deleteAccountMutation.isPending || deleteConfirmText !== "DELETE"}
+                      className="flex-1"
+                      data-testid="button-confirm-delete-account"
+                    >
+                      {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Delete
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
