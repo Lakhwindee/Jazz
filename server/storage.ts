@@ -176,6 +176,9 @@ export interface IStorage {
   updateSupportTicketStatus(id: number, status: string): Promise<void>;
   getTicketMessages(ticketId: number): Promise<TicketMessage[]>;
   createTicketMessage(message: InsertTicketMessage): Promise<TicketMessage>;
+
+  // Data Reset
+  resetAllData(): Promise<{ users: number; campaigns: number; reservations: string; transactions: string }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1169,6 +1172,87 @@ export class DatabaseStorage implements IStorage {
   async createTicketMessage(message: InsertTicketMessage): Promise<TicketMessage> {
     const result = await db.insert(ticketMessages).values(message).returning();
     return result[0];
+  }
+
+  // Data Reset - Delete all data except admin accounts (wrapped in transaction)
+  async resetAllData(): Promise<{ users: number; campaigns: number; reservations: string; transactions: string }> {
+    // Get counts before deletion
+    const allUsers = await this.getAllUsers();
+    const nonAdminUsers = allUsers.filter(u => u.role !== "admin");
+    const allCampaigns = await this.getAllCampaigns();
+    
+    console.log(`[DATA RESET] Starting reset - ${nonAdminUsers.length} users, ${allCampaigns.length} campaigns to delete`);
+    
+    // Use transaction to ensure atomicity
+    await db.transaction(async (tx) => {
+      // Delete in proper order to avoid foreign key issues
+      // 1. Delete ticket messages first (references support tickets)
+      await tx.delete(ticketMessages);
+      
+      // 2. Delete support tickets (references users)
+      await tx.delete(supportTickets);
+      
+      // 3. Delete notifications (references users)
+      await tx.delete(notifications);
+      
+      // 4. Delete submissions (references reservations)
+      await tx.delete(submissions);
+      
+      // 5. Delete reservations (references campaigns and users)
+      await tx.delete(reservations);
+      
+      // 6. Delete transactions (references users and campaigns)
+      await tx.delete(transactions);
+      
+      // 7. Delete admin wallet transactions
+      await tx.delete(adminWalletTransactions);
+      
+      // 8. Delete campaigns (references users as sponsors)
+      await tx.delete(campaigns);
+      
+      // 9. Delete category subscriptions (group memberships - references users)
+      await tx.delete(categorySubscriptions);
+      
+      // 10. Delete promo code usage (references users and promo codes)
+      await tx.delete(promoCodeUsage);
+      
+      // 11. Delete promo codes
+      await tx.delete(promoCodes);
+      
+      // 12. Delete bank accounts (references users)
+      await tx.delete(bankAccounts);
+      
+      // 13. Delete withdrawal requests (references users)
+      await tx.delete(withdrawalRequests);
+      
+      // 14. Delete OTP verifications
+      await tx.delete(otpVerifications);
+      
+      // 15. Delete newsletters
+      await tx.delete(newsletters);
+      
+      // 16. Delete non-admin users
+      for (const user of nonAdminUsers) {
+        await tx.delete(users).where(eq(users.id, user.id));
+      }
+      
+      // 17. Reset admin wallet to zero
+      await tx.update(adminWallet).set({
+        balance: "0.00",
+        totalEarnings: "0.00",
+        totalPayouts: "0.00",
+        totalRefunds: "0.00",
+      });
+    });
+    
+    console.log(`[DATA RESET] Completed successfully - deleted ${nonAdminUsers.length} users, ${allCampaigns.length} campaigns`);
+    
+    return {
+      users: nonAdminUsers.length,
+      campaigns: allCampaigns.length,
+      reservations: "all",
+      transactions: "all",
+    };
   }
 }
 

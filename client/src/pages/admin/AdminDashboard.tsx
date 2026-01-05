@@ -2691,6 +2691,7 @@ function SettingsTab() {
     { id: "wallet", label: "Admin Wallet", icon: IndianRupee },
     { id: "subscriptions", label: "Subscription Plans", icon: CreditCard },
     { id: "api-keys", label: "API Keys", icon: Settings },
+    { id: "data-reset", label: "Data Reset", icon: Trash2 },
   ];
 
   return (
@@ -2928,6 +2929,123 @@ function SettingsTab() {
       {activeSubTab === "api-keys" && (
         <ApiKeysForm />
       )}
+
+      {activeSubTab === "data-reset" && (
+        <DataResetSection />
+      )}
+    </div>
+  );
+}
+
+function DataResetSection() {
+  const queryClient = useQueryClient();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/reset-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to reset data");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries();
+      toast.success(`Data reset complete! Deleted: ${data.deleted.users} users, ${data.deleted.campaigns} campaigns, ${data.deleted.reservations} reservations, ${data.deleted.transactions} transactions`);
+      setShowConfirmDialog(false);
+      setConfirmText("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleReset = () => {
+    if (confirmText === "RESET") {
+      resetMutation.mutate();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-red-950/30 border-red-700">
+        <CardHeader>
+          <CardTitle className="text-red-400 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Danger Zone - Reset All Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-gray-300">
+            This will permanently delete all data except admin accounts:
+          </p>
+          <ul className="text-gray-400 text-sm space-y-1 ml-4 list-disc">
+            <li>All creator and sponsor accounts</li>
+            <li>All campaigns and reservations</li>
+            <li>All transactions and wallet balances</li>
+            <li>All promo codes and notifications</li>
+            <li>All groups and memberships</li>
+            <li>Admin wallet will be reset to zero</li>
+          </ul>
+          <p className="text-red-400 font-medium">
+            This action cannot be undone!
+          </p>
+          <Button 
+            variant="destructive" 
+            onClick={() => setShowConfirmDialog(true)}
+            className="gap-2"
+            data-testid="button-reset-data"
+          >
+            <Trash2 className="h-4 w-4" />
+            Reset All Data
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Data Reset
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              This will permanently delete all users (except admins), campaigns, transactions, and other data. Type <span className="font-bold text-red-400">RESET</span> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type RESET to confirm"
+              className="bg-gray-700 border-gray-600 text-white"
+              data-testid="input-confirm-reset"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowConfirmDialog(false);
+              setConfirmText("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleReset}
+              disabled={confirmText !== "RESET" || resetMutation.isPending}
+              data-testid="button-confirm-reset"
+            >
+              {resetMutation.isPending ? "Resetting..." : "Delete All Data"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

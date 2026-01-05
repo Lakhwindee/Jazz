@@ -46,6 +46,11 @@ International influencer marketing platform connecting Instagram creators with b
   - Subscription cancellation (disables auto-renewal, access until period end)
   - Account deletion with safety checks (blocks if balance > 0, pending withdrawals, or active campaigns)
   - Cascade cleanup of user data on deletion
+- **Admin Data Reset**: Settings > Data Reset tab for complete data wipe
+  - Requires typing "RESET" to confirm
+  - Deletes all users (except admins), campaigns, transactions, reservations
+  - Resets admin wallet to zero
+  - Wrapped in database transaction for safety
 
 ## Supported Countries
 195 countries worldwide with multi-country targeting support:

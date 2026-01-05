@@ -2987,6 +2987,25 @@ export async function registerRoutes(
     }
   });
 
+  // Reset all data (admin action) - keeps only admin accounts
+  app.post("/api/admin/reset-data", isAdmin, async (req, res) => {
+    try {
+      console.log("Starting data reset...");
+      
+      const result = await storage.resetAllData();
+      
+      console.log(`Data reset complete. Deleted ${result.users} users, ${result.campaigns} campaigns`);
+      
+      res.json({
+        success: true,
+        deleted: result,
+      });
+    } catch (error) {
+      console.error("Error resetting data:", error);
+      res.status(500).json({ error: "Failed to reset data" });
+    }
+  });
+
   // Update user verification status
   app.patch("/api/admin/users/:userId/status", isAdmin, async (req, res) => {
     try {
