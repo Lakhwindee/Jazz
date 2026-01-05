@@ -79,12 +79,18 @@ export default function SponsorCampaigns() {
   const campaignGroups = useMemo(() => {
     const groups: Map<string, CampaignGroup> = new Map();
     
+    // Extract base title without tier suffix like "(Tier 1)"
+    const getBaseTitle = (title: string) => {
+      return title.replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
+    };
+    
     campaigns.forEach(campaign => {
-      const key = campaign.title;
+      const baseTitle = getBaseTitle(campaign.title);
+      const key = baseTitle;
       
       if (!groups.has(key)) {
         groups.set(key, {
-          title: campaign.title,
+          title: baseTitle,
           brand: campaign.brand,
           brandLogo: campaign.brandLogo,
           campaigns: [],
@@ -100,7 +106,7 @@ export default function SponsorCampaigns() {
       group.totalSpots += campaign.totalSpots;
       group.filledSpots += (campaign.totalSpots - campaign.spotsRemaining);
       group.totalBudget += parseFloat(campaign.payAmount) * campaign.totalSpots;
-      if (campaign.spotsRemaining > 0) {
+      if (campaign.spotsRemaining > 0 && campaign.status !== "paused") {
         group.isActive = true;
       }
     });

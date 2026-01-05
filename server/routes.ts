@@ -1757,17 +1757,22 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to delete this campaign" });
       }
       
-      // Check for active reservations
+      // Check for pending reservations (reserved or submitted only - not approved/rejected/expired)
       const reservations = await storage.getReservationsForCampaign(id);
-      const activeReservations = reservations.filter(r => 
+      const pendingReservations = reservations.filter(r => 
         r.status === "reserved" || r.status === "submitted"
       );
       
-      if (activeReservations.length > 0) {
+      if (pendingReservations.length > 0) {
         return res.status(400).json({ 
-          error: "Cannot delete campaign with active reservations",
-          activeCount: activeReservations.length
+          error: `Cannot delete campaign with ${pendingReservations.length} pending reservation(s). Wait for them to complete or expire.`,
+          pendingCount: pendingReservations.length
         });
+      }
+      
+      // Delete all associated reservations first (approved, rejected, expired are safe to delete)
+      for (const reservation of reservations) {
+        await storage.deleteReservation(reservation.id);
       }
       
       await storage.deleteCampaign(id);

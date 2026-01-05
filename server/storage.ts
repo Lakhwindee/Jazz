@@ -41,6 +41,7 @@ export interface IStorage {
   updateReservationStatus(id: number, status: string, reviewedAt?: Date): Promise<void>;
   getUserReservationForCampaign(userId: number, campaignId: number): Promise<Reservation | undefined>;
   expireExpiredReservations(): Promise<number>; // Returns count of expired reservations
+  deleteReservation(id: number): Promise<void>;
 
   // Submissions
   createSubmission(submission: InsertSubmission): Promise<Submission>;
@@ -373,6 +374,10 @@ export class DatabaseStorage implements IStorage {
       updateData.reviewedAt = reviewedAt;
     }
     await db.update(reservations).set(updateData).where(eq(reservations.id, id));
+  }
+
+  async deleteReservation(id: number): Promise<void> {
+    await db.delete(reservations).where(eq(reservations.id, id));
   }
 
   async updateReservationShipping(id: number, data: {
