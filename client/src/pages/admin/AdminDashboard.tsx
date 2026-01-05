@@ -1806,16 +1806,25 @@ function CampaignsTab() {
         </div>
       )}
 
-      {/* Split Layout: Active (Left) | Completed History (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* LEFT SIDE: Active & Paused Campaigns */}
-        <div className="space-y-4">
+      {/* Tabs for Active and Completed Campaigns */}
+      <Tabs defaultValue="active" className="space-y-4">
+        <TabsList className="bg-gray-800 border border-gray-700">
+          <TabsTrigger value="active" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
+            <Play className="h-4 w-4 mr-2" />
+            Active ({campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).length})
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Completed ({campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-4">
           <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h3 className="text-xl font-bold text-green-400 flex items-center gap-2">
                 <Play className="h-6 w-6" />
-                ACTIVE
+                ACTIVE CAMPAIGNS
               </h3>
               <div className="flex gap-2">
                 <Badge className="bg-green-500 text-white">
@@ -1947,32 +1956,31 @@ function CampaignsTab() {
               )}
             </div>
           </ScrollArea>
-        </div>
+        </TabsContent>
 
-        {/* RIGHT SIDE: Completed History */}
-        <div className="space-y-4">
+        <TabsContent value="completed" className="space-y-4">
           <div className="bg-purple-500/20 border border-purple-500/50 rounded-lg p-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h3 className="text-xl font-bold text-purple-400 flex items-center gap-2">
                 <CheckCircle className="h-6 w-6" />
-                COMPLETED
+                COMPLETED CAMPAIGNS
               </h3>
               <Badge className="bg-purple-500 text-white">
-                Total: {campaigns.filter(c => c.isApproved && c.status === "completed").length}
+                Total: {campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length}
               </Badge>
             </div>
           </div>
           
           <ScrollArea className="h-[600px]">
             <div className="space-y-3 pr-2">
-              {campaigns.filter(c => c.isApproved && c.status === "completed").length === 0 ? (
+              {campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No completed campaigns yet</p>
                   <p className="text-sm mt-2">Campaigns will appear here when marked as complete</p>
                 </div>
               ) : (
-                campaigns.filter(c => c.isApproved && c.status === "completed").map((campaign) => {
+                campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).map((campaign) => {
                   const totalBudget = parseFloat(campaign.totalBudget || "0");
                   const released = parseFloat(campaign.releasedAmount || "0");
                   const refunded = parseFloat(campaign.refundedAmount || "0");
@@ -2043,8 +2051,8 @@ function CampaignsTab() {
               )}
             </div>
           </ScrollArea>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Approve Campaign Dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
