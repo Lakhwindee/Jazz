@@ -188,6 +188,8 @@ export default function Subscription() {
       toast.success(data.message);
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+      queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
       setShowCheckout(false);
       setPromoCode("");
       setPromoValidation(null);

@@ -349,7 +349,7 @@ export default function SponsorWallet() {
         body: JSON.stringify({ 
           amount: baseAmount,
           isTaxExempt: isTaxExempt,
-          promoCode: isTaxExempt && promoCodeStatus?.valid ? promoCode : undefined,
+          promoCode: promoCodeStatus?.valid ? promoCode : undefined,
         }),
       });
 
@@ -463,7 +463,7 @@ export default function SponsorWallet() {
           email: sponsor.email,
           phone: (sponsor as any).phone || "9999999999",
           isTaxExempt: isTaxExempt,
-          promoCode: isTaxExempt && promoCodeStatus?.valid ? promoCode : undefined,
+          promoCode: promoCodeStatus?.valid ? promoCode : undefined,
         }),
       });
 
