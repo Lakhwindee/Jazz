@@ -2030,19 +2030,6 @@ function CampaignsTab() {
                               </div>
                             )}
                           </div>
-                          
-                          <div className="flex gap-2 pt-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-green-300 border-green-500"
-                              onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                              data-testid={`button-reactivate-campaign-${campaign.id}`}
-                            >
-                              <Play className="h-4 w-4 mr-1" />
-                              Reactivate
-                            </Button>
-                          </div>
                         </div>
                       </CardContent>
                     </Card>
