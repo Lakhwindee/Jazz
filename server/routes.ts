@@ -1928,7 +1928,7 @@ export async function registerRoutes(
   app.post("/api/sponsors/:sponsorId/wallet/verify-payment", async (req, res) => {
     try {
       const sponsorId = parseInt(req.params.sponsorId);
-      const { orderId, baseAmount, isTaxExempt } = req.body;
+      const { orderId, baseAmount, isTaxExempt, promoCode } = req.body;
       
       if (!orderId) {
         return res.status(400).json({ error: "Missing order ID" });
@@ -1952,12 +1952,13 @@ export async function registerRoutes(
       const walletCredit = parseFloat(baseAmount);
       const totalPaid = orderStatus.order_amount;
       const gstAmount = isTaxExempt ? 0 : Math.round(walletCredit * DEPOSIT_GST_PERCENT / 100);
-      const newBalance = parseFloat(sponsor.balance) + walletCredit;
+      let finalBalance = parseFloat(sponsor.balance) + walletCredit;
+      let promoCredits = 0;
       
-      // Update balance
-      await storage.updateUserBalance(sponsorId, newBalance.toFixed(2));
+      // Update balance with deposit
+      await storage.updateUserBalance(sponsorId, finalBalance.toFixed(2));
       
-      // Create completed transaction record
+      // Create completed transaction record for deposit
       await storage.createTransaction({
         userId: sponsorId,
         type: "credit",
@@ -1970,11 +1971,43 @@ export async function registerRoutes(
         paymentId: orderId,
       });
       
+      // Apply promo code if provided (credit or tax_exempt type)
+      if (promoCode) {
+        const promoCodeRecord = await storage.getPromoCodeByCode(promoCode);
+        if (promoCodeRecord && promoCodeRecord.isActive) {
+          const hasUsed = await storage.hasUserUsedPromoCode(promoCodeRecord.id, sponsorId);
+          if (!hasUsed) {
+            // Apply credit type promo code
+            if (promoCodeRecord.type === "credit" && promoCodeRecord.creditAmount) {
+              promoCredits = parseFloat(promoCodeRecord.creditAmount);
+              finalBalance += promoCredits;
+              await storage.updateUserBalance(sponsorId, finalBalance.toFixed(2));
+              
+              // Create transaction for promo credits
+              await storage.createTransaction({
+                userId: sponsorId,
+                amount: promoCredits.toFixed(2),
+                net: promoCredits.toFixed(2),
+                type: "credit",
+                category: "promo_credit",
+                description: `Promo code credit: ${promoCodeRecord.code}`,
+                status: "completed",
+              });
+            }
+            
+            // Mark promo code as used
+            await storage.recordPromoCodeUsage(promoCodeRecord.id, sponsorId);
+            await storage.incrementPromoCodeUsage(promoCodeRecord.id);
+          }
+        }
+      }
+      
       res.json({ 
         success: true, 
-        newBalance: newBalance.toFixed(2),
+        newBalance: finalBalance.toFixed(2),
         walletCredit: walletCredit.toFixed(2),
         gstPaid: gstAmount.toFixed(2),
+        promoCredits: promoCredits > 0 ? promoCredits.toFixed(2) : null,
       });
     } catch (error: any) {
       console.error("Error verifying Cashfree payment:", error);

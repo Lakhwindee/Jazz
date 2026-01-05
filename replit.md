@@ -16,11 +16,11 @@ International influencer marketing platform connecting Instagram creators with b
 - Sponsor wallet with deposits (GST applied), withdrawals, and campaign payment deductions
 - Subscription system with admin-managed plans
 - Instagram OAuth infrastructure (ready for Meta credentials)
-- **Enhanced Promo Code System**: 4 types (discount, trial, tax_exempt, credit)
+- **Promo Code System**: 4 types applied during deposit flow
   - Discount: Percentage off on subscriptions
   - Trial: Free Pro days with configurable after-trial behavior
   - Tax Exempt: Waives GST on sponsor wallet deposits (India only)
-  - Credit: Gives free wallet balance when redeemed
+  - Credit: Gives free wallet balance (applied automatically during deposit)
 - **Cashfree Payment Gateway**: Primary payment gateway for Indian sponsors (UPI, Cards, Net Banking)
 - Stripe payment integration for international sponsors
 - Professional checkout flow with GST-compliant billing details collection

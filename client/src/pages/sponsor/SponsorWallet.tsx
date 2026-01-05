@@ -179,32 +179,6 @@ export default function SponsorWallet() {
     }
   };
 
-  const applyPromoMutation = useMutation({
-    mutationFn: async (code: string) => {
-      const response = await fetch("/api/promo-codes/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ code }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to apply promo code");
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
-      queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
-      toast.success(data.message || "Promo code applied!");
-      setPromoCode("");
-      setPromoCodeStatus(null);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
   const withdrawMutation = useMutation({
     mutationFn: async (data: { amount: number; bankAccountId: number }) => {
       return await apiRequest("POST", "/api/withdrawal-requests", data);
@@ -253,6 +227,7 @@ export default function SponsorWallet() {
         // Verify payment and credit wallet
         const storedBaseAmount = sessionStorage.getItem(`cashfree_base_${orderId}`);
         const storedTaxExempt = sessionStorage.getItem(`cashfree_taxexempt_${orderId}`);
+        const storedPromoCode = sessionStorage.getItem(`cashfree_promo_${orderId}`);
         
         fetch(`/api/sponsors/${sponsor.id}/wallet/verify-payment`, {
           method: "POST",
@@ -261,17 +236,23 @@ export default function SponsorWallet() {
             orderId, 
             baseAmount: storedBaseAmount || "0",
             isTaxExempt: storedTaxExempt === "true",
+            promoCode: storedPromoCode || undefined,
           }),
         })
           .then((res) => res.json())
           .then((data) => {
             if (data.success) {
-              toast.success(`Payment successful! ₹${data.walletCredit} added to wallet.`);
+              let message = `Payment successful! ₹${data.walletCredit} added to wallet.`;
+              if (data.promoCredits) {
+                message += ` Plus ₹${data.promoCredits} bonus credits!`;
+              }
+              toast.success(message);
               queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
               queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
               // Clean up session storage
               sessionStorage.removeItem(`cashfree_base_${orderId}`);
               sessionStorage.removeItem(`cashfree_taxexempt_${orderId}`);
+              sessionStorage.removeItem(`cashfree_promo_${orderId}`);
             } else {
               // Payment not yet completed or failed
               if (data.status === "ACTIVE") {
@@ -379,9 +360,12 @@ export default function SponsorWallet() {
 
       const orderData = await orderRes.json();
       
-      // Store base amount in session storage for verification after redirect
+      // Store base amount and promo code in session storage for verification after redirect
       sessionStorage.setItem(`cashfree_base_${orderData.orderId}`, baseAmount.toString());
       sessionStorage.setItem(`cashfree_taxexempt_${orderData.orderId}`, isTaxExempt.toString());
+      if (promoCodeStatus?.valid && promoCode) {
+        sessionStorage.setItem(`cashfree_promo_${orderData.orderId}`, promoCode);
+      }
 
       // Initialize Cashfree checkout
       const cashfree = window.Cashfree({
@@ -834,54 +818,6 @@ export default function SponsorWallet() {
                     </div>
                   </DialogContent>
                 </Dialog>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Redeem Code</CardTitle>
-                <Ticket className="h-5 w-5 text-purple-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Have a credit promo code? Redeem it to get free credits.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter code"
-                    value={promoCode}
-                    onChange={(e) => {
-                      setPromoCode(e.target.value.toUpperCase());
-                      setPromoCodeStatus(null);
-                    }}
-                    className="font-mono text-sm"
-                    data-testid="input-redeem-promo"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (promoCodeStatus?.valid && promoCodeStatus.type === "credit") {
-                        applyPromoMutation.mutate(promoCode);
-                      } else {
-                        validatePromoCode();
-                      }
-                    }}
-                    disabled={!promoCode.trim() || isValidatingPromo || applyPromoMutation.isPending}
-                    data-testid="button-redeem-promo"
-                  >
-                    {applyPromoMutation.isPending ? "..." : promoCodeStatus?.valid && promoCodeStatus.type === "credit" ? "Redeem" : "Check"}
-                  </Button>
-                </div>
-                {promoCodeStatus && (
-                  <div className={`text-xs p-2 rounded mt-2 ${promoCodeStatus.valid && promoCodeStatus.type === "credit" ? "bg-green-900/30 text-green-400" : promoCodeStatus.valid ? "bg-yellow-900/30 text-yellow-400" : "bg-red-900/30 text-red-400"}`}>
-                    {promoCodeStatus.valid 
-                      ? promoCodeStatus.type === "credit" 
-                        ? `Click Redeem to get ${formatINR(parseFloat(promoCodeStatus.creditAmount || "0"))} free!`
-                        : "This code is not for credits. Use it during deposit."
-                      : promoCodeStatus.message}
-                  </div>
-                )}
               </CardContent>
             </Card>
 
