@@ -4513,5 +4513,131 @@ export async function registerRoutes(
     }
   });
 
+  // ============ USER ACCOUNT MANAGEMENT ============
+
+  // Get account status (balance, active campaigns, subscription)
+  app.get("/api/account/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const user = req.user as any;
+      const balance = parseFloat(user.balance || "0");
+      
+      // Get active campaigns count (for sponsors)
+      let activeCampaigns = 0;
+      if (user.role === "sponsor") {
+        const campaigns = await storage.getCampaignsBySponsor(user.id);
+        activeCampaigns = campaigns.filter(c => c.status === "active" || c.status === "pending").length;
+      }
+      
+      // Get pending withdrawals
+      const withdrawals = await storage.getWithdrawalRequestsByUser(user.id);
+      const pendingWithdrawals = withdrawals.filter(w => w.status === "pending").length;
+      
+      res.json({
+        balance,
+        activeCampaigns,
+        pendingWithdrawals,
+        subscriptionPlan: user.subscriptionPlan || "free",
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
+        autoRenew: user.autoRenew || false,
+      });
+    } catch (error) {
+      console.error("Error getting account status:", error);
+      res.status(500).json({ error: "Failed to get account status" });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/subscription/cancel", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const user = req.user as any;
+      
+      if (!user.subscriptionPlan || user.subscriptionPlan === "free") {
+        return res.status(400).json({ error: "No active subscription to cancel" });
+      }
+      
+      // Set auto-renew to false - subscription will expire at end of period
+      await storage.updateUserSubscription(
+        user.id,
+        user.subscriptionPlan,
+        user.subscriptionExpiresAt,
+        false, // trial
+        false  // autoRenew = false
+      );
+      
+      res.json({ 
+        success: true, 
+        message: "Subscription cancelled. You will have access until " + (user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toLocaleDateString() : "the end of your billing period")
+      });
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      res.status(500).json({ error: "Failed to cancel subscription" });
+    }
+  });
+
+  // Delete account
+  app.delete("/api/account", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const user = req.user as any;
+      
+      // Prevent admin deletion
+      if (user.role === "admin") {
+        return res.status(403).json({ error: "Admin accounts cannot be deleted" });
+      }
+      
+      const balance = parseFloat(user.balance || "0");
+      
+      // Check for non-zero balance
+      if (balance > 0) {
+        return res.status(400).json({ 
+          error: "Cannot delete account with balance. Please withdraw your funds first.",
+          balance
+        });
+      }
+      
+      // Check for pending withdrawals
+      const withdrawals = await storage.getWithdrawalRequestsByUser(user.id);
+      const pendingWithdrawals = withdrawals.filter(w => w.status === "pending");
+      if (pendingWithdrawals.length > 0) {
+        return res.status(400).json({ 
+          error: "Cannot delete account with pending withdrawals. Please wait for them to be processed."
+        });
+      }
+      
+      // For sponsors, check for active campaigns
+      if (user.role === "sponsor") {
+        const campaigns = await storage.getCampaignsBySponsor(user.id);
+        const activeCampaigns = campaigns.filter(c => c.status === "active" || c.status === "pending");
+        if (activeCampaigns.length > 0) {
+          return res.status(400).json({ 
+            error: "Cannot delete account with active campaigns. Please complete or cancel them first."
+          });
+        }
+      }
+      
+      // Cascade delete all related data (deleteUser already handles cascade)
+      await storage.deleteUser(user.id);
+      
+      // Logout the user
+      req.logout((err) => {
+        if (err) {
+          console.error("Error during logout after account deletion:", err);
+        }
+        res.json({ success: true, message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
   return httpServer;
 }
