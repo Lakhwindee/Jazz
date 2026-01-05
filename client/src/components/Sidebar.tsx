@@ -143,9 +143,6 @@ export function Sidebar() {
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-indigo-200 dark:bg-indigo-900">
                 <div className="h-full bg-insta-gradient" style={{ width: `${Math.min((user.followers / 100000) * 100, 100)}%` }} />
               </div>
-              <p className="mt-1 text-[10px] text-indigo-600/70 dark:text-indigo-400/70">
-                {user.followers >= 100000 ? 'Top tier reached!' : `${((100000 - user.followers) / 1000).toFixed(0)}k to 100K`}
-              </p>
             </div>
           )}
 
