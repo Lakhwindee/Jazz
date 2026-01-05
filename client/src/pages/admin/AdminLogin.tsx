@@ -20,7 +20,7 @@ export default function AdminLogin() {
 
   const loginMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -33,11 +33,6 @@ export default function AdminLogin() {
       return response.json();
     },
     onSuccess: async (user) => {
-      if (user.role !== "admin") {
-        setError("Access denied. Admin privileges required.");
-        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-        return;
-      }
       queryClient.setQueryData(["currentUser"], user);
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       toast.success("Welcome, Admin!");

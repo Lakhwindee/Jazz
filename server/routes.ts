@@ -154,7 +154,7 @@ export async function registerRoutes(
     }
   });
 
-  // Log in
+  // Log in (normal users - blocks admin accounts)
   app.post("/api/auth/login", (req, res, next) => {
     try {
       loginSchema.parse(req.body);
@@ -171,6 +171,44 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ error: info?.message || "Invalid email or password" });
       }
+      
+      // Block admin users from normal login
+      if (user.role === "admin") {
+        return res.status(403).json({ error: "Admin accounts cannot login here. Use admin login." });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          return res.status(500).json({ error: "Login failed" });
+        }
+        res.json(sanitizeUser(user));
+      });
+    })(req, res, next);
+  });
+
+  // Admin login (only for admin accounts)
+  app.post("/api/auth/admin-login", (req, res, next) => {
+    try {
+      loginSchema.parse(req.body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+    }
+    
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Authentication failed" });
+      }
+      if (!user) {
+        return res.status(401).json({ error: info?.message || "Invalid email or password" });
+      }
+      
+      // Only allow admin users
+      if (user.role !== "admin") {
+        return res.status(403).json({ error: "This login is for admin accounts only." });
+      }
+      
       req.login(user, (loginErr) => {
         if (loginErr) {
           return res.status(500).json({ error: "Login failed" });
