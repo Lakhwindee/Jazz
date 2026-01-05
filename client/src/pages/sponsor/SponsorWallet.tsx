@@ -89,6 +89,10 @@ export default function SponsorWallet() {
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [isTaxExempt, setIsTaxExempt] = useState(false);
   
+  // Standalone promo code application
+  const [standalonePromoCode, setStandalonePromoCode] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  
   const [bankForm, setBankForm] = useState({
     accountHolderName: "",
     accountNumber: "",
@@ -176,6 +180,36 @@ export default function SponsorWallet() {
       toast.error("Failed to validate promo code");
     } finally {
       setIsValidatingPromo(false);
+    }
+  };
+
+  // Apply standalone promo code directly (without deposit)
+  const applyStandalonePromoCode = async () => {
+    if (!standalonePromoCode.trim()) {
+      toast.error("Please enter a promo code");
+      return;
+    }
+    setIsApplyingPromo(true);
+    try {
+      const response = await fetch("/api/promo-codes/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: standalonePromoCode.trim().toUpperCase() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.error || "Failed to apply promo code");
+      } else {
+        toast.success(data.message || "Promo code applied successfully!");
+        setStandalonePromoCode("");
+        queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
+        queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+      }
+    } catch (error) {
+      toast.error("Failed to apply promo code");
+    } finally {
+      setIsApplyingPromo(false);
     }
   };
 
@@ -923,6 +957,36 @@ export default function SponsorWallet() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" />
+                Apply Promo Code
+              </CardTitle>
+              <CardDescription>
+                Have a promo code? Apply it to get free credits instantly!
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Enter promo code"
+                  value={standalonePromoCode}
+                  onChange={(e) => setStandalonePromoCode(e.target.value.toUpperCase())}
+                  className="font-mono max-w-xs"
+                  data-testid="input-standalone-promo"
+                />
+                <Button
+                  onClick={applyStandalonePromoCode}
+                  disabled={!standalonePromoCode.trim() || isApplyingPromo}
+                  data-testid="button-apply-standalone-promo"
+                >
+                  {isApplyingPromo ? "Applying..." : "Apply Code"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Tabs defaultValue="transactions" className="space-y-4">
             <TabsList>
