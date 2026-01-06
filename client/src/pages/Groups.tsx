@@ -160,7 +160,7 @@ export default function Groups() {
             </div>
           </div>
 
-          {user?.tier && (
+          {user?.instagramUsername && user?.tier && (
             <div className="mb-6 rounded-lg border-2 border-green-500/50 bg-green-50 dark:bg-green-950/30 p-4" data-testid="tier-info-banner">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500 text-white font-bold">

@@ -133,7 +133,7 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto space-y-3">
-          {user && (
+          {user && user.instagramUsername && user.tier && (
             <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4 dark:from-indigo-950/50 dark:to-purple-950/50">
               <p className="text-xs font-medium text-indigo-900 dark:text-indigo-100">Your Tier</p>
               <div className="mt-1 flex items-center justify-between">

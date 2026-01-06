@@ -264,15 +264,27 @@ export default function Campaigns() {
               </TabsContent>
 
               <TabsContent value="all-campaigns">
-                <div className="mb-6 flex items-center gap-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4">
-                  <Lock className="h-8 w-8 text-amber-500" />
-                  <div>
-                    <p className="font-medium">Your tier: {user?.tier || "Tier 1"} ({formatFollowers(user?.followers || 8000)} followers)</p>
-                    <p className="text-sm text-muted-foreground">
-                      Campaigns above your tier will show a red cross on hover
-                    </p>
+                {user?.instagramUsername && user?.tier ? (
+                  <div className="mb-6 flex items-center gap-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4">
+                    <Lock className="h-8 w-8 text-amber-500" />
+                    <div>
+                      <p className="font-medium">Your tier: {user.tier} ({formatFollowers(TIERS.find(t => t.name === user.tier)?.minFollowers || 500)}-{formatFollowers(TIERS.find(t => t.name === user.tier)?.maxFollowers || 1000)} followers)</p>
+                      <p className="text-sm text-muted-foreground">
+                        Campaigns above your tier will show a red cross on hover
+                      </p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="mb-6 flex items-center gap-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 p-4">
+                    <Lock className="h-8 w-8 text-blue-500" />
+                    <div>
+                      <p className="font-medium">Connect your Instagram to see your tier</p>
+                      <p className="text-sm text-muted-foreground">
+                        Go to Profile to connect your Instagram account
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {activeCampaigns.length === 0 ? (
                   <motion.div
