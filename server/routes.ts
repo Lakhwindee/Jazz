@@ -4328,27 +4328,20 @@ export async function registerRoutes(
         await storage.updateUserSubscription(userId, "pro", expiresAt, true, autoRenew);
         message = `Congratulations! You now have ${promoCode.trialDays} days of Pro access.`;
       } else if (promoCode.type === "credit" && promoCode.creditAmount) {
-        // Add credit to user's wallet
-        const user = await storage.getUser(userId);
-        if (user) {
-          const currentBalance = parseFloat(user.balance);
-          const creditAmount = parseFloat(promoCode.creditAmount);
-          const newBalance = currentBalance + creditAmount;
-          await storage.updateUserBalance(userId, newBalance.toFixed(2));
-          
-          // Create transaction record
-          await storage.createTransaction({
-            userId,
-            amount: creditAmount.toFixed(2),
-            net: creditAmount.toFixed(2),
-            type: "credit",
-            category: "promo_credit",
-            description: `Promo code credit: ${promoCode.code}`,
-            status: "completed",
-          });
-          
-          message = `Congratulations! ₹${creditAmount.toFixed(0)} has been added to your wallet!`;
-        }
+        // Credit type promo codes are applied during deposit flow, not here
+        // Just validate and return - credits will be added when user makes a deposit
+        const creditAmount = parseFloat(promoCode.creditAmount);
+        message = `Credit promo code validated! ₹${creditAmount.toFixed(0)} bonus will be added when you make a deposit.`;
+        
+        // Don't record usage here - it will be recorded during deposit
+        // Return early without recording usage
+        return res.json({
+          success: true,
+          message,
+          type: promoCode.type,
+          creditAmount: promoCode.creditAmount,
+          applyOnDeposit: true, // Flag to indicate this should be applied on deposit
+        });
       } else if (promoCode.type === "tax_exempt") {
         message = `Tax exemption code applied! Your next deposit will be tax-free.`;
       }
