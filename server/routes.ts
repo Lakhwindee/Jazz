@@ -1996,7 +1996,6 @@ export async function registerRoutes(
       const totalPaid = orderStatus.order_amount;
       const gstAmount = isTaxExempt ? 0 : Math.round(walletCredit * DEPOSIT_GST_PERCENT / 100);
       let finalBalance = parseFloat(sponsor.balance) + walletCredit;
-      let promoCredits = 0;
       
       // Update balance with deposit
       await storage.updateUserBalance(sponsorId, finalBalance.toFixed(2));
@@ -2014,31 +2013,13 @@ export async function registerRoutes(
         paymentId: orderId,
       });
       
-      // Apply promo code if provided (credit or tax_exempt type)
+      // Apply tax_exempt promo code if provided (credit promos are applied separately via /api/promo-codes/apply)
       if (promoCode) {
         const promoCodeRecord = await storage.getPromoCodeByCode(promoCode);
-        if (promoCodeRecord && promoCodeRecord.isActive) {
+        if (promoCodeRecord && promoCodeRecord.isActive && promoCodeRecord.type === "tax_exempt") {
           const hasUsed = await storage.hasUserUsedPromoCode(promoCodeRecord.id, sponsorId);
           if (!hasUsed) {
-            // Apply credit type promo code
-            if (promoCodeRecord.type === "credit" && promoCodeRecord.creditAmount) {
-              promoCredits = parseFloat(promoCodeRecord.creditAmount);
-              finalBalance += promoCredits;
-              await storage.updateUserBalance(sponsorId, finalBalance.toFixed(2));
-              
-              // Create transaction for promo credits
-              await storage.createTransaction({
-                userId: sponsorId,
-                amount: promoCredits.toFixed(2),
-                net: promoCredits.toFixed(2),
-                type: "credit",
-                category: "promo_credit",
-                description: `Promo code credit: ${promoCodeRecord.code}`,
-                status: "completed",
-              });
-            }
-            
-            // Mark promo code as used
+            // Mark tax_exempt promo code as used (it was already applied via isTaxExempt flag)
             await storage.recordPromoCodeUsage(promoCodeRecord.id, sponsorId);
             await storage.incrementPromoCodeUsage(promoCodeRecord.id);
           }
@@ -2050,7 +2031,6 @@ export async function registerRoutes(
         newBalance: finalBalance.toFixed(2),
         walletCredit: walletCredit.toFixed(2),
         gstPaid: gstAmount.toFixed(2),
-        promoCredits: promoCredits > 0 ? promoCredits.toFixed(2) : null,
       });
     } catch (error: any) {
       console.error("Error verifying Cashfree payment:", error);
@@ -4328,22 +4308,48 @@ export async function registerRoutes(
         await storage.updateUserSubscription(userId, "pro", expiresAt, true, autoRenew);
         message = `Congratulations! You now have ${promoCode.trialDays} days of Pro access.`;
       } else if (promoCode.type === "credit" && promoCode.creditAmount) {
-        // Credit type promo codes are applied during deposit flow, not here
-        // Just validate and return - credits will be added when user makes a deposit
-        const creditAmount = parseFloat(promoCode.creditAmount);
-        message = `Credit promo code validated! ₹${creditAmount.toFixed(0)} bonus will be added when you make a deposit.`;
-        
-        // Don't record usage here - it will be recorded during deposit
-        // Return early without recording usage
+        // Credit type promo codes are applied immediately - free credits for users
+        const user = await storage.getUser(userId);
+        if (user) {
+          const currentBalance = parseFloat(user.balance);
+          const creditAmount = parseFloat(promoCode.creditAmount);
+          const newBalance = currentBalance + creditAmount;
+          await storage.updateUserBalance(userId, newBalance.toFixed(2));
+          
+          // Create transaction record
+          await storage.createTransaction({
+            userId,
+            amount: creditAmount.toFixed(2),
+            net: creditAmount.toFixed(2),
+            type: "credit",
+            category: "promo_credit",
+            description: `Promo code credit: ${promoCode.code}`,
+            status: "completed",
+          });
+          
+          message = `Congratulations! ₹${creditAmount.toFixed(0)} has been added to your wallet!`;
+        }
+      } else if (promoCode.type === "tax_exempt") {
+        // Tax exempt codes are validated here but applied during deposit
+        message = `Tax exemption code applied! Your next deposit will be tax-free.`;
+        // Return early - don't record usage here, will be recorded during deposit
         return res.json({
           success: true,
           message,
           type: promoCode.type,
-          creditAmount: promoCode.creditAmount,
-          applyOnDeposit: true, // Flag to indicate this should be applied on deposit
+          applyOnDeposit: true,
         });
-      } else if (promoCode.type === "tax_exempt") {
-        message = `Tax exemption code applied! Your next deposit will be tax-free.`;
+      } else if (promoCode.type === "discount") {
+        // Discount codes are validated here but applied during subscription purchase
+        message = `Discount code validated! ${promoCode.discountPercent}% off will be applied on your next subscription.`;
+        // Return early - don't record usage here, will be recorded during subscription
+        return res.json({
+          success: true,
+          message,
+          type: promoCode.type,
+          discountPercent: promoCode.discountPercent,
+          applyOnDeposit: true,
+        });
       }
       
       // Record usage
