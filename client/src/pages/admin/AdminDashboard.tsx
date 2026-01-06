@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api, formatINR, type AdminStats, type ApiUser, type AdminWithdrawalRequest, type AdminPendingSubmission, type ApiCampaign, type CampaignGroup } from "@/lib/api";
@@ -1884,15 +1885,31 @@ function CampaignsTab() {
                             </div>
                             <div>
                               <span className="text-gray-400">Per Creator:</span>
-                              <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
+                              {campaign.isPromotional ? (
+                                <span className="text-yellow-300 ml-2 font-semibold flex items-center gap-1 inline-flex">
+                                  <Star className="h-3 w-3" /> {campaign.starReward} Stars
+                                </span>
+                              ) : (
+                                <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
+                              )}
                             </div>
                             <div>
                               <span className="text-gray-400">Budget:</span>
-                              <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
+                              {campaign.isPromotional ? (
+                                <span className="text-yellow-300 ml-2 font-semibold flex items-center gap-1 inline-flex">
+                                  <Star className="h-3 w-3" /> {Number(campaign.starReward) * campaign.totalSpots} Stars
+                                </span>
+                              ) : (
+                                <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
+                              )}
                             </div>
                             <div>
                               <span className="text-gray-400">Released:</span>
-                              <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
+                              {campaign.isPromotional ? (
+                                <span className="text-yellow-300 ml-2 font-semibold">-</span>
+                              ) : (
+                                <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
+                              )}
                             </div>
                           </div>
                           
@@ -1947,6 +1964,51 @@ function CampaignsTab() {
                                 To Stars
                               </Button>
                             )}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-400 border-red-500"
+                                  data-testid={`button-delete-campaign-${campaign.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-gray-900 border-gray-800">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-white">Delete Campaign?</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-gray-400">
+                                    Are you sure you want to delete "{campaign.title}" ({campaign.tier})? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-gray-800 text-white border-gray-700">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-500 text-white hover:bg-red-600"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await fetch(`/api/campaigns/${campaign.id}`, {
+                                          method: "DELETE",
+                                          credentials: "include",
+                                        });
+                                        if (!res.ok) {
+                                          const error = await res.json();
+                                          throw new Error(error.error || "Failed to delete");
+                                        }
+                                        toast.success("Campaign deleted successfully!");
+                                        queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+                                      } catch (error: any) {
+                                        toast.error(error.message || "Failed to delete campaign");
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       </CardContent>
