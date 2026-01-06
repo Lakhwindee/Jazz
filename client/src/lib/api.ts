@@ -263,6 +263,7 @@ export const api = {
   async deleteCampaign(campaignId: number) {
     const res = await fetch(`${API_BASE}/campaigns/${campaignId}`, {
       method: "DELETE",
+      credentials: "include",
     });
     if (!res.ok) {
       const error = await res.json();
