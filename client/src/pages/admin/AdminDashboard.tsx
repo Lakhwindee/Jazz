@@ -2595,12 +2595,16 @@ function CampaignsTab() {
                 try {
                   const nonPromoCampaigns = selectedGroup.campaigns.filter(c => !c.isPromotional);
                   for (const campaign of nonPromoCampaigns) {
-                    await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-stars`, {
+                    const res = await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-promotional`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       credentials: "include",
                       body: JSON.stringify({ starReward: bulkStarReward }),
                     });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      throw new Error(err.error || "Failed to convert");
+                    }
                   }
                   toast.success(`All ${nonPromoCampaigns.length} tiers converted to ${bulkStarReward} star${bulkStarReward > 1 ? "s" : ""}!`);
                   queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
