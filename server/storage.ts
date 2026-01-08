@@ -536,6 +536,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(campaigns)
       .set({ 
         isApproved: true,
+        status: "active",
         isPromotional: isPromotional,
         starReward: starReward
       })
