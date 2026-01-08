@@ -547,13 +547,28 @@ export default function Subscription() {
                     </Button>
                   </div>
                   {promoValidation && (
-                    <div className={`mt-2 p-2 rounded text-sm ${promoValidation.valid ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+                    <div className={`mt-2 p-3 rounded ${promoValidation.valid ? "bg-green-900/30 border border-green-700" : "bg-red-900/30 text-red-400"}`}>
                       {promoValidation.valid ? (
-                        promoValidation.type === "trial" 
-                          ? `Free trial: ${promoValidation.trialDays} days Pro access!` 
-                          : promoValidation.type === "discount"
-                          ? `${promoValidation.discountPercent}% discount applied!`
-                          : "Promo code applied!"
+                        promoValidation.type === "trial" ? (
+                          <div className="space-y-2">
+                            <p className="text-green-400 font-medium flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4" />
+                              Free Trial: {promoValidation.trialDays} days Pro access!
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              Trial expires on: {new Date(Date.now() + (promoValidation.trialDays || 7) * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {promoValidation.afterTrialAction === "continue" 
+                                ? "After trial ends, you will be prompted to pay to continue" 
+                                : "After trial ends, plan will downgrade to free"}
+                            </p>
+                          </div>
+                        ) : promoValidation.type === "discount" ? (
+                          <p className="text-green-400">{promoValidation.discountPercent}% discount applied!</p>
+                        ) : (
+                          <p className="text-green-400">Promo code applied!</p>
+                        )
                       ) : "Invalid promo code"}
                     </div>
                   )}
@@ -564,9 +579,20 @@ export default function Subscription() {
                 <Button variant="outline" onClick={() => setShowCheckout(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleProceedToPayment} data-testid="button-proceed-payment">
-                  Continue to Payment
-                </Button>
+                {promoValidation?.valid && promoValidation?.type === "trial" ? (
+                  <Button 
+                    onClick={() => applyPromoCodeMutation.mutate(promoCode.trim().toUpperCase())}
+                    disabled={applyPromoCodeMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="button-activate-trial"
+                  >
+                    {applyPromoCodeMutation.isPending ? "Activating..." : "Activate Free Trial"}
+                  </Button>
+                ) : (
+                  <Button onClick={handleProceedToPayment} data-testid="button-proceed-payment">
+                    Continue to Payment
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
