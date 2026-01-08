@@ -245,7 +245,8 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
       const res = await fetch(`/api/admin/users/${userId}/ban`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason }),
+        credentials: "include"
       });
       if (!res.ok) throw new Error("Failed to ban user");
       return res.json();
@@ -261,7 +262,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
 
   const unbanMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}/unban`, { method: "POST" });
+      const res = await fetch(`/api/admin/users/${userId}/unban`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to unban user");
       return res.json();
     },
@@ -274,7 +275,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error("Failed to delete user");
       return res.json();
     },
@@ -288,7 +289,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
 
   const disconnectInstagramMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}/disconnect-instagram`, { method: "POST" });
+      const res = await fetch(`/api/admin/users/${userId}/disconnect-instagram`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to disconnect Instagram");
       return res.json();
     },
@@ -300,7 +301,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
 
   const banInstagramMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}/ban-instagram`, { method: "POST" });
+      const res = await fetch(`/api/admin/users/${userId}/ban-instagram`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to ban Instagram");
       return res.json();
     },
@@ -312,7 +313,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
 
   const unbanInstagramMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}/unban-instagram`, { method: "POST" });
+      const res = await fetch(`/api/admin/users/${userId}/unban-instagram`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to unban Instagram");
       return res.json();
     },
