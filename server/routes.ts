@@ -452,6 +452,9 @@ export async function registerRoutes(
       
       let campaigns = await storage.getAllCampaigns();
       
+      // Only show approved campaigns to creators
+      campaigns = campaigns.filter(c => c.isApproved === true);
+      
       // Filter campaigns by user's country if user is logged in as creator
       // Also support optional country filter query parameter
       const filterCountry = req.query.country as string | undefined;
@@ -459,14 +462,14 @@ export async function registerRoutes(
       if (filterCountry) {
         // Use explicit country filter from query parameter
         campaigns = campaigns.filter(c => 
-          c.targetCountries && c.targetCountries.includes(filterCountry)
+          !c.targetCountries || c.targetCountries.length === 0 || c.targetCountries.includes(filterCountry)
         );
       } else if (req.user && req.user.role === "creator") {
         // Default: filter by user's country
         const user = await storage.getUser(req.user.id);
         if (user && user.country) {
           campaigns = campaigns.filter(c => 
-            c.targetCountries && c.targetCountries.includes(user.country)
+            !c.targetCountries || c.targetCountries.length === 0 || c.targetCountries.includes(user.country)
           );
         }
       }
