@@ -1676,6 +1676,26 @@ function CampaignsTab() {
     return Array.from(groups.values());
   }, [campaigns]);
 
+  // Active campaign groups (with active/paused campaigns)
+  const activeCampaignGroups = useMemo(() => {
+    return approvedCampaignGroups
+      .map(group => ({
+        ...group,
+        campaigns: group.campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")),
+      }))
+      .filter(group => group.campaigns.length > 0);
+  }, [approvedCampaignGroups]);
+
+  // Completed campaign groups
+  const completedCampaignGroups = useMemo(() => {
+    return approvedCampaignGroups
+      .map(group => ({
+        ...group,
+        campaigns: group.campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)),
+      }))
+      .filter(group => group.campaigns.length > 0);
+  }, [approvedCampaignGroups]);
+
   const toggleGroup = (title: string) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
@@ -1909,11 +1929,11 @@ function CampaignsTab() {
         <TabsList className="bg-gray-800 border border-gray-700">
           <TabsTrigger value="active" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
             <Play className="h-4 w-4 mr-2" />
-            Active ({campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).length})
+            Active ({activeCampaignGroups.length})
           </TabsTrigger>
           <TabsTrigger value="completed" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
             <CheckCircle className="h-4 w-4 mr-2" />
-            Completed ({campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length})
+            Completed ({completedCampaignGroups.length})
           </TabsTrigger>
         </TabsList>
 
@@ -1926,10 +1946,7 @@ function CampaignsTab() {
               </h3>
               <div className="flex gap-2">
                 <Badge className="bg-green-500 text-white">
-                  Running: {campaigns.filter(c => c.isApproved && c.status === "active").length}
-                </Badge>
-                <Badge className="bg-yellow-500 text-gray-900">
-                  Paused: {campaigns.filter(c => c.isApproved && c.status === "paused").length}
+                  {activeCampaignGroups.length} {activeCampaignGroups.length === 1 ? 'campaign' : 'campaigns'}
                 </Badge>
               </div>
             </div>
@@ -1937,176 +1954,167 @@ function CampaignsTab() {
           
           <ScrollArea className="h-[600px]">
             <div className="space-y-3 pr-2">
-              {campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).length === 0 ? (
+              {activeCampaignGroups.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Play className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No active campaigns</p>
                 </div>
               ) : (
-                campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")).map((campaign) => {
-                  const totalBudget = parseFloat(campaign.totalBudget || "0");
-                  const released = parseFloat(campaign.releasedAmount || "0");
-                  const refunded = parseFloat(campaign.refundedAmount || "0");
-                  const pending = totalBudget - released - refunded;
+                activeCampaignGroups.map((group) => {
+                  const isExpanded = expandedGroups.has(`active-${group.title}`);
+                  const tiersText = group.campaigns.map(c => c.tier).join(", ");
+                  const totalGroupBudget = group.campaigns.reduce((sum, c) => sum + parseFloat(c.totalBudget || "0"), 0);
+                  const totalGroupSpots = group.campaigns.reduce((sum, c) => sum + c.totalSpots, 0);
+                  const totalGroupSpotsRemaining = group.campaigns.reduce((sum, c) => sum + c.spotsRemaining, 0);
                   
                   return (
-                    <Card key={campaign.id} className={`border-2 ${campaign.status === "active" ? "bg-green-500/10 border-green-500/50" : "bg-yellow-500/10 border-yellow-500/50"}`} data-testid={`card-active-campaign-${campaign.id}`}>
+                    <Card key={group.title} className="bg-green-500/10 border-2 border-green-500/50" data-testid={`card-active-group-${group.title}`}>
                       <CardContent className="p-4">
                         <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-2">
+                          <div 
+                            className="flex items-start justify-between gap-2 cursor-pointer"
+                            onClick={() => toggleGroup(`active-${group.title}`)}
+                          >
                             <div className="flex-1 min-w-0">
-                              <p className="text-white font-semibold truncate">{campaign.title}</p>
-                              <p className="text-sm text-gray-400">{campaign.brand}</p>
-                              <p className="text-xs text-gray-500">{campaign.tier}</p>
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className={`h-4 w-4 text-green-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                <p className="text-white font-semibold text-base">{group.title}</p>
+                              </div>
+                              <p className="text-sm text-gray-400 ml-6">{group.brand}</p>
                             </div>
-                            <div className="flex flex-col gap-1 flex-shrink-0">
-                              <Badge className={campaign.status === "active" ? "bg-green-500 text-white" : "bg-yellow-500 text-gray-900"}>
-                                {campaign.status}
-                              </Badge>
-                              {campaign.isPromotional && (
-                                <Badge className="bg-yellow-500 text-gray-900 text-xs">
-                                  <Star className="h-3 w-3 mr-1" />
-                                  {campaign.starReward} Stars
-                                </Badge>
-                              )}
-                            </div>
+                            <Badge className="bg-green-500/20 text-green-300 border border-green-400">
+                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
+                            </Badge>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm ml-6">
                             <div>
-                              <span className="text-gray-400">Spots:</span>
-                              <span className="text-white ml-2 font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
-                              <span className={`ml-1 text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
-                                ({campaign.spotsRemaining} left)
-                              </span>
+                              <span className="text-gray-400">Total Budget:</span>
+                              <p className="text-blue-300 font-semibold">{formatINR(totalGroupBudget.toString())}</p>
                             </div>
                             <div>
-                              <span className="text-gray-400">Per Creator:</span>
-                              {campaign.isPromotional ? (
-                                <span className="text-yellow-300 ml-2 font-semibold flex items-center gap-1 inline-flex">
-                                  <Star className="h-3 w-3" /> {campaign.starReward} Stars
-                                </span>
-                              ) : (
-                                <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
-                              )}
+                              <span className="text-gray-400">Total Spots:</span>
+                              <p className="text-white font-medium">{totalGroupSpots - totalGroupSpotsRemaining}/{totalGroupSpots}</p>
                             </div>
-                            <div>
-                              <span className="text-gray-400">Budget:</span>
-                              {campaign.isPromotional ? (
-                                <span className="text-yellow-300 ml-2 font-semibold flex items-center gap-1 inline-flex">
-                                  <Star className="h-3 w-3" /> {Number(campaign.starReward) * campaign.totalSpots} Stars
-                                </span>
-                              ) : (
-                                <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Released:</span>
-                              {campaign.isPromotional ? (
-                                <span className="text-yellow-300 ml-2 font-semibold">-</span>
-                              ) : (
-                                <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
-                              )}
+                            <div className="col-span-2">
+                              <span className="text-gray-400">Tiers:</span>
+                              <p className="text-white font-medium">{tiersText}</p>
                             </div>
                           </div>
-                          
-                          <div className="flex gap-2 flex-wrap pt-2">
-                            {campaign.status === "active" ? (
+
+                          {isExpanded && (
+                            <div className="mt-4 ml-6 space-y-2 border-t border-green-400/30 pt-4">
+                              {group.campaigns.map((campaign) => {
+                                const totalBudget = parseFloat(campaign.totalBudget || "0");
+                                const released = parseFloat(campaign.releasedAmount || "0");
+                                
+                                return (
+                                  <div key={campaign.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2" data-testid={`row-active-campaign-${campaign.id}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
+                                        <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                        <span className="text-gray-400">x {campaign.totalSpots} spots</span>
+                                        <span className={`text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
+                                          ({campaign.spotsRemaining} left)
+                                        </span>
+                                      </div>
+                                      <Badge className={campaign.status === "active" ? "bg-green-500 text-white" : "bg-yellow-500 text-gray-900"}>
+                                        {campaign.status}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
+                                      {campaign.status === "active" ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-white border-gray-500"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateStatusMutation.mutate({ id: campaign.id, status: "paused" });
+                                          }}
+                                          data-testid={`button-pause-campaign-${campaign.id}`}
+                                        >
+                                          <Pause className="h-4 w-4 mr-1" />
+                                          Pause
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-white border-gray-500"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateStatusMutation.mutate({ id: campaign.id, status: "active" });
+                                          }}
+                                          data-testid={`button-activate-campaign-${campaign.id}`}
+                                        >
+                                          <Play className="h-4 w-4 mr-1" />
+                                          Activate
+                                        </Button>
+                                      )}
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-red-400 border-red-500"
+                                            data-testid={`button-delete-campaign-${campaign.id}`}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="bg-gray-900 border-gray-800">
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle className="text-white">Delete Campaign?</AlertDialogTitle>
+                                            <AlertDialogDescription className="text-gray-400">
+                                              Are you sure you want to delete "{campaign.title}" ({campaign.tier})? This action cannot be undone.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel className="bg-gray-800 text-white border-gray-700">Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              className="bg-red-500 text-white hover:bg-red-600"
+                                              onClick={async () => {
+                                                try {
+                                                  const res = await fetch(`/api/campaigns/${campaign.id}`, {
+                                                    method: "DELETE",
+                                                    credentials: "include",
+                                                  });
+                                                  if (!res.ok) {
+                                                    const error = await res.json();
+                                                    throw new Error(error.error || "Failed to delete");
+                                                  }
+                                                  toast.success("Campaign deleted successfully!");
+                                                  queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+                                                } catch (error: any) {
+                                                  toast.error(error.message || "Failed to delete campaign");
+                                                }
+                                              }}
+                                            >
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {!isExpanded && group.campaigns.length > 1 && (
+                            <div className="flex gap-2 pt-2 ml-6">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-white border-gray-500"
-                                onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
-                                data-testid={`button-pause-campaign-${campaign.id}`}
+                                onClick={() => toggleGroup(`active-${group.title}`)}
                               >
-                                <Pause className="h-4 w-4 mr-1" />
-                                Pause
+                                View All Tiers
                               </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-white border-gray-500"
-                                onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "active" })}
-                                data-testid={`button-activate-campaign-${campaign.id}`}
-                              >
-                                <Play className="h-4 w-4 mr-1" />
-                                Activate
-                              </Button>
-                            )}
-                            {campaign.isPromotional ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-yellow-300 border-yellow-500"
-                                onClick={() => convertToMoneyMutation.mutate(campaign.id)}
-                                data-testid={`button-convert-to-money-${campaign.id}`}
-                              >
-                                <IndianRupee className="h-4 w-4 mr-1" />
-                                To Money
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-yellow-300 border-yellow-500"
-                                onClick={() => {
-                                  setSelectedCampaign(campaign);
-                                  setConvertStarReward(1);
-                                  setConvertDialogOpen(true);
-                                }}
-                                data-testid={`button-convert-to-stars-${campaign.id}`}
-                              >
-                                <Star className="h-4 w-4 mr-1" />
-                                To Stars
-                              </Button>
-                            )}
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-400 border-red-500"
-                                  data-testid={`button-delete-campaign-${campaign.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-gray-900 border-gray-800">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="text-white">Delete Campaign?</AlertDialogTitle>
-                                  <AlertDialogDescription className="text-gray-400">
-                                    Are you sure you want to delete "{campaign.title}" ({campaign.tier})? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="bg-gray-800 text-white border-gray-700">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-500 text-white hover:bg-red-600"
-                                    onClick={async () => {
-                                      try {
-                                        const res = await fetch(`/api/campaigns/${campaign.id}`, {
-                                          method: "DELETE",
-                                          credentials: "include",
-                                        });
-                                        if (!res.ok) {
-                                          const error = await res.json();
-                                          throw new Error(error.error || "Failed to delete");
-                                        }
-                                        toast.success("Campaign deleted successfully!");
-                                        queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
-                                      } catch (error: any) {
-                                        toast.error(error.message || "Failed to delete campaign");
-                                      }
-                                    }}
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -2125,70 +2133,100 @@ function CampaignsTab() {
                 COMPLETED CAMPAIGNS
               </h3>
               <Badge className="bg-purple-500 text-white">
-                Total: {campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length}
+                {completedCampaignGroups.length} {completedCampaignGroups.length === 1 ? 'campaign' : 'campaigns'}
               </Badge>
             </div>
           </div>
           
           <ScrollArea className="h-[600px]">
             <div className="space-y-3 pr-2">
-              {campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).length === 0 ? (
+              {completedCampaignGroups.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No completed campaigns yet</p>
                   <p className="text-sm mt-2">Campaigns will appear here when marked as complete</p>
                 </div>
               ) : (
-                campaigns.filter(c => c.isApproved && (c.status === "completed" || c.spotsRemaining === 0)).map((campaign) => {
-                  const totalBudget = parseFloat(campaign.totalBudget || "0");
-                  const released = parseFloat(campaign.releasedAmount || "0");
-                  const refunded = parseFloat(campaign.refundedAmount || "0");
+                completedCampaignGroups.map((group) => {
+                  const isExpanded = expandedGroups.has(`completed-${group.title}`);
+                  const tiersText = group.campaigns.map(c => c.tier).join(", ");
+                  const totalGroupBudget = group.campaigns.reduce((sum, c) => sum + parseFloat(c.totalBudget || "0"), 0);
+                  const totalGroupReleased = group.campaigns.reduce((sum, c) => sum + parseFloat(c.releasedAmount || "0"), 0);
+                  const totalGroupSpots = group.campaigns.reduce((sum, c) => sum + c.totalSpots, 0);
+                  const totalGroupSpotsUsed = group.campaigns.reduce((sum, c) => sum + (c.totalSpots - c.spotsRemaining), 0);
                   
                   return (
-                    <Card key={campaign.id} className="bg-purple-500/10 border-2 border-purple-500/50" data-testid={`card-completed-campaign-${campaign.id}`}>
+                    <Card key={group.title} className="bg-purple-500/10 border-2 border-purple-500/50" data-testid={`card-completed-group-${group.title}`}>
                       <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-3">
+                          <div 
+                            className="flex items-start justify-between gap-2 cursor-pointer"
+                            onClick={() => toggleGroup(`completed-${group.title}`)}
+                          >
                             <div className="flex-1 min-w-0">
-                              <p className="text-white font-semibold truncate">{campaign.title}</p>
-                              <p className="text-sm text-gray-400">{campaign.brand}</p>
-                              <p className="text-xs text-gray-500">{campaign.tier}</p>
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className={`h-4 w-4 text-purple-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                <p className="text-white font-semibold text-base">{group.title}</p>
+                              </div>
+                              <p className="text-sm text-gray-400 ml-6">{group.brand}</p>
                             </div>
-                            <div className="flex flex-col gap-1 flex-shrink-0">
-                              <Badge className="bg-purple-500 text-white">Completed</Badge>
-                              {campaign.isPromotional && (
-                                <Badge className="bg-yellow-500 text-gray-900 text-xs">
-                                  <Star className="h-3 w-3 mr-1" />
-                                  {campaign.starReward} Stars
-                                </Badge>
-                              )}
-                            </div>
+                            <Badge className="bg-purple-500/20 text-purple-300 border border-purple-400">
+                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
+                            </Badge>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-gray-400">Spots Used:</span>
-                              <span className="text-white ml-2 font-semibold">{campaign.totalSpots - campaign.spotsRemaining}/{campaign.totalSpots}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Per Creator:</span>
-                              <span className="text-green-300 ml-2 font-semibold">{formatINR(campaign.payAmount)}</span>
-                            </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm ml-6">
                             <div>
                               <span className="text-gray-400">Total Budget:</span>
-                              <span className="text-blue-300 ml-2 font-semibold">{formatINR(totalBudget)}</span>
+                              <p className="text-blue-300 font-semibold">{formatINR(totalGroupBudget.toString())}</p>
                             </div>
                             <div>
                               <span className="text-gray-400">Released:</span>
-                              <span className="text-green-300 ml-2 font-semibold">{formatINR(released)}</span>
+                              <p className="text-green-300 font-semibold">{formatINR(totalGroupReleased.toString())}</p>
                             </div>
-                            {refunded > 0 && (
-                              <div>
-                                <span className="text-gray-400">Refunded:</span>
-                                <span className="text-red-300 ml-2 font-semibold">{formatINR(refunded)}</span>
-                              </div>
-                            )}
+                            <div>
+                              <span className="text-gray-400">Spots Used:</span>
+                              <p className="text-white font-medium">{totalGroupSpotsUsed}/{totalGroupSpots}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Tiers:</span>
+                              <p className="text-white font-medium">{tiersText}</p>
+                            </div>
                           </div>
+
+                          {isExpanded && (
+                            <div className="mt-4 ml-6 space-y-2 border-t border-purple-400/30 pt-4">
+                              {group.campaigns.map((campaign) => {
+                                const totalBudget = parseFloat(campaign.totalBudget || "0");
+                                const released = parseFloat(campaign.releasedAmount || "0");
+                                
+                                return (
+                                  <div key={campaign.id} className="p-3 bg-gray-800/50 rounded-lg" data-testid={`row-completed-campaign-${campaign.id}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
+                                        <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                        <span className="text-gray-400">x {campaign.totalSpots} spots</span>
+                                      </div>
+                                      <span className="text-green-300 text-sm">Released: {formatINR(released.toString())}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {!isExpanded && group.campaigns.length > 1 && (
+                            <div className="flex gap-2 pt-2 ml-6">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => toggleGroup(`completed-${group.title}`)}
+                              >
+                                View All Tiers
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
