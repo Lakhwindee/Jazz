@@ -184,14 +184,14 @@ export const api = {
     const url = country 
       ? `${API_BASE}/campaigns?country=${encodeURIComponent(country)}`
       : `${API_BASE}/campaigns`;
-    const res = await fetch(url);
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) throw new Error("Failed to fetch campaigns");
     return res.json();
   },
 
   // User (Creator)
   async getCurrentUser(): Promise<ApiUser> {
-    const res = await fetch(`${API_BASE}/users/current`);
+    const res = await fetch(`${API_BASE}/users/current`, { credentials: "include" });
     if (!res.ok) throw new Error("Failed to fetch user");
     return res.json();
   },
