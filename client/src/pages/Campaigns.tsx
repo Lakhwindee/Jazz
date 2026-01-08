@@ -9,7 +9,7 @@ import { api, type ApiCategorySubscription, type ApiCampaign, type ApiReservatio
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe } from "lucide-react";
+import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { TIERS, formatFollowers } from "@shared/tiers";
@@ -390,6 +390,10 @@ export default function Campaigns() {
                       const lowestTier = group.campaigns[0];
                       const lowestTierInfo = TIERS.find(t => t.name === lowestTier?.tier);
                       
+                      // Check if campaigns are promotional (star-based)
+                      const hasPromotional = group.campaigns.some(c => c.isPromotional);
+                      const allPromotional = group.campaigns.every(c => c.isPromotional);
+                      
                       // Show payment range if multiple tiers
                       const payments = group.campaigns.map(c => parseFloat(c.payAmount));
                       const minPay = Math.min(...payments);
@@ -397,6 +401,14 @@ export default function Campaigns() {
                       const paymentDisplay = minPay === maxPay 
                         ? formatINR(minPay.toString()) 
                         : `${formatINR(minPay.toString())} - ${formatINR(maxPay.toString())}`;
+                      
+                      // Star rewards for promotional campaigns
+                      const starRewards = group.campaigns.filter(c => c.isPromotional).map(c => c.starReward || 1);
+                      const minStars = starRewards.length > 0 ? Math.min(...starRewards) : 0;
+                      const maxStars = starRewards.length > 0 ? Math.max(...starRewards) : 0;
+                      const starDisplay = minStars === maxStars 
+                        ? `${minStars} Star${minStars !== 1 ? 's' : ''}` 
+                        : `${minStars}-${maxStars} Stars`;
                       
                       return (
                         <motion.div
@@ -427,6 +439,11 @@ export default function Campaigns() {
                                               <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                                 <Gift className="h-3 w-3" />
                                                 Free Product
+                                              </Badge>
+                                            ) : allPromotional ? (
+                                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                                <Star className="h-3 w-3" />
+                                                {starDisplay}
                                               </Badge>
                                             ) : (
                                               <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
@@ -479,6 +496,11 @@ export default function Campaigns() {
                                               <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                                 <Gift className="h-3 w-3" />
                                                 Free Product
+                                              </Badge>
+                                            ) : allPromotional ? (
+                                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                                <Star className="h-3 w-3" />
+                                                {starDisplay}
                                               </Badge>
                                             ) : (
                                               <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
@@ -535,6 +557,16 @@ export default function Campaigns() {
                                         <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                           <Gift className="h-3 w-3" />
                                           Free Product
+                                        </Badge>
+                                      ) : bestCampaign?.isPromotional ? (
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                          <Star className="h-3 w-3" />
+                                          {bestCampaign.starReward || 1} Star{(bestCampaign.starReward || 1) > 1 ? 's' : ''}
+                                        </Badge>
+                                      ) : allPromotional ? (
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                          <Star className="h-3 w-3" />
+                                          {starDisplay}
                                         </Badge>
                                       ) : (
                                         <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
