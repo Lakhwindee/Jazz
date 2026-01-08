@@ -2011,17 +2011,31 @@ function CampaignsTab() {
                                 return (
                                   <div key={campaign.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2" data-testid={`row-active-campaign-${campaign.id}`}>
                                     <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
                                         <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
-                                        <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                        {campaign.isPromotional ? (
+                                          <span className="text-yellow-300 font-semibold flex items-center gap-1">
+                                            <Star className="h-3 w-3" /> {campaign.starReward} Stars
+                                          </span>
+                                        ) : (
+                                          <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                        )}
                                         <span className="text-gray-400">x {campaign.totalSpots} spots</span>
                                         <span className={`text-xs ${campaign.spotsRemaining === 0 ? "text-red-400" : "text-green-400"}`}>
                                           ({campaign.spotsRemaining} left)
                                         </span>
                                       </div>
-                                      <Badge className={campaign.status === "active" ? "bg-green-500 text-white" : "bg-yellow-500 text-gray-900"}>
-                                        {campaign.status}
-                                      </Badge>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        {campaign.isPromotional && (
+                                          <Badge className="bg-yellow-500 text-gray-900 text-xs">
+                                            <Star className="h-3 w-3 mr-1" />
+                                            Promo
+                                          </Badge>
+                                        )}
+                                        <Badge className={campaign.status === "active" ? "bg-green-500 text-white" : "bg-yellow-500 text-gray-900"}>
+                                          {campaign.status}
+                                        </Badge>
+                                      </div>
                                     </div>
                                     <div className="flex gap-2 flex-wrap">
                                       {campaign.status === "active" ? (
@@ -2051,6 +2065,37 @@ function CampaignsTab() {
                                         >
                                           <Play className="h-4 w-4 mr-1" />
                                           Activate
+                                        </Button>
+                                      )}
+                                      {campaign.isPromotional ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-yellow-300 border-yellow-500"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            convertToMoneyMutation.mutate(campaign.id);
+                                          }}
+                                          data-testid={`button-convert-to-money-${campaign.id}`}
+                                        >
+                                          <IndianRupee className="h-4 w-4 mr-1" />
+                                          To Money
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-yellow-300 border-yellow-500"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedCampaign(campaign);
+                                            setConvertStarReward(1);
+                                            setConvertDialogOpen(true);
+                                          }}
+                                          data-testid={`button-convert-to-stars-${campaign.id}`}
+                                        >
+                                          <Star className="h-4 w-4 mr-1" />
+                                          To Stars
                                         </Button>
                                       )}
                                       <AlertDialog>
