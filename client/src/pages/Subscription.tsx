@@ -521,122 +521,42 @@ export default function Subscription() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-300 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Company Name (Optional)
-                    </Label>
-                    <Input
-                      value={billingDetails.companyName}
-                      onChange={(e) => setBillingDetails({...billingDetails, companyName: e.target.value})}
-                      placeholder="Your company name"
-                      className="bg-gray-800 border-gray-700 text-white"
-                      data-testid="input-billing-company"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-300">Phone Number</Label>
-                    <Input
-                      type="tel"
-                      value={billingDetails.phone}
-                      onChange={(e) => setBillingDetails({...billingDetails, phone: e.target.value})}
-                      placeholder="+91 XXXXXXXXXX"
-                      className="bg-gray-800 border-gray-700 text-white"
-                      data-testid="input-billing-phone"
-                    />
-                  </div>
-                </div>
-
                 <div className="border-t border-gray-800 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Tax Information (Optional)
-                  </h4>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-gray-300">GST Number</Label>
-                      <Input
-                        value={billingDetails.gstNumber}
-                        onChange={(e) => setBillingDetails({...billingDetails, gstNumber: e.target.value.toUpperCase()})}
-                        placeholder="22AAAAA0000A1Z5"
-                        className="bg-gray-800 border-gray-700 text-white font-mono"
-                        maxLength={15}
-                        data-testid="input-billing-gst"
-                      />
-                      <p className="text-xs text-gray-500">Format: 22AAAAA0000A1Z5</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-gray-300">PAN Number</Label>
-                      <Input
-                        value={billingDetails.panNumber}
-                        onChange={(e) => setBillingDetails({...billingDetails, panNumber: e.target.value.toUpperCase()})}
-                        placeholder="AAAAA0000A"
-                        className="bg-gray-800 border-gray-700 text-white font-mono"
-                        maxLength={10}
-                        data-testid="input-billing-pan"
-                      />
-                      <p className="text-xs text-gray-500">Format: AAAAA0000A</p>
-                    </div>
+                  <Label className="text-gray-300 flex items-center gap-2">
+                    <Tag className="w-4 h-4" />
+                    Have a Promo Code? (Optional)
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value.toUpperCase());
+                        if (promoValidation) setPromoValidation(null);
+                      }}
+                      placeholder="Enter promo code"
+                      className="bg-gray-800 border-gray-700 text-white"
+                      data-testid="input-promo-code"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={validatePromoCode}
+                      disabled={isValidatingPromo || !promoCode.trim()}
+                      data-testid="button-validate-promo"
+                    >
+                      {isValidatingPromo ? "..." : "Apply"}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="border-t border-gray-800 pt-4">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Billing Address (Optional)
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-gray-300">Street Address</Label>
-                      <Input
-                        value={billingDetails.billingAddress}
-                        onChange={(e) => setBillingDetails({...billingDetails, billingAddress: e.target.value})}
-                        placeholder="Enter your billing address"
-                        className="bg-gray-800 border-gray-700 text-white"
-                        data-testid="input-billing-address"
-                      />
+                  {promoValidation && (
+                    <div className={`mt-2 p-2 rounded text-sm ${promoValidation.valid ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+                      {promoValidation.valid ? (
+                        promoValidation.type === "trial" 
+                          ? `Free trial: ${promoValidation.trialDays} days Pro access!` 
+                          : promoValidation.type === "discount"
+                          ? `${promoValidation.discountPercent}% discount applied!`
+                          : "Promo code applied!"
+                      ) : "Invalid promo code"}
                     </div>
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-gray-300">City</Label>
-                        <Input
-                          value={billingDetails.billingCity}
-                          onChange={(e) => setBillingDetails({...billingDetails, billingCity: e.target.value})}
-                          placeholder="City"
-                          className="bg-gray-800 border-gray-700 text-white"
-                          data-testid="input-billing-city"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-300">State</Label>
-                        <Select
-                          value={billingDetails.billingState}
-                          onValueChange={(value) => setBillingDetails({...billingDetails, billingState: value})}
-                        >
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white" data-testid="select-billing-state">
-                            <SelectValue placeholder="Select State" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
-                            {INDIAN_STATES.map(state => (
-                              <SelectItem key={state} value={state} className="text-white">{state}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-300">Pincode</Label>
-                        <Input
-                          value={billingDetails.billingPincode}
-                          onChange={(e) => setBillingDetails({...billingDetails, billingPincode: e.target.value})}
-                          placeholder="000000"
-                          className="bg-gray-800 border-gray-700 text-white"
-                          maxLength={6}
-                          data-testid="input-billing-pincode"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -670,63 +590,6 @@ export default function Subscription() {
                 </CardContent>
               </Card>
 
-              <div className="space-y-3">
-                <Label className="text-gray-300 flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
-                  Have a Promo Code?
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={promoCode}
-                    onChange={(e) => {
-                      setPromoCode(e.target.value.toUpperCase());
-                      if (promoValidation) setPromoValidation(null);
-                    }}
-                    placeholder="Enter promo code"
-                    className="bg-gray-800 border-gray-700 text-white font-mono"
-                    data-testid="input-promo-code"
-                  />
-                  <Button 
-                    variant="outline" 
-                    onClick={validatePromoCode}
-                    disabled={isValidatingPromo || !promoCode.trim()}
-                    data-testid="button-apply-promo"
-                  >
-                    {isValidatingPromo ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
-                  </Button>
-                </div>
-                
-                {promoValidation && (
-                  <div className="p-3 rounded-lg bg-green-900/30 border border-green-700 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <div className="flex-1">
-                      <p className="text-sm text-green-400 font-medium">
-                        {promoValidation.type === "trial" 
-                          ? `Free Trial: ${promoValidation.trialDays} days` 
-                          : `${promoValidation.discountPercent}% discount applied`}
-                      </p>
-                      {promoValidation.type === "trial" && promoValidation.afterTrialAction && (
-                        <p className="text-xs text-gray-400">
-                          After trial: {promoValidation.afterTrialAction === "continue" 
-                            ? "You will be prompted to pay to continue" 
-                            : "Plan will downgrade to free"}
-                        </p>
-                      )}
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      onClick={() => {
-                        setPromoValidation(null);
-                        setPromoCode("");
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
               <Card className="bg-gray-800/50 border-gray-700">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex justify-between text-gray-300">
@@ -756,9 +619,10 @@ export default function Subscription() {
                 <div className="text-sm text-gray-400 space-y-1">
                   <p className="font-medium text-gray-300">Billing to:</p>
                   <p>{billingDetails.name}</p>
-                  {billingDetails.companyName && <p>{billingDetails.companyName}</p>}
-                  {billingDetails.gstNumber && <p>GST: {billingDetails.gstNumber}</p>}
                   <p>{billingDetails.email}</p>
+                  {promoValidation?.valid && (
+                    <p className="text-green-400">Promo: {promoValidation.code}</p>
+                  )}
                 </div>
               )}
 
