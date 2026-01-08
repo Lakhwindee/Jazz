@@ -26,7 +26,7 @@ import {
   Wallet, 
   ShoppingBag 
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const iconMap: Record<string, React.ElementType> = {
   music: Music,
@@ -127,6 +127,86 @@ export default function Campaigns() {
   };
 
   const activeCampaigns = allCampaigns.filter((c: ApiCampaign) => c.status === "active" && c.spotsRemaining > 0);
+
+  // Group campaigns by base title (removing tier suffix)
+  const getBaseTitle = (title: string) => {
+    return title.replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
+  };
+
+  interface CampaignGroup {
+    title: string;
+    brand: string;
+    brandLogo: string;
+    campaigns: ApiCampaign[];
+    totalSpots: number;
+    deadline: string;
+    description: string;
+    campaignType: string;
+  }
+
+  const campaignGroups = useMemo(() => {
+    const groups: Map<string, CampaignGroup> = new Map();
+    
+    activeCampaigns.forEach((campaign: ApiCampaign) => {
+      const baseTitle = getBaseTitle(campaign.title);
+      
+      if (!groups.has(baseTitle)) {
+        groups.set(baseTitle, {
+          title: baseTitle,
+          brand: campaign.brand,
+          brandLogo: campaign.brandLogo,
+          campaigns: [],
+          totalSpots: 0,
+          deadline: campaign.deadline,
+          description: campaign.description,
+          campaignType: campaign.campaignType || "cash",
+        });
+      }
+      
+      const group = groups.get(baseTitle)!;
+      group.campaigns.push(campaign);
+      group.totalSpots += campaign.spotsRemaining;
+    });
+
+    // Sort campaigns within each group by tier number
+    groups.forEach(group => {
+      group.campaigns.sort((a, b) => {
+        const tierA = parseInt(a.tier.replace(/\D/g, '')) || 0;
+        const tierB = parseInt(b.tier.replace(/\D/g, '')) || 0;
+        return tierA - tierB;
+      });
+    });
+
+    return Array.from(groups.values());
+  }, [activeCampaigns]);
+
+  // Find the best matching campaign for user's tier in a group
+  const getBestCampaignForUser = (group: CampaignGroup): ApiCampaign | null => {
+    const userTierId = getUserTierId();
+    // Find campaigns user can access (user tier >= campaign tier)
+    const accessibleCampaigns = group.campaigns.filter(c => {
+      const campaignTierId = getLowestCampaignTierId(c.tier);
+      return campaignTierId <= userTierId;
+    });
+    // Return the highest tier campaign user can access
+    if (accessibleCampaigns.length === 0) return null;
+    return accessibleCampaigns[accessibleCampaigns.length - 1];
+  };
+
+  // Check if any campaign in group is reserved
+  const isAnyReservedInGroup = (group: CampaignGroup): boolean => {
+    return group.campaigns.some(c => isAlreadyReserved(c.id));
+  };
+
+  // Check if all campaigns in group are locked for user
+  const isGroupLocked = (group: CampaignGroup): boolean => {
+    return group.campaigns.every(c => isCampaignLocked(c));
+  };
+
+  // Get accessible campaigns for user in group
+  const getAccessibleCampaigns = (group: CampaignGroup): ApiCampaign[] => {
+    return group.campaigns.filter(c => !isCampaignLocked(c));
+  };
 
   return (
     <TooltipProvider>
@@ -286,7 +366,7 @@ export default function Campaigns() {
                   </div>
                 )}
 
-                {activeCampaigns.length === 0 ? (
+                {campaignGroups.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -302,14 +382,25 @@ export default function Campaigns() {
                   </motion.div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {activeCampaigns.map((campaign: ApiCampaign, index: number) => {
-                      const isLocked = isCampaignLocked(campaign);
-                      const isReserved = isAlreadyReserved(campaign.id);
-                      const campaignTier = TIERS.find(t => t.name === campaign.tier);
+                    {campaignGroups.map((group, index: number) => {
+                      const isLocked = isGroupLocked(group);
+                      const isReserved = isAnyReservedInGroup(group);
+                      const accessibleCampaigns = getAccessibleCampaigns(group);
+                      const bestCampaign = getBestCampaignForUser(group);
+                      const lowestTier = group.campaigns[0];
+                      const lowestTierInfo = TIERS.find(t => t.name === lowestTier?.tier);
+                      
+                      // Show payment range if multiple tiers
+                      const payments = group.campaigns.map(c => parseFloat(c.payAmount));
+                      const minPay = Math.min(...payments);
+                      const maxPay = Math.max(...payments);
+                      const paymentDisplay = minPay === maxPay 
+                        ? formatINR(minPay.toString()) 
+                        : `${formatINR(minPay.toString())} - ${formatINR(maxPay.toString())}`;
                       
                       return (
                         <motion.div
-                          key={campaign.id}
+                          key={group.title}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.03 }}
@@ -317,39 +408,39 @@ export default function Campaigns() {
                           {isLocked ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="relative group cursor-not-allowed" data-testid={`card-campaign-locked-${campaign.id}`}>
+                                <div className="relative group cursor-not-allowed" data-testid={`card-campaign-locked-${group.title}`}>
                                   <Card className="transition-all">
                                     <CardContent className="p-5">
                                       <div className="flex items-start gap-4">
                                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                          {campaign.brandLogo ? (
-                                            <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                                          {group.brandLogo ? (
+                                            <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
                                           ) : (
                                             <Building2 className="h-7 w-7" />
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h3 className="font-bold text-lg truncate">{campaign.title}</h3>
-                                          <p className="text-sm text-muted-foreground truncate">{campaign.brand}</p>
+                                          <h3 className="font-bold text-lg truncate">{group.title}</h3>
+                                          <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
                                           <div className="flex flex-wrap gap-2 mt-2">
-                                            {campaign.campaignType === "product" ? (
+                                            {group.campaignType === "product" ? (
                                               <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                                 <Gift className="h-3 w-3" />
                                                 Free Product
                                               </Badge>
                                             ) : (
                                               <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                                {formatINR(campaign.payAmount)}
+                                                {paymentDisplay}
                                               </Badge>
                                             )}
                                             <Badge variant="outline" className="text-xs">
-                                              {campaign.tier}
+                                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
                                             </Badge>
                                           </div>
                                           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                             <Clock className="h-3 w-3" />
-                                            <span>{new Date(campaign.deadline).toLocaleDateString()}</span>
-                                            <span className="ml-2">{campaign.spotsRemaining} spots left</span>
+                                            <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                            <span className="ml-2">{group.totalSpots} spots left</span>
                                           </div>
                                         </div>
                                       </div>
@@ -363,45 +454,45 @@ export default function Campaigns() {
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="bg-red-500 text-white border-red-500">
-                                <p>Requires {campaignTier ? formatFollowers(campaignTier.minFollowers) : campaign.tier}+ followers</p>
+                                <p>Requires {lowestTierInfo ? formatFollowers(lowestTierInfo.minFollowers) : lowestTier?.tier}+ followers</p>
                               </TooltipContent>
                             </Tooltip>
                           ) : isReserved ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="relative group cursor-not-allowed" data-testid={`card-campaign-reserved-${campaign.id}`}>
+                                <div className="relative group cursor-not-allowed" data-testid={`card-campaign-reserved-${group.title}`}>
                                   <Card className="transition-all border-green-300">
                                     <CardContent className="p-5">
                                       <div className="flex items-start gap-4">
                                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                          {campaign.brandLogo ? (
-                                            <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                                          {group.brandLogo ? (
+                                            <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
                                           ) : (
                                             <Building2 className="h-7 w-7" />
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h3 className="font-bold text-lg truncate">{campaign.title}</h3>
-                                          <p className="text-sm text-muted-foreground truncate">{campaign.brand}</p>
+                                          <h3 className="font-bold text-lg truncate">{group.title}</h3>
+                                          <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
                                           <div className="flex flex-wrap gap-2 mt-2">
-                                            {campaign.campaignType === "product" ? (
+                                            {group.campaignType === "product" ? (
                                               <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                                 <Gift className="h-3 w-3" />
                                                 Free Product
                                               </Badge>
                                             ) : (
                                               <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                                {formatINR(campaign.payAmount)}
+                                                {paymentDisplay}
                                               </Badge>
                                             )}
                                             <Badge variant="outline" className="text-xs">
-                                              {campaign.tier}
+                                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
                                             </Badge>
                                           </div>
                                           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                             <Clock className="h-3 w-3" />
-                                            <span>{new Date(campaign.deadline).toLocaleDateString()}</span>
-                                            <span className="ml-2">{campaign.spotsRemaining} spots left</span>
+                                            <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                            <span className="ml-2">{group.totalSpots} spots left</span>
                                           </div>
                                         </div>
                                       </div>
@@ -424,39 +515,47 @@ export default function Campaigns() {
                           ) : (
                             <Card 
                               className="cursor-pointer transition-all hover:shadow-lg hover:border-purple-300 hover:scale-[1.02]"
-                              data-testid={`card-campaign-${campaign.id}`}
+                              data-testid={`card-campaign-${group.title}`}
+                              onClick={() => bestCampaign && navigate(`/campaigns/${bestCampaign.id}`)}
                             >
                               <CardContent className="p-5">
                                 <div className="flex items-start gap-4">
                                   <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                    {campaign.brandLogo ? (
-                                      <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                                    {group.brandLogo ? (
+                                      <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
                                     ) : (
                                       <Building2 className="h-7 w-7" />
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-lg truncate">{campaign.title}</h3>
-                                    <p className="text-sm text-muted-foreground truncate">{campaign.brand}</p>
+                                    <h3 className="font-bold text-lg truncate">{group.title}</h3>
+                                    <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
                                     <div className="flex flex-wrap gap-2 mt-2">
-                                      {campaign.campaignType === "product" ? (
+                                      {group.campaignType === "product" ? (
                                         <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
                                           <Gift className="h-3 w-3" />
                                           Free Product
                                         </Badge>
                                       ) : (
                                         <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                          {formatINR(campaign.payAmount)}
+                                          {bestCampaign ? formatINR(bestCampaign.payAmount) : paymentDisplay}
                                         </Badge>
                                       )}
-                                      <Badge variant="outline" className="text-xs">
-                                        {campaign.tier}
-                                      </Badge>
+                                      {group.campaigns.length > 1 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {accessibleCampaigns.length} of {group.campaigns.length} tiers available
+                                        </Badge>
+                                      )}
+                                      {bestCampaign && (
+                                        <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30">
+                                          {bestCampaign.tier}
+                                        </Badge>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                       <Clock className="h-3 w-3" />
-                                      <span>{new Date(campaign.deadline).toLocaleDateString()}</span>
-                                      <span className="ml-2">{campaign.spotsRemaining} spots left</span>
+                                      <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                      <span className="ml-2">{group.totalSpots} spots left</span>
                                     </div>
                                   </div>
                                 </div>
