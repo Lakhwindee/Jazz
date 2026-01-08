@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -1562,6 +1562,17 @@ function SubmissionsTab() {
   );
 }
 
+interface AdminCampaignGroup {
+  title: string;
+  brand: string;
+  campaigns: ApiCampaign[];
+  totalSpots: number;
+  filledSpots: number;
+  totalBudget: number;
+  isActive: boolean;
+  isPending: boolean;
+}
+
 function CampaignsTab() {
   const queryClient = useQueryClient();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -1572,6 +1583,7 @@ function CampaignsTab() {
   const [isPromotional, setIsPromotional] = useState(false);
   const [starReward, setStarReward] = useState(0);
   const [convertStarReward, setConvertStarReward] = useState(1);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["admin-campaigns"],
@@ -1582,6 +1594,99 @@ function CampaignsTab() {
     queryKey: ["admin-pending-campaigns"],
     queryFn: () => api.admin.getPendingApprovalCampaigns(),
   });
+
+  const getBaseTitle = (title: string) => {
+    return title.replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
+  };
+
+  const pendingCampaignGroups = useMemo(() => {
+    const groups: Map<string, AdminCampaignGroup> = new Map();
+    
+    pendingCampaigns.forEach(campaign => {
+      const baseTitle = getBaseTitle(campaign.title);
+      
+      if (!groups.has(baseTitle)) {
+        groups.set(baseTitle, {
+          title: baseTitle,
+          brand: campaign.brand,
+          campaigns: [],
+          totalSpots: 0,
+          filledSpots: 0,
+          totalBudget: 0,
+          isActive: false,
+          isPending: true,
+        });
+      }
+      
+      const group = groups.get(baseTitle)!;
+      group.campaigns.push(campaign);
+      group.totalSpots += campaign.totalSpots;
+      group.filledSpots += (campaign.totalSpots - campaign.spotsRemaining);
+      group.totalBudget += parseFloat(campaign.payAmount) * campaign.totalSpots;
+    });
+
+    groups.forEach(group => {
+      group.campaigns.sort((a, b) => {
+        const tierA = parseInt(a.tier.replace(/\D/g, '')) || 0;
+        const tierB = parseInt(b.tier.replace(/\D/g, '')) || 0;
+        return tierA - tierB;
+      });
+    });
+
+    return Array.from(groups.values());
+  }, [pendingCampaigns]);
+
+  const approvedCampaignGroups = useMemo(() => {
+    const groups: Map<string, AdminCampaignGroup> = new Map();
+    
+    campaigns.forEach(campaign => {
+      const baseTitle = getBaseTitle(campaign.title);
+      
+      if (!groups.has(baseTitle)) {
+        groups.set(baseTitle, {
+          title: baseTitle,
+          brand: campaign.brand,
+          campaigns: [],
+          totalSpots: 0,
+          filledSpots: 0,
+          totalBudget: 0,
+          isActive: false,
+          isPending: false,
+        });
+      }
+      
+      const group = groups.get(baseTitle)!;
+      group.campaigns.push(campaign);
+      group.totalSpots += campaign.totalSpots;
+      group.filledSpots += (campaign.totalSpots - campaign.spotsRemaining);
+      group.totalBudget += parseFloat(campaign.payAmount) * campaign.totalSpots;
+      if (campaign.spotsRemaining > 0 && campaign.status === "active" && campaign.isApproved) {
+        group.isActive = true;
+      }
+    });
+
+    groups.forEach(group => {
+      group.campaigns.sort((a, b) => {
+        const tierA = parseInt(a.tier.replace(/\D/g, '')) || 0;
+        const tierB = parseInt(b.tier.replace(/\D/g, '')) || 0;
+        return tierA - tierB;
+      });
+    });
+
+    return Array.from(groups.values());
+  }, [campaigns]);
+
+  const toggleGroup = (title: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(title)) {
+        next.delete(title);
+      } else {
+        next.add(title);
+      }
+      return next;
+    });
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => api.admin.updateCampaignStatus(id, status),
@@ -1673,137 +1778,128 @@ function CampaignsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Pending Approval Section */}
-      {pendingCampaigns.length > 0 && (
+      {/* Pending Approval Section - Grouped by Title */}
+      {pendingCampaignGroups.length > 0 && (
         <div>
           <h3 className="text-lg lg:text-xl font-bold text-yellow-300 mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5 lg:h-6 lg:w-6" />
-            Pending Approval ({pendingCampaigns.length})
+            Pending Approval ({pendingCampaignGroups.length} {pendingCampaignGroups.length === 1 ? 'campaign' : 'campaigns'})
           </h3>
           
-          {/* Mobile Cards */}
-          <div className="lg:hidden space-y-3">
-            {pendingCampaigns.map((campaign) => (
-              <Card key={campaign.id} className="bg-yellow-500/10 border-2 border-yellow-400" data-testid={`card-pending-campaign-${campaign.id}`}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-white font-semibold text-base">{campaign.title}</p>
-                      <p className="text-sm text-gray-300 line-clamp-2">{campaign.description}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-400">Sponsor:</span>
-                        <p className="text-white font-medium">{campaign.brand}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Payment:</span>
-                        <p className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Spots:</span>
-                        <p className="text-white font-medium">{campaign.totalSpots}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Tier:</span>
-                        <p className="text-white font-medium">{campaign.tier}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-green-600"
-                        onClick={() => {
-                          setSelectedCampaign(campaign);
-                          setIsPromotional(false);
-                          setStarReward(0);
-                          setApproveDialogOpen(true);
-                        }}
-                        data-testid={`button-approve-campaign-${campaign.id}`}
+          <div className="space-y-3">
+            {pendingCampaignGroups.map((group) => {
+              const isExpanded = expandedGroups.has(`pending-${group.title}`);
+              const tiersText = group.campaigns.map(c => c.tier).join(", ");
+              
+              return (
+                <Card key={group.title} className="bg-yellow-500/10 border-2 border-yellow-400" data-testid={`card-pending-group-${group.title}`}>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div 
+                        className="flex items-start justify-between gap-2 cursor-pointer"
+                        onClick={() => toggleGroup(`pending-${group.title}`)}
                       >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={() => {
-                          setSelectedCampaign(campaign);
-                          setRejectDialogOpen(true);
-                        }}
-                        data-testid={`button-reject-campaign-${campaign.id}`}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className={`h-4 w-4 text-yellow-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            <p className="text-white font-semibold text-base">{group.title}</p>
+                          </div>
+                          <p className="text-sm text-gray-400 ml-6">{group.brand}</p>
+                        </div>
+                        <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-400">
+                          {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm ml-6">
+                        <div>
+                          <span className="text-gray-400">Total Budget:</span>
+                          <p className="text-green-300 font-semibold">{formatINR(group.totalBudget.toString())}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Total Spots:</span>
+                          <p className="text-white font-medium">{group.totalSpots}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-400">Tiers:</span>
+                          <p className="text-white font-medium">{tiersText}</p>
+                        </div>
+                      </div>
 
-          {/* Desktop Table */}
-          <div className="hidden lg:block bg-yellow-500/10 border-2 border-yellow-400 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-yellow-500/20">
-                <tr>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Campaign</th>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Sponsor</th>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Payment</th>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Spots</th>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Tiers</th>
-                  <th className="text-left p-4 text-sm font-bold text-yellow-200">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800/50">
-                {pendingCampaigns.map((campaign) => (
-                  <tr key={campaign.id} className="border-t border-yellow-400/30" data-testid={`row-pending-campaign-${campaign.id}`}>
-                    <td className="p-4">
-                      <div>
-                        <p className="text-white font-semibold">{campaign.title}</p>
-                        <p className="text-sm text-gray-300">{campaign.description?.slice(0, 50)}...</p>
-                      </div>
-                    </td>
-                    <td className="p-4 text-white">{campaign.brand}</td>
-                    <td className="p-4 text-green-300 font-semibold">{formatINR(campaign.payAmount)}</td>
-                    <td className="p-4 text-white font-semibold">{campaign.totalSpots}</td>
-                    <td className="p-4 text-white">{campaign.tier}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => {
-                            setSelectedCampaign(campaign);
-                            setIsPromotional(false);
-                            setStarReward(0);
-                            setApproveDialogOpen(true);
-                          }}
-                          data-testid={`button-approve-campaign-${campaign.id}`}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setSelectedCampaign(campaign);
-                            setRejectDialogOpen(true);
-                          }}
-                          data-testid={`button-reject-campaign-${campaign.id}`}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {isExpanded && (
+                        <div className="mt-4 ml-6 space-y-2 border-t border-yellow-400/30 pt-4">
+                          {group.campaigns.map((campaign) => (
+                            <div key={campaign.id} className="flex items-center justify-between gap-2 p-3 bg-gray-800/50 rounded-lg" data-testid={`row-pending-campaign-${campaign.id}`}>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
+                                  <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                  <span className="text-gray-400">x {campaign.totalSpots} spots</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCampaign(campaign);
+                                    setIsPromotional(false);
+                                    setStarReward(0);
+                                    setApproveDialogOpen(true);
+                                  }}
+                                  data-testid={`button-approve-campaign-${campaign.id}`}
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCampaign(campaign);
+                                    setRejectDialogOpen(true);
+                                  }}
+                                  data-testid={`button-reject-campaign-${campaign.id}`}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {!isExpanded && (
+                        <div className="flex gap-2 pt-2 ml-6">
+                          <Button
+                            size="sm"
+                            className="bg-green-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              group.campaigns.forEach(campaign => {
+                                approveCampaignMutation.mutate({ campaignId: campaign.id, isPromotional: false, starReward: 0 });
+                              });
+                            }}
+                            data-testid={`button-approve-all-${group.title}`}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve All ({group.campaigns.length})
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleGroup(`pending-${group.title}`)}
+                          >
+                            View Tiers
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
