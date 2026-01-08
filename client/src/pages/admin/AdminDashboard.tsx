@@ -1578,11 +1578,15 @@ function CampaignsTab() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [bulkConvertDialogOpen, setBulkConvertDialogOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<ApiCampaign | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<AdminCampaignGroup | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [isPromotional, setIsPromotional] = useState(false);
   const [starReward, setStarReward] = useState(0);
   const [convertStarReward, setConvertStarReward] = useState(1);
+  const [bulkStarReward, setBulkStarReward] = useState(1);
+  const [bulkConverting, setBulkConverting] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -2001,6 +2005,66 @@ function CampaignsTab() {
                               <p className="text-white font-medium">{tiersText}</p>
                             </div>
                           </div>
+
+                          {/* Bulk Convert to Stars Button */}
+                          {group.campaigns.some(c => !c.isPromotional) && (
+                            <div className="ml-6">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-yellow-300 border-yellow-500"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedGroup(group);
+                                  setBulkStarReward(1);
+                                  setBulkConvertDialogOpen(true);
+                                }}
+                                data-testid={`button-bulk-convert-stars-${group.title}`}
+                              >
+                                <Star className="h-4 w-4 mr-1" />
+                                Convert All to Stars
+                              </Button>
+                              {group.campaigns.some(c => c.isPromotional) && (
+                                <span className="text-xs text-gray-400 ml-2">
+                                  ({group.campaigns.filter(c => !c.isPromotional).length} non-promo tiers)
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* If all are already promotional, show "Convert All to Money" */}
+                          {group.campaigns.every(c => c.isPromotional) && (
+                            <div className="ml-6">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-300 border-green-500"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setBulkConverting(true);
+                                  try {
+                                    for (const campaign of group.campaigns) {
+                                      await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-money`, {
+                                        method: "POST",
+                                        credentials: "include",
+                                      });
+                                    }
+                                    toast.success(`All ${group.campaigns.length} tiers converted to money!`);
+                                    queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+                                  } catch (error: any) {
+                                    toast.error(error.message || "Failed to convert");
+                                  } finally {
+                                    setBulkConverting(false);
+                                  }
+                                }}
+                                disabled={bulkConverting}
+                                data-testid={`button-bulk-convert-money-${group.title}`}
+                              >
+                                <IndianRupee className="h-4 w-4 mr-1" />
+                                {bulkConverting ? "Converting..." : "Convert All to Money"}
+                              </Button>
+                            </div>
+                          )}
 
                           {isExpanded && (
                             <div className="mt-4 ml-6 space-y-2 border-t border-green-400/30 pt-4">
@@ -2461,6 +2525,95 @@ function CampaignsTab() {
               disabled={convertToStarsMutation.isPending}
             >
               {convertToStarsMutation.isPending ? "Converting..." : `Convert to ${convertStarReward} Stars`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Convert to Stars Dialog */}
+      <Dialog open={bulkConvertDialogOpen} onOpenChange={setBulkConvertDialogOpen}>
+        <DialogContent className="bg-gray-800 text-white border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-yellow-400 flex items-center gap-2">
+              <Star className="h-5 w-5" />
+              Convert All Tiers to Stars
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Convert all {selectedGroup?.campaigns.filter(c => !c.isPromotional).length} non-promotional tiers of "{selectedGroup?.title}" to star-based campaigns
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="bg-gray-700/50 p-4 rounded-lg space-y-2">
+              <p className="text-white font-semibold">{selectedGroup?.title}</p>
+              <p className="text-gray-300 text-sm">{selectedGroup?.brand}</p>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedGroup?.campaigns.map(c => (
+                  <Badge 
+                    key={c.id} 
+                    className={c.isPromotional ? "bg-yellow-500/20 text-yellow-300" : "bg-gray-600 text-white"}
+                  >
+                    {c.tier} {c.isPromotional && "(already promo)"}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <Label className="text-yellow-300 font-semibold">Select Star Reward (for all tiers)</Label>
+              <p className="text-sm text-gray-400 mb-2">How many stars will creators earn for each campaign tier?</p>
+              <div className="flex gap-2 flex-wrap">
+                {[1, 2, 3, 4, 5].map((stars) => (
+                  <Button
+                    key={stars}
+                    size="sm"
+                    variant={bulkStarReward === stars ? "default" : "outline"}
+                    className={bulkStarReward === stars ? "bg-yellow-500 text-gray-900" : "text-white border-gray-500"}
+                    onClick={() => setBulkStarReward(stars)}
+                  >
+                    {stars} Star{stars > 1 ? "s" : ""}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <p className="text-blue-300 text-sm">
+                All {selectedGroup?.campaigns.filter(c => !c.isPromotional).length} non-promotional tiers will be converted.
+                Each tier will reward {bulkStarReward} star{bulkStarReward > 1 ? "s" : ""} to creators.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="text-white border-gray-500" onClick={() => setBulkConvertDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-yellow-500 hover:bg-yellow-600 text-gray-900"
+              onClick={async () => {
+                if (!selectedGroup) return;
+                setBulkConverting(true);
+                try {
+                  const nonPromoCampaigns = selectedGroup.campaigns.filter(c => !c.isPromotional);
+                  for (const campaign of nonPromoCampaigns) {
+                    await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-stars`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ starReward: bulkStarReward }),
+                    });
+                  }
+                  toast.success(`All ${nonPromoCampaigns.length} tiers converted to ${bulkStarReward} star${bulkStarReward > 1 ? "s" : ""}!`);
+                  queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+                  setBulkConvertDialogOpen(false);
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to convert campaigns");
+                } finally {
+                  setBulkConverting(false);
+                }
+              }}
+              disabled={bulkConverting}
+            >
+              {bulkConverting ? "Converting..." : `Convert All to ${bulkStarReward} Stars`}
             </Button>
           </DialogFooter>
         </DialogContent>
