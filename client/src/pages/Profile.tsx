@@ -197,6 +197,7 @@ export default function Profile() {
               </CardContent>
             </Card>
 
+            {user.role !== "admin" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -482,6 +483,7 @@ export default function Profile() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             <SettingsCard user={user} onNavigate={setLocation} />
 
