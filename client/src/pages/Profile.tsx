@@ -167,7 +167,13 @@ export default function Profile() {
         <div className="mx-auto max-w-4xl p-4 sm:p-6">
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">Manage your creator profile and Instagram connection.</p>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              {user.role === "admin" 
+                ? "Manage your admin profile settings." 
+                : user.role === "sponsor"
+                  ? "Manage your brand profile settings."
+                  : "Manage your creator profile and Instagram connection."}
+            </p>
           </div>
 
           <div className="grid gap-6">
@@ -551,10 +557,11 @@ function SettingsCard({ user, onNavigate }: { user: any; onNavigate: (path: stri
 
   const hasActiveSubscription = accountStatus?.subscriptionPlan && accountStatus.subscriptionPlan !== "free";
   const canDelete = accountStatus && accountStatus.balance === 0 && accountStatus.pendingWithdrawals === 0;
+  const isCreator = user?.role === "creator";
 
   return (
     <>
-      {hasActiveSubscription && (
+      {isCreator && hasActiveSubscription && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
