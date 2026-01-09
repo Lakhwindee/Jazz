@@ -160,7 +160,7 @@ export default function SponsorWallet() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+        body: JSON.stringify({ code: promoCode.trim().toUpperCase(), context: "deposit" }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -195,7 +195,7 @@ export default function SponsorWallet() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ code: standalonePromoCode.trim().toUpperCase() }),
+        body: JSON.stringify({ code: standalonePromoCode.trim().toUpperCase(), context: "deposit" }),
       });
       const data = await response.json();
       if (!response.ok) {

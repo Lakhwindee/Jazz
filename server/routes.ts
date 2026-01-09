@@ -4215,8 +4215,9 @@ export async function registerRoutes(
   // Validate and apply promo code (for users)
   app.post("/api/promo-codes/validate", isAuthenticated, async (req, res) => {
     try {
-      const { code } = req.body;
+      const { code, context } = req.body; // context: 'subscription' or 'deposit'
       const userId = req.user!.id;
+      const userRole = req.user!.role;
       
       if (!code) {
         return res.status(400).json({ error: "Promo code is required" });
@@ -4230,6 +4231,27 @@ export async function registerRoutes(
       
       if (!promoCode.isActive) {
         return res.status(400).json({ error: "This promo code is no longer active" });
+      }
+      
+      // Role-specific promo code validation
+      // trial and discount promos are for creators only (subscription)
+      // credit and tax_exempt promos are for sponsors only (wallet deposit)
+      if (promoCode.type === "trial" || promoCode.type === "discount") {
+        if (userRole !== "creator") {
+          return res.status(400).json({ error: "This promo code is only valid for creators" });
+        }
+        if (context === "deposit") {
+          return res.status(400).json({ error: "This promo code cannot be used for wallet deposits" });
+        }
+      }
+      
+      if (promoCode.type === "credit" || promoCode.type === "tax_exempt") {
+        if (userRole !== "sponsor") {
+          return res.status(400).json({ error: "This promo code is only valid for brands/sponsors" });
+        }
+        if (context === "subscription") {
+          return res.status(400).json({ error: "This promo code cannot be used for subscriptions" });
+        }
       }
       
       const now = new Date();
@@ -4269,8 +4291,9 @@ export async function registerRoutes(
   // Apply promo code (for trial)
   app.post("/api/promo-codes/apply", isAuthenticated, async (req, res) => {
     try {
-      const { code } = req.body;
+      const { code, context } = req.body; // context: 'subscription' or 'deposit'
       const userId = req.user!.id;
+      const userRole = req.user!.role;
       
       if (!code) {
         return res.status(400).json({ error: "Promo code is required" });
@@ -4280,6 +4303,27 @@ export async function registerRoutes(
       
       if (!promoCode || !promoCode.isActive) {
         return res.status(400).json({ error: "Invalid or inactive promo code" });
+      }
+      
+      // Role-specific promo code validation
+      // trial and discount promos are for creators only (subscription)
+      // credit and tax_exempt promos are for sponsors only (wallet deposit)
+      if (promoCode.type === "trial" || promoCode.type === "discount") {
+        if (userRole !== "creator") {
+          return res.status(400).json({ error: "This promo code is only valid for creators" });
+        }
+        if (context === "deposit") {
+          return res.status(400).json({ error: "This promo code cannot be used for wallet deposits" });
+        }
+      }
+      
+      if (promoCode.type === "credit" || promoCode.type === "tax_exempt") {
+        if (userRole !== "sponsor") {
+          return res.status(400).json({ error: "This promo code is only valid for brands/sponsors" });
+        }
+        if (context === "subscription") {
+          return res.status(400).json({ error: "This promo code cannot be used for subscriptions" });
+        }
       }
       
       // Validate again

@@ -147,7 +147,7 @@ export default function Subscription() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+        body: JSON.stringify({ code: promoCode.trim().toUpperCase(), context: "subscription" }),
       });
       
       const data = await response.json();
@@ -176,7 +176,7 @@ export default function Subscription() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, context: "subscription" }),
       });
       if (!response.ok) {
         const error = await response.json();
