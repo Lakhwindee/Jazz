@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreProvider } from "@/lib/store";
 import { Toaster as SonnerToaster } from "sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/Login";
@@ -82,15 +83,17 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        <TooltipProvider>
-          <Toaster />
-          <SonnerToaster position="top-right" />
-          <Router />
-        </TooltipProvider>
-      </StoreProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <StoreProvider>
+          <TooltipProvider>
+            <Toaster />
+            <SonnerToaster position="top-right" />
+            <Router />
+          </TooltipProvider>
+        </StoreProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
