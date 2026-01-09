@@ -2053,10 +2053,14 @@ function CampaignsTab() {
                                   setBulkConverting(true);
                                   try {
                                     for (const campaign of group.campaigns) {
-                                      await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-money`, {
+                                      const res = await fetch(`/api/admin/campaigns/${campaign.id}/convert-to-money`, {
                                         method: "POST",
                                         credentials: "include",
                                       });
+                                      if (!res.ok) {
+                                        const error = await res.json();
+                                        throw new Error(error.error || "Failed to convert");
+                                      }
                                     }
                                     toast.success(`All ${group.campaigns.length} tiers converted to money!`);
                                     queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
