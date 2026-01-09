@@ -367,7 +367,13 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
         </DialogHeader>
 
         <div className="flex gap-2 border-b border-gray-700 pb-2 mt-4">
-          {["profile", "instagram", "wallet", "activity", "actions"].map((tab) => (
+          {/* Show tabs based on user role */}
+          {["profile", 
+            ...(user.role === "creator" ? ["instagram"] : []),
+            ...(user.role === "creator" || user.role === "sponsor" ? ["wallet"] : []),
+            "activity", 
+            "actions"
+          ].map((tab) => (
             <Button
               key={tab}
               variant={activeTab === tab ? "default" : "ghost"}
@@ -451,7 +457,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
             </div>
           )}
 
-          {activeTab === "instagram" && (
+          {activeTab === "instagram" && user.role === "creator" && (
             <div className="space-y-4 pt-4">
               {user.instagramUsername ? (
                 <>
@@ -555,7 +561,7 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
             </div>
           )}
 
-          {activeTab === "wallet" && (
+          {activeTab === "wallet" && (user.role === "creator" || user.role === "sponsor") && (
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <Card className="bg-gray-900 border-gray-700">
@@ -788,7 +794,10 @@ function UsersTab() {
     queryFn: () => api.admin.getUsers(roleFilter || undefined),
   });
 
-  const filteredUsers = users.filter((user) => {
+  // Filter out admin users - they are site owners, not managed users
+  const managedUsers = users.filter(u => u.role !== "admin");
+
+  const filteredUsers = managedUsers.filter((user) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -798,9 +807,9 @@ function UsersTab() {
     );
   });
 
-  const creators = users.filter(u => u.role === "creator");
-  const sponsors = users.filter(u => u.role === "sponsor");
-  const verified = users.filter(u => u.isVerified);
+  const creators = managedUsers.filter(u => u.role === "creator");
+  const sponsors = managedUsers.filter(u => u.role === "sponsor");
+  const verified = managedUsers.filter(u => u.isVerified);
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -827,7 +836,7 @@ function UsersTab() {
             <div className="flex items-center gap-3">
               <Users className="h-8 w-8 text-purple-500" />
               <div>
-                <p className="text-2xl font-bold text-white">{users.length}</p>
+                <p className="text-2xl font-bold text-white">{managedUsers.length}</p>
                 <p className="text-xs text-gray-400">Total Users</p>
               </div>
             </div>
