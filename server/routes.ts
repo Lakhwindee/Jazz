@@ -631,9 +631,12 @@ export async function registerRoutes(
   });
 
   // Submit work for a reservation
-  app.post("/api/submissions", async (req, res) => {
+  app.post("/api/submissions", isAuthenticated, async (req, res) => {
     try {
-      const { reservationId, link, clipUrl, startTime, endTime } = req.body;
+      const { reservationId, link, clipUrl } = req.body;
+      // Set default times if not provided
+      const startTime = req.body.startTime || "00:00";
+      const endTime = req.body.endTime || "00:00";
       
       // Validate reservation exists and is in correct state
       const reservation = await storage.getReservation(reservationId);

@@ -314,9 +314,13 @@ export const api = {
     const res = await fetch(`${API_BASE}/submissions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ reservationId, ...data }),
     });
-    if (!res.ok) throw new Error("Failed to submit work");
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to submit work");
+    }
     return res.json();
   },
 
