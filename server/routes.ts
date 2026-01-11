@@ -1642,11 +1642,13 @@ export async function registerRoutes(
       const campaigns = await storage.getCampaignsBySponsor(sponsorId);
       
       // Add reservation status counts to each campaign
+      // Note: "completed" status means admin approved the submission
       const campaignsWithCounts = await Promise.all(campaigns.map(async (campaign) => {
         const reservations = await storage.getReservationsForCampaign(campaign.id);
         const reservedCount = reservations.filter((r: any) => r.status === "reserved").length;
         const submittedCount = reservations.filter((r: any) => r.status === "submitted").length;
-        const approvedCount = reservations.filter((r: any) => r.status === "approved").length;
+        // Count both "approved" and "completed" as approved (completed = admin approved + payment done)
+        const approvedCount = reservations.filter((r: any) => r.status === "approved" || r.status === "completed").length;
         const rejectedCount = reservations.filter((r: any) => r.status === "rejected").length;
         
         return {

@@ -245,6 +245,10 @@ export default function SponsorCampaigns() {
 
                             <div className="hidden sm:flex items-center gap-4 text-sm">
                               <div className="text-center">
+                                <p className="text-muted-foreground text-xs">Tiers</p>
+                                <p className="font-semibold text-purple-600">{group.campaigns.length}/20</p>
+                              </div>
+                              <div className="text-center border-l pl-4">
                                 <p className="text-muted-foreground text-xs">Reserved</p>
                                 <p className="font-semibold text-yellow-600">{group.totalReserved}</p>
                               </div>
