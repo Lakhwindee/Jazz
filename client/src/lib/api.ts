@@ -41,6 +41,7 @@ export interface ApiCampaign {
   submittedCount?: number;
   approvedCount?: number;
   rejectedCount?: number;
+  isTierCompleted?: boolean;
   productImage?: string | null;
   productDescription?: string | null;
 }

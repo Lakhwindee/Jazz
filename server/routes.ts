@@ -1651,12 +1651,18 @@ export async function registerRoutes(
         const approvedCount = reservations.filter((r: any) => r.status === "approved" || r.status === "completed").length;
         const rejectedCount = reservations.filter((r: any) => r.status === "rejected").length;
         
+        // A tier is "completed" when all spots are filled AND all reservations are approved/completed
+        const totalFilledSpots = campaign.totalSpots - campaign.spotsRemaining;
+        const allSpotsApproved = totalFilledSpots > 0 && approvedCount === totalFilledSpots && reservedCount === 0 && submittedCount === 0;
+        const isTierCompleted = campaign.spotsRemaining === 0 && allSpotsApproved;
+        
         return {
           ...campaign,
           reservedCount,
           submittedCount,
           approvedCount,
           rejectedCount,
+          isTierCompleted,
         };
       }));
       

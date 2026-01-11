@@ -40,6 +40,9 @@ interface CampaignGroup {
   totalSubmitted: number;
   totalApproved: number;
   totalRejected: number;
+  // Tier completion counts
+  completedTiers: number;
+  totalTiers: number;
 }
 
 export default function SponsorCampaigns() {
@@ -107,6 +110,8 @@ export default function SponsorCampaigns() {
           totalSubmitted: 0,
           totalApproved: 0,
           totalRejected: 0,
+          completedTiers: 0,
+          totalTiers: 0,
         });
       }
       
@@ -120,6 +125,11 @@ export default function SponsorCampaigns() {
       group.totalSubmitted += campaign.submittedCount || 0;
       group.totalApproved += campaign.approvedCount || 0;
       group.totalRejected += campaign.rejectedCount || 0;
+      // Track tier completion
+      group.totalTiers += 1;
+      if (campaign.isTierCompleted) {
+        group.completedTiers += 1;
+      }
       if (campaign.spotsRemaining > 0 && campaign.status === "active" && campaign.isApproved) {
         group.isActive = true;
       }
@@ -149,8 +159,13 @@ export default function SponsorCampaigns() {
   };
 
   const getStatusBadge = (campaign: ApiCampaign) => {
+    // Tier is completed when all spots are filled AND all work is approved
+    if (campaign.isTierCompleted) {
+      return <Badge className="bg-purple-600"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
+    }
+    // All spots filled but work still pending review
     if (campaign.spotsRemaining === 0) {
-      return <Badge className="bg-gray-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
+      return <Badge className="bg-blue-500"><Clock className="w-3 h-3 mr-1" /> In Review</Badge>;
     }
     if (campaign.status === "pending" || !campaign.isApproved) {
       return <Badge className="bg-orange-500"><Clock className="w-3 h-3 mr-1" /> Pending Approval</Badge>;
@@ -234,10 +249,12 @@ export default function SponsorCampaigns() {
                                 <Badge variant="secondary" className="text-xs">
                                   {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
                                 </Badge>
-                                {group.isActive ? (
+                                {group.completedTiers === group.totalTiers ? (
+                                  <Badge className="bg-purple-600 text-xs">Completed</Badge>
+                                ) : group.isActive ? (
                                   <Badge className="bg-green-500 text-xs">Active</Badge>
                                 ) : (
-                                  <Badge className="bg-gray-500 text-xs">Completed</Badge>
+                                  <Badge className="bg-blue-500 text-xs">In Review</Badge>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">{group.brand || "Campaign"}</p>
@@ -245,8 +262,8 @@ export default function SponsorCampaigns() {
 
                             <div className="hidden sm:flex items-center gap-4 text-sm">
                               <div className="text-center">
-                                <p className="text-muted-foreground text-xs">Tiers</p>
-                                <p className="font-semibold text-purple-600">{group.campaigns.length}/20</p>
+                                <p className="text-muted-foreground text-xs">Completed</p>
+                                <p className="font-semibold text-purple-600">{group.completedTiers}/{group.totalTiers} tiers</p>
                               </div>
                               <div className="text-center border-l pl-4">
                                 <p className="text-muted-foreground text-xs">Reserved</p>
