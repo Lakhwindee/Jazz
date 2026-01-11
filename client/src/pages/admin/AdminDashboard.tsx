@@ -58,7 +58,8 @@ import {
   MessageCircle,
   Send,
   Ban,
-  Gift
+  Gift,
+  FileText
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1862,42 +1863,65 @@ function CampaignsTab() {
                       {isExpanded && (
                         <div className="mt-4 ml-6 space-y-2 border-t border-yellow-400/30 pt-4">
                           {group.campaigns.map((campaign) => (
-                            <div key={campaign.id} className="flex items-center justify-between gap-2 p-3 bg-gray-800/50 rounded-lg" data-testid={`row-pending-campaign-${campaign.id}`}>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
-                                  <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
-                                  <span className="text-gray-400">x {campaign.totalSpots} spots</span>
+                            <div key={campaign.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2" data-testid={`row-pending-campaign-${campaign.id}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge className="bg-gray-600 text-white text-xs">{campaign.tier}</Badge>
+                                    <span className="text-green-300 font-semibold">{formatINR(campaign.payAmount)}</span>
+                                    <span className="text-gray-400">x {campaign.totalSpots} spots</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCampaign(campaign);
+                                      setIsPromotional(false);
+                                      setStarReward(0);
+                                      setApproveDialogOpen(true);
+                                    }}
+                                    data-testid={`button-approve-campaign-${campaign.id}`}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCampaign(campaign);
+                                      setRejectDialogOpen(true);
+                                    }}
+                                    data-testid={`button-reject-campaign-${campaign.id}`}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCampaign(campaign);
-                                    setIsPromotional(false);
-                                    setStarReward(0);
-                                    setApproveDialogOpen(true);
-                                  }}
-                                  data-testid={`button-approve-campaign-${campaign.id}`}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCampaign(campaign);
-                                    setRejectDialogOpen(true);
-                                  }}
-                                  data-testid={`button-reject-campaign-${campaign.id}`}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {/* Show campaign description */}
+                              {campaign.description && (
+                                <p className="text-sm text-gray-300 pl-2 border-l-2 border-gray-600">{campaign.description}</p>
+                              )}
+                              {/* Show uploaded asset file */}
+                              {campaign.assetUrl && (
+                                <div className="flex items-center gap-2 p-2 bg-blue-500/10 border border-blue-500/30 rounded">
+                                  <FileText className="h-4 w-4 text-blue-400" />
+                                  <span className="text-sm text-blue-300">Uploaded File:</span>
+                                  <a 
+                                    href={campaign.assetUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {campaign.assetFileName || "View File"}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
