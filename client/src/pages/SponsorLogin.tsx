@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function SponsorLogin() {
   const [, setLocation] = useLocation();
@@ -43,6 +44,9 @@ export default function SponsorLogin() {
         return;
       }
 
+      // Clear all cached user data to ensure fresh session
+      queryClient.clear();
+      
       toast({
         title: "Welcome!",
         description: "You have successfully logged in.",

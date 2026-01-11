@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
 
 export default function Login() {
@@ -35,6 +36,9 @@ export default function Login() {
         throw new Error(data.error || "Login failed");
       }
 
+      // Clear all cached user data to ensure fresh session
+      queryClient.clear();
+      
       toast({
         title: "Welcome!",
         description: "You have successfully logged in.",

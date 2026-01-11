@@ -33,8 +33,9 @@ export default function AdminLogin() {
       return response.json();
     },
     onSuccess: async (user) => {
+      // Clear all cached data to ensure fresh session
+      queryClient.clear();
       queryClient.setQueryData(["currentUser"], user);
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       toast.success("Welcome, Admin!");
       setLocation("/admin/dashboard");
     },

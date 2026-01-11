@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { queryClient } from "@/lib/queryClient";
 import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
 
 const COUNTRIES = [
@@ -192,6 +193,9 @@ export default function Signup() {
         throw new Error(signupData.error || "Signup failed");
       }
 
+      // Clear all cached user data to ensure fresh session
+      queryClient.clear();
+      
       toast({
         title: "Account Created!",
         description: "Welcome to Mingree!",
