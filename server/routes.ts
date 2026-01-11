@@ -856,15 +856,26 @@ export async function registerRoutes(
       
       const { accountHolderName, accountNumber, ifscCode, bankName, upiId } = req.body;
       
-      if (!accountHolderName || !accountNumber || !ifscCode || !bankName) {
-        return res.status(400).json({ error: "Please fill in all required fields" });
-      }
+      // Check if this is a UPI-only account (ifscCode is UPI00000)
+      const isUpiOnly = ifscCode === "UPI00000";
+      
+      if (isUpiOnly) {
+        // UPI-only account - just need name and UPI ID
+        if (!accountHolderName || !upiId) {
+          return res.status(400).json({ error: "Please enter your name and UPI ID" });
+        }
+      } else {
+        // Bank account - need all fields
+        if (!accountHolderName || !accountNumber || !ifscCode || !bankName) {
+          return res.status(400).json({ error: "Please fill in all required fields" });
+        }
 
-      // Validate IFSC format strictly (11 characters, first 4 uppercase letters, 5th is 0, last 6 alphanumeric)
-      const ifscUpper = ifscCode.toUpperCase();
-      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-      if (!ifscRegex.test(ifscUpper)) {
-        return res.status(400).json({ error: "Invalid IFSC code. Format: 4 letters + 0 + 6 alphanumeric (e.g., SBIN0001234)" });
+        // Validate IFSC format strictly (11 characters, first 4 uppercase letters, 5th is 0, last 6 alphanumeric)
+        const ifscUpper = ifscCode.toUpperCase();
+        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+        if (!ifscRegex.test(ifscUpper)) {
+          return res.status(400).json({ error: "Invalid IFSC code. Format: 4 letters + 0 + 6 alphanumeric (e.g., SBIN0001234)" });
+        }
       }
 
       // Check if user already has bank accounts
@@ -875,7 +886,7 @@ export async function registerRoutes(
         userId: req.user.id,
         accountHolderName,
         accountNumber,
-        ifscCode: ifscCode.toUpperCase(),
+        ifscCode: isUpiOnly ? "UPI00000" : ifscCode.toUpperCase(),
         bankName,
         upiId: upiId || null,
         isDefault,
@@ -884,7 +895,7 @@ export async function registerRoutes(
       res.json(account);
     } catch (error) {
       console.error("Error creating bank account:", error);
-      res.status(500).json({ error: "Failed to add bank account" });
+      res.status(500).json({ error: "Failed to add UPI" });
     }
   });
 
