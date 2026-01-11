@@ -332,6 +332,20 @@ export default function SponsorCampaigns() {
                                       </div>
                                       <span className="text-xs">Min: {campaign.minFollowers.toLocaleString()} followers</span>
                                     </div>
+                                    {/* Show reservation status counts for this tier */}
+                                    {((campaign.reservedCount || 0) + (campaign.submittedCount || 0) + (campaign.approvedCount || 0)) > 0 && (
+                                      <div className="flex items-center gap-3 mt-2 text-xs">
+                                        {(campaign.reservedCount || 0) > 0 && (
+                                          <span className="text-yellow-600">Reserved: {campaign.reservedCount}</span>
+                                        )}
+                                        {(campaign.submittedCount || 0) > 0 && (
+                                          <span className="text-blue-600">Submitted: {campaign.submittedCount}</span>
+                                        )}
+                                        {(campaign.approvedCount || 0) > 0 && (
+                                          <span className="text-green-600">Paid: {campaign.approvedCount}</span>
+                                        )}
+                                      </div>
+                                    )}
                                   </CardContent>
                                   <CardFooter className="border-t bg-muted/20 p-3">
                                     <div className="flex w-full items-center justify-between gap-2">
