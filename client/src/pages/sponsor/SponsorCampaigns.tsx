@@ -35,6 +35,11 @@ interface CampaignGroup {
   filledSpots: number;
   totalBudget: number;
   isActive: boolean;
+  // Aggregated reservation status counts
+  totalReserved: number;
+  totalSubmitted: number;
+  totalApproved: number;
+  totalRejected: number;
 }
 
 export default function SponsorCampaigns() {
@@ -98,6 +103,10 @@ export default function SponsorCampaigns() {
           filledSpots: 0,
           totalBudget: 0,
           isActive: false,
+          totalReserved: 0,
+          totalSubmitted: 0,
+          totalApproved: 0,
+          totalRejected: 0,
         });
       }
       
@@ -106,6 +115,11 @@ export default function SponsorCampaigns() {
       group.totalSpots += campaign.totalSpots;
       group.filledSpots += (campaign.totalSpots - campaign.spotsRemaining);
       group.totalBudget += parseFloat(campaign.payAmount) * campaign.totalSpots;
+      // Aggregate reservation status counts from all tiers
+      group.totalReserved += campaign.reservedCount || 0;
+      group.totalSubmitted += campaign.submittedCount || 0;
+      group.totalApproved += campaign.approvedCount || 0;
+      group.totalRejected += campaign.rejectedCount || 0;
       if (campaign.spotsRemaining > 0 && campaign.status === "active" && campaign.isApproved) {
         group.isActive = true;
       }
@@ -229,8 +243,20 @@ export default function SponsorCampaigns() {
                               <p className="text-sm text-muted-foreground">{group.brand || "Campaign"}</p>
                             </div>
 
-                            <div className="hidden sm:flex items-center gap-6 text-sm">
+                            <div className="hidden sm:flex items-center gap-4 text-sm">
                               <div className="text-center">
+                                <p className="text-muted-foreground text-xs">Reserved</p>
+                                <p className="font-semibold text-yellow-600">{group.totalReserved}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-muted-foreground text-xs">Submitted</p>
+                                <p className="font-semibold text-blue-600">{group.totalSubmitted}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-muted-foreground text-xs">Approved</p>
+                                <p className="font-semibold text-green-600">{group.totalApproved}</p>
+                              </div>
+                              <div className="text-center border-l pl-4">
                                 <p className="text-muted-foreground text-xs">Spots</p>
                                 <p className="font-semibold">{group.filledSpots}/{group.totalSpots}</p>
                               </div>

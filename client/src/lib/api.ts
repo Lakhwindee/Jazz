@@ -36,6 +36,11 @@ export interface ApiCampaign {
   campaignType?: string;
   productName?: string | null;
   productValue?: string | null;
+  // Reservation status counts (added by sponsor campaigns endpoint)
+  reservedCount?: number;
+  submittedCount?: number;
+  approvedCount?: number;
+  rejectedCount?: number;
   productImage?: string | null;
   productDescription?: string | null;
 }

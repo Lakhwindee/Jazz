@@ -1635,12 +1635,30 @@ export async function registerRoutes(
     }
   });
 
-  // Get sponsor's campaigns
+  // Get sponsor's campaigns with reservation status counts
   app.get("/api/sponsors/:sponsorId/campaigns", async (req, res) => {
     try {
       const sponsorId = parseInt(req.params.sponsorId);
       const campaigns = await storage.getCampaignsBySponsor(sponsorId);
-      res.json(campaigns);
+      
+      // Add reservation status counts to each campaign
+      const campaignsWithCounts = await Promise.all(campaigns.map(async (campaign) => {
+        const reservations = await storage.getReservationsForCampaign(campaign.id);
+        const reservedCount = reservations.filter((r: any) => r.status === "reserved").length;
+        const submittedCount = reservations.filter((r: any) => r.status === "submitted").length;
+        const approvedCount = reservations.filter((r: any) => r.status === "approved").length;
+        const rejectedCount = reservations.filter((r: any) => r.status === "rejected").length;
+        
+        return {
+          ...campaign,
+          reservedCount,
+          submittedCount,
+          approvedCount,
+          rejectedCount,
+        };
+      }));
+      
+      res.json(campaignsWithCounts);
     } catch (error) {
       console.error("Error fetching sponsor campaigns:", error);
       res.status(500).json({ error: "Failed to fetch campaigns" });
