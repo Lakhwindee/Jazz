@@ -377,6 +377,11 @@ export default function SponsorWallet() {
     setIsProcessing(true);
 
     try {
+      // Check if Cashfree SDK is loaded
+      if (typeof window.Cashfree === 'undefined') {
+        throw new Error("Payment gateway is loading. Please try again in a moment.");
+      }
+
       const orderRes = await fetch(`/api/sponsors/${sponsor.id}/wallet/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -412,6 +417,7 @@ export default function SponsorWallet() {
       });
       
     } catch (error: any) {
+      console.error("Cashfree payment error:", error);
       toast.error(error.message || "Failed to initiate payment");
       setIsProcessing(false);
     }
