@@ -74,6 +74,7 @@ International influencer marketing platform connecting Instagram creators with b
 - Example: ₹1,000 to creators → ₹100 platform fee → ₹1,100 from wallet
 
 ### Creator Withdrawals
+- **UPI Only**: Creators add their Google Pay, PhonePe, Paytm or any UPI ID
 - 18% GST deducted from withdrawal amount
 - Net amount = Withdrawal - GST
 - Example: Withdraw ₹1,000 → GST ₹180 → Receive ₹820
@@ -83,7 +84,7 @@ International influencer marketing platform connecting Instagram creators with b
 - 18% GST deducted from withdrawal amount
 - Minimum withdrawal: ₹500
 - Admin approval required before processing
-- Bank account details required (Account Number, IFSC, Bank Name)
+- UPI ID required for payment
 - Example: Withdraw ₹1,000 → GST ₹180 → Receive ₹820
 
 ### 🔧 Ready for Future: Auto-Fetch Followers

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiTransaction, type ApiBankAccount, type ApiWithdrawalRequest, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { DollarSign, Download, History, ArrowDownLeft, Wallet as WalletIcon, AlertCircle, Plus, Building2, Trash2, Check, Clock, CreditCard } from "lucide-react";
+import { DollarSign, Download, History, ArrowDownLeft, Wallet as WalletIcon, AlertCircle, Plus, Trash2, Check, Clock, CreditCard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,13 +22,8 @@ export default function Earnings() {
   const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>("");
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"bank" | "upi">("bank");
-  const [bankForm, setBankForm] = useState({
+  const [upiForm, setUpiForm] = useState({
     accountHolderName: "",
-    accountNumber: "",
-    confirmAccountNumber: "",
-    ifscCode: "",
-    bankName: "",
     upiId: "",
   });
   const queryClient = useQueryClient();
@@ -69,11 +64,11 @@ export default function Earnings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
       setIsBankDialogOpen(false);
-      setBankForm({ accountHolderName: "", accountNumber: "", confirmAccountNumber: "", ifscCode: "", bankName: "", upiId: "" });
-      toast.success("Bank account added successfully!");
+      setUpiForm({ accountHolderName: "", upiId: "" });
+      toast.success("UPI added successfully!");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add bank account");
+      toast.error(error.message || "Failed to add UPI");
     },
   });
 
@@ -81,10 +76,10 @@ export default function Earnings() {
     mutationFn: api.deleteBankAccount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
-      toast.success("Bank account removed");
+      toast.success("UPI removed");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete bank account");
+      toast.error(error.message || "Failed to remove UPI");
     },
   });
 
@@ -106,38 +101,18 @@ export default function Earnings() {
     },
   });
 
-  const handleAddBankAccount = () => {
-    if (paymentMethod === "upi") {
-      // UPI payment method - only need name and UPI ID
-      if (!bankForm.accountHolderName || !bankForm.upiId) {
-        toast.error("Please enter your name and UPI ID");
-        return;
-      }
-      addBankAccountMutation.mutate({
-        accountHolderName: bankForm.accountHolderName,
-        accountNumber: "UPI-" + Date.now(), // Placeholder for UPI
-        ifscCode: "UPI00000",
-        bankName: bankForm.upiId.includes("@") ? bankForm.upiId.split("@")[1].toUpperCase() : "UPI",
-        upiId: bankForm.upiId,
-      });
-    } else {
-      // Bank account - need all details
-      if (!bankForm.accountHolderName || !bankForm.accountNumber || !bankForm.ifscCode || !bankForm.bankName) {
-        toast.error("Please fill in all required fields");
-        return;
-      }
-      if (bankForm.accountNumber !== bankForm.confirmAccountNumber) {
-        toast.error("Account numbers do not match");
-        return;
-      }
-      addBankAccountMutation.mutate({
-        accountHolderName: bankForm.accountHolderName,
-        accountNumber: bankForm.accountNumber,
-        ifscCode: bankForm.ifscCode,
-        bankName: bankForm.bankName,
-        upiId: bankForm.upiId || undefined,
-      });
+  const handleAddUpi = () => {
+    if (!upiForm.accountHolderName || !upiForm.upiId) {
+      toast.error("Please enter your name and UPI ID");
+      return;
     }
+    addBankAccountMutation.mutate({
+      accountHolderName: upiForm.accountHolderName,
+      accountNumber: "UPI-" + Date.now(),
+      ifscCode: "UPI00000",
+      bankName: upiForm.upiId.includes("@") ? upiForm.upiId.split("@")[1].toUpperCase() : "UPI",
+      upiId: upiForm.upiId,
+    });
   };
 
   const handleWithdraw = () => {
@@ -173,10 +148,6 @@ export default function Earnings() {
     .filter(t => t.type === 'credit')
     .reduce((sum, t) => sum + parseFloat(t.tax), 0);
 
-  const maskAccountNumber = (num: string) => {
-    if (num.length <= 4) return num;
-    return "••••" + num.slice(-4);
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -249,14 +220,14 @@ export default function Earnings() {
                         <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
                         <div>
                           <p className="text-sm text-orange-700 dark:text-orange-400">
-                            Please add a bank account first to withdraw funds.
+                            Please add a UPI ID first to withdraw funds.
                           </p>
                           <Button 
                             variant="link" 
                             className="h-auto p-0 text-orange-600" 
                             onClick={() => { setIsWithdrawDialogOpen(false); setIsBankDialogOpen(true); }}
                           >
-                            Add Bank Account
+                            Add UPI
                           </Button>
                         </div>
                       </div>
@@ -274,26 +245,17 @@ export default function Earnings() {
                     {canWithdraw && (
                       <>
                         <div className="grid gap-2">
-                          <Label>Select Bank Account</Label>
+                          <Label>Select UPI Account</Label>
                           <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
                             <SelectTrigger data-testid="select-bank-account">
-                              <SelectValue placeholder="Choose bank account" />
+                              <SelectValue placeholder="Choose UPI account" />
                             </SelectTrigger>
                             <SelectContent>
                               {bankAccounts.map(account => (
                                 <SelectItem key={account.id} value={account.id.toString()}>
                                   <div className="flex items-center gap-2">
-                                    {account.upiId && account.ifscCode === "UPI00000" ? (
-                                      <>
-                                        <CreditCard className="h-4 w-4 text-green-600" />
-                                        <span>UPI - {account.upiId}</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Building2 className="h-4 w-4" />
-                                        <span>{account.bankName} - {maskAccountNumber(account.accountNumber)}</span>
-                                      </>
-                                    )}
+                                    <CreditCard className="h-4 w-4 text-green-600" />
+                                    <span>{account.upiId || account.accountHolderName}</span>
                                   </div>
                                 </SelectItem>
                               ))}
@@ -502,7 +464,7 @@ export default function Earnings() {
                                   {bankAccount && (
                                     <>
                                       <span>•</span>
-                                      <span>{bankAccount.bankName} - {maskAccountNumber(bankAccount.accountNumber)}</span>
+                                      <span>UPI: {bankAccount.upiId}</span>
                                     </>
                                   )}
                                 </div>
@@ -527,136 +489,54 @@ export default function Earnings() {
             <TabsContent value="bank-accounts">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Linked Bank Accounts</CardTitle>
+                  <CardTitle>Linked UPI Accounts</CardTitle>
                   <Dialog open={isBankDialogOpen} onOpenChange={setIsBankDialogOpen}>
                     <DialogTrigger asChild>
                       <Button data-testid="button-add-bank">
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Payment Method
+                        Add UPI
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add Payment Method</DialogTitle>
+                        <DialogTitle>Add UPI Account</DialogTitle>
                         <DialogDescription>
-                          Choose how you want to receive your withdrawals.
+                          Add your Google Pay, PhonePe, Paytm or any UPI ID to receive withdrawals.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                        {/* Payment Method Selection */}
-                        <div className="grid gap-2">
-                          <Label>Payment Method *</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              type="button"
-                              variant={paymentMethod === "upi" ? "default" : "outline"}
-                              className={paymentMethod === "upi" ? "bg-green-600" : ""}
-                              onClick={() => setPaymentMethod("upi")}
-                              data-testid="button-upi-method"
-                            >
-                              UPI (GPay, PhonePe, Paytm)
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={paymentMethod === "bank" ? "default" : "outline"}
-                              className={paymentMethod === "bank" ? "bg-blue-600" : ""}
-                              onClick={() => setPaymentMethod("bank")}
-                              data-testid="button-bank-method"
-                            >
-                              Bank Account
-                            </Button>
-                          </div>
-                        </div>
-
                         <div className="grid gap-2">
                           <Label htmlFor="accountHolderName">Your Name *</Label>
                           <Input 
                             id="accountHolderName"
                             placeholder="Enter your full name"
-                            value={bankForm.accountHolderName}
-                            onChange={(e) => setBankForm(prev => ({ ...prev, accountHolderName: e.target.value }))}
+                            value={upiForm.accountHolderName}
+                            onChange={(e) => setUpiForm(prev => ({ ...prev, accountHolderName: e.target.value }))}
                             data-testid="input-account-holder"
                           />
                         </div>
 
-                        {paymentMethod === "upi" ? (
-                          <>
-                            <div className="grid gap-2">
-                              <Label htmlFor="upiId">UPI ID *</Label>
-                              <Input 
-                                id="upiId"
-                                placeholder="e.g., 9876543210@paytm, name@okaxis"
-                                value={bankForm.upiId}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, upiId: e.target.value }))}
-                                data-testid="input-upi"
-                              />
-                              <p className="text-xs text-muted-foreground">
-                                Enter your Google Pay, PhonePe, Paytm, or any UPI ID
-                              </p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="grid gap-2">
-                              <Label htmlFor="bankName">Bank Name *</Label>
-                              <Input 
-                                id="bankName"
-                                placeholder="e.g., State Bank of India"
-                                value={bankForm.bankName}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, bankName: e.target.value }))}
-                                data-testid="input-bank-name"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="accountNumber">Account Number *</Label>
-                              <Input 
-                                id="accountNumber"
-                                placeholder="Enter account number"
-                                value={bankForm.accountNumber}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, accountNumber: e.target.value }))}
-                                data-testid="input-account-number"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="confirmAccountNumber">Confirm Account Number *</Label>
-                              <Input 
-                                id="confirmAccountNumber"
-                                placeholder="Re-enter account number"
-                                value={bankForm.confirmAccountNumber}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, confirmAccountNumber: e.target.value }))}
-                                data-testid="input-confirm-account"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="ifscCode">IFSC Code *</Label>
-                              <Input 
-                                id="ifscCode"
-                                placeholder="e.g., SBIN0001234"
-                                value={bankForm.ifscCode}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
-                                data-testid="input-ifsc"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="upiId">UPI ID (Optional)</Label>
-                              <Input 
-                                id="upiId"
-                                placeholder="e.g., yourname@upi"
-                                value={bankForm.upiId}
-                                onChange={(e) => setBankForm(prev => ({ ...prev, upiId: e.target.value }))}
-                                data-testid="input-upi-optional"
-                              />
-                            </div>
-                          </>
-                        )}
+                        <div className="grid gap-2">
+                          <Label htmlFor="upiId">UPI ID *</Label>
+                          <Input 
+                            id="upiId"
+                            placeholder="e.g., 9876543210@paytm, name@okaxis"
+                            value={upiForm.upiId}
+                            onChange={(e) => setUpiForm(prev => ({ ...prev, upiId: e.target.value }))}
+                            data-testid="input-upi"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Enter your Google Pay, PhonePe, Paytm, or any UPI ID
+                          </p>
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button 
-                          onClick={handleAddBankAccount}
+                          onClick={handleAddUpi}
                           disabled={addBankAccountMutation.isPending}
                           data-testid="button-save-bank"
                         >
-                          {addBankAccountMutation.isPending ? "Adding..." : paymentMethod === "upi" ? "Add UPI" : "Add Bank Account"}
+                          {addBankAccountMutation.isPending ? "Adding..." : "Add UPI"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -665,9 +545,9 @@ export default function Earnings() {
                 <CardContent>
                   {bankAccounts.length === 0 ? (
                     <div className="py-12 text-center">
-                      <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                      <p className="mt-4 text-sm text-muted-foreground">No payment methods linked</p>
-                      <p className="text-xs text-muted-foreground/80">Add UPI or bank account to withdraw your earnings</p>
+                      <CreditCard className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                      <p className="mt-4 text-sm text-muted-foreground">No UPI linked</p>
+                      <p className="text-xs text-muted-foreground/80">Add your Google Pay, PhonePe or Paytm UPI ID to withdraw earnings</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -681,35 +561,20 @@ export default function Earnings() {
                           data-testid={`bank-account-${account.id}`}
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`rounded-full p-2 ${account.upiId && account.ifscCode === "UPI00000" ? "bg-green-100 dark:bg-green-900/30" : "bg-blue-100 dark:bg-blue-900/30"}`}>
-                              {account.upiId && account.ifscCode === "UPI00000" ? (
-                                <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
-                              ) : (
-                                <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              )}
+                            <div className="rounded-full p-2 bg-green-100 dark:bg-green-900/30">
+                              <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="font-medium">
-                                  {account.upiId && account.ifscCode === "UPI00000" ? "UPI" : account.bankName}
-                                </p>
-                                {account.upiId && account.ifscCode === "UPI00000" && (
-                                  <Badge className="bg-green-500 text-xs">UPI</Badge>
-                                )}
+                                <p className="font-medium">UPI</p>
+                                <Badge className="bg-green-500 text-xs">UPI</Badge>
                                 {account.isDefault && (
                                   <Badge variant="secondary" className="text-xs">Default</Badge>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                {account.accountHolderName}
-                                {account.upiId && account.ifscCode === "UPI00000" 
-                                  ? ` • ${account.upiId}`
-                                  : ` • A/C ${maskAccountNumber(account.accountNumber)}`
-                                }
+                                {account.accountHolderName} • {account.upiId}
                               </p>
-                              {!(account.upiId && account.ifscCode === "UPI00000") && (
-                                <p className="text-xs text-muted-foreground">IFSC: {account.ifscCode}</p>
-                              )}
                             </div>
                           </div>
                           <Button
