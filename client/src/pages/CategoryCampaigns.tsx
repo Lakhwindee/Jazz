@@ -224,61 +224,6 @@ export default function CategoryCampaignsPage() {
             </div>
           </div>
 
-          {/* Promotional Campaigns Guide */}
-          <Card className="mb-6 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg">
-                    <Star className="h-6 w-6 text-white fill-white" />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="font-bold text-lg flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-                      <Sparkles className="h-5 w-5" /> Promotional Campaigns
-                    </h3>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setIsStarGuideOpen(true)}
-                      className="border-yellow-400 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-300 dark:hover:bg-yellow-900/30"
-                      data-testid="button-star-guide"
-                    >
-                      <Info className="h-4 w-4 mr-1" /> View Details
-                    </Button>
-                  </div>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1 mb-3">
-                    Yellow highlighted campaigns are promotional - you earn Stars instead of cash!
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
-                      <Gift className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Earn Stars</p>
-                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Complete tasks to collect stars</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
-                      <TrendingUp className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Build Reputation</p>
-                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Stars boost your creator profile</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
-                      <Sparkles className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Unlock Rewards</p>
-                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Redeem stars for exclusive perks</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Star Guide Modal */}
           <Dialog open={isStarGuideOpen} onOpenChange={setIsStarGuideOpen}>
             <DialogContent className="max-w-lg">
@@ -452,6 +397,20 @@ export default function CategoryCampaignsPage() {
                         <div className="absolute top-2 right-2">
                           {getStatusBadge(status)}
                         </div>
+                        {/* View Details button for promotional campaigns */}
+                        {campaign.isPromotional && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsStarGuideOpen(true);
+                            }}
+                            className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/70 text-yellow-700 dark:text-yellow-300 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 hover:bg-white dark:hover:bg-black/90 transition-colors shadow-md"
+                            data-testid={`button-star-info-${campaign.id}`}
+                          >
+                            <Info className="h-3 w-3" /> Details
+                          </button>
+                        )}
                       </div>
                       <CardHeader className="pb-2 pt-3">
                         <div className="flex items-center justify-between gap-1 flex-wrap">
