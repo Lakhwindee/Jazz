@@ -744,26 +744,34 @@ export async function registerRoutes(
           reservationId,
         });
 
-        // Check if user reached 5 stars - give free month subscription
+        // Check if user reached 5 stars - generate free month promo code
         if (newStars >= 5) {
           const starsUsed = 5;
           const remainingStars = newStars - starsUsed;
           await storage.updateUserStars(reservation.userId, remainingStars);
 
-          // Give 1 month free subscription
-          const expiresAt = new Date();
-          if (user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > expiresAt) {
-            expiresAt.setTime(new Date(user.subscriptionExpiresAt).getTime());
-          }
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
-          await storage.updateUserSubscription(reservation.userId, "pro", expiresAt, false, false);
+          // Generate unique promo code for this user
+          const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
+          
+          // Create 1 month free trial promo code
+          await storage.createPromoCode({
+            code: promoCode,
+            type: "trial",
+            discountPercent: null,
+            trialDays: 30,
+            creditAmount: null,
+            afterTrialAction: "downgrade",
+            maxUses: 1,
+            isActive: true,
+            validUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Valid for 90 days
+          });
 
-          // Create notification about free subscription
+          // Create notification with promo code
           await storage.createNotification({
             userId: reservation.userId,
             type: "subscription_reward",
-            title: "Free Pro Subscription!",
-            message: `Congratulations! You collected 5 stars and earned 1 month of FREE Pro subscription! Valid until ${expiresAt.toLocaleDateString()}.`,
+            title: "You Earned a Free Month!",
+            message: `Congratulations! You collected 5 stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode} - Use it anytime on the Subscription page.`,
             isRead: false,
           });
         }
@@ -3637,26 +3645,34 @@ export async function registerRoutes(
           reservationId,
         });
 
-        // Check if user reached 5 stars - give free month subscription
+        // Check if user reached 5 stars - generate free month promo code
         if (newStars >= 5) {
           const starsUsed = 5;
           const remainingStars = newStars - starsUsed;
           await storage.updateUserStars(reservation.userId, remainingStars);
 
-          // Give 1 month free subscription
-          const expiresAt = new Date();
-          if (user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > expiresAt) {
-            expiresAt.setTime(new Date(user.subscriptionExpiresAt).getTime());
-          }
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
-          await storage.updateUserSubscription(reservation.userId, "pro", expiresAt, false, false);
+          // Generate unique promo code for this user
+          const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
+          
+          // Create 1 month free trial promo code
+          await storage.createPromoCode({
+            code: promoCode,
+            type: "trial",
+            discountPercent: null,
+            trialDays: 30,
+            creditAmount: null,
+            afterTrialAction: "downgrade",
+            maxUses: 1,
+            isActive: true,
+            validUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Valid for 90 days
+          });
 
-          // Create notification about free subscription
+          // Create notification with promo code
           await storage.createNotification({
             userId: reservation.userId,
             type: "subscription_reward",
-            title: "Free Pro Subscription!",
-            message: `Congratulations! You collected 5 stars and earned 1 month of FREE Pro subscription! Valid until ${expiresAt.toLocaleDateString()}.`,
+            title: "You Earned a Free Month!",
+            message: `Congratulations! You collected 5 stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode} - Use it anytime on the Subscription page.`,
             isRead: false,
           });
         }
