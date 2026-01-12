@@ -22,6 +22,7 @@ International influencer marketing platform connecting Instagram creators with b
   - Tax Exempt: Waives GST on sponsor wallet deposits (sponsors only)
   - Credit: Gives free wallet balance (sponsors only)
 - **Cashfree Payment Gateway**: Primary payment gateway for Indian sponsors (UPI, Cards, Net Banking)
+- **Cashfree Payouts**: Automatic UPI payments to creators when admin approves withdrawal (no manual UTR entry needed)
 - Stripe payment integration for international sponsors
 - Professional checkout flow with GST-compliant billing details collection
 - Multi-tier campaign selection with cumulative pricing
