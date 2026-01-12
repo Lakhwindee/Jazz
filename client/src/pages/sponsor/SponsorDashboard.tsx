@@ -121,7 +121,13 @@ export default function SponsorDashboard() {
                   campaigns.slice(0, 5).map((campaign) => (
                     <div key={campaign.id} className="flex items-center gap-4 rounded-xl border p-4" data-testid={`campaign-${campaign.id}`}>
                       <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 flex items-center justify-center">
-                        <img src={campaign.brandLogo} alt={campaign.brand} className="h-8 w-8 object-contain" />
+                        {campaign.brandLogo ? (
+                          <img src={campaign.brandLogo} alt={campaign.brand} className="h-8 w-8 object-contain" />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-lg font-bold">
+                            {campaign.brand.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold truncate">{campaign.title}</h4>

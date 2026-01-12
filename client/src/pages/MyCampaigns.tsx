@@ -156,7 +156,13 @@ export default function MyCampaigns() {
                   >
                     <Card className="flex h-full flex-col overflow-hidden transition-all hover:shadow-lg border-primary/20" data-testid={`card-reservation-${reservation.id}`}>
                       <div className="h-32 w-full bg-gradient-to-br from-gray-100 to-gray-200 p-6 flex items-center justify-center relative">
-                        <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-16 max-w-[150px] object-contain mix-blend-multiply" />
+                        {campaign.brandLogo ? (
+                          <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-16 max-w-[150px] object-contain mix-blend-multiply" />
+                        ) : (
+                          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                            {campaign.brand.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div className="absolute top-2 right-2">
                           {getStatusBadge(reservation.status)}
                         </div>

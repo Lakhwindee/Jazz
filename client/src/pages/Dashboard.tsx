@@ -117,8 +117,14 @@ export default function Dashboard() {
                 ) : (
                   featuredCampaigns.map((campaign: ApiCampaign) => (
                     <div key={campaign.id} className="flex items-center gap-4 rounded-xl border p-4 transition hover:bg-muted/50" data-testid={`card-campaign-${campaign.id}`}>
-                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
-                        <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 flex items-center justify-center">
+                        {campaign.brandLogo ? (
+                          <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-lg font-bold">
+                            {campaign.brand.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold truncate">{campaign.title}</h4>

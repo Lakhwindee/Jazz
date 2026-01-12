@@ -257,7 +257,13 @@ export default function CategoryCampaignsPage() {
                         </div>
                       )}
                       <div className={`h-28 w-full p-4 flex items-center justify-center relative ${campaign.isPromotional ? 'bg-gradient-to-br from-yellow-200 via-amber-100 to-yellow-300 dark:from-yellow-800 dark:via-amber-700 dark:to-yellow-600' : 'bg-gradient-to-br from-gray-100 to-gray-200'}`}>
-                        <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-14 max-w-[130px] object-contain mix-blend-multiply" />
+                        {campaign.brandLogo ? (
+                          <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-14 max-w-[130px] object-contain mix-blend-multiply" />
+                        ) : (
+                          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                            {campaign.brand.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         {!hasActiveSubscription && isAvailable && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                             <XCircle className="h-12 w-12 text-red-500 drop-shadow-lg" />
