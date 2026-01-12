@@ -70,9 +70,19 @@ export async function initiateUpiPayout(
     const data = response.data;
     console.log('Cashfree payout response:', data);
     
+    // Check if response indicates an error (Cashfree returns 200 with status: ERROR for some errors)
+    if (data.status === 'ERROR' || data.subCode === '403' || data.subCode === '401') {
+      return {
+        success: false,
+        transferId,
+        status: 'FAILED',
+        error: data.message || 'Payout failed - check Cashfree credentials',
+      };
+    }
+    
     return {
       success: true,
-      transferId: data.transfer_id,
+      transferId: data.transfer_id || transferId,
       cfTransferId: data.cf_transfer_id,
       utr: data.utr || data.cf_transfer_id,
       status: data.status,
@@ -81,8 +91,9 @@ export async function initiateUpiPayout(
   } catch (error: any) {
     console.error('Cashfree payout error:', error.response?.data || error.message);
     
-    const errorMessage = error.response?.data?.message || 
-                         error.response?.data?.error || 
+    const errorData = error.response?.data;
+    const errorMessage = errorData?.message || 
+                         errorData?.error || 
                          error.message || 
                          'Payout failed';
     
