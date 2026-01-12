@@ -380,6 +380,21 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SEO Content Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-white mb-4">What is Mingree?</h2>
+          <p className="text-gray-300 mb-8 leading-relaxed">
+            Mingree is an influencer marketing and creator monetization platform that allows Instagram creators to earn money by collaborating with brands, promoting products, and creating sponsored reels.
+          </p>
+
+          <h2 className="text-2xl font-bold text-white mb-4">How Mingree Works</h2>
+          <p className="text-gray-300 leading-relaxed">
+            Brands use Mingree to find real Instagram influencers for product promotion. Creators get access to paid campaigns and monetize their Instagram audience using Mingree.
+          </p>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto">
