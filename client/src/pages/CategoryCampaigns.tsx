@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { api, type ApiCampaign, type ApiReservation, type ApiCategorySubscription, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Search, CheckCircle, Clock, AlertCircle, ArrowLeft, XCircle, Lock, Star } from "lucide-react";
+import { Instagram, Search, CheckCircle, Clock, AlertCircle, ArrowLeft, XCircle, Lock, Star, Info, Gift, TrendingUp, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -221,6 +221,50 @@ export default function CategoryCampaignsPage() {
               />
             </div>
           </div>
+
+          {/* Promotional Campaigns Guide */}
+          <Card className="mb-6 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg">
+                    <Star className="h-6 w-6 text-white fill-white" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+                    <Sparkles className="h-5 w-5" /> Promotional Campaigns Guide
+                  </h3>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1 mb-3">
+                    Yellow highlighted campaigns are promotional - you earn Stars instead of cash!
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
+                      <Gift className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Earn Stars</p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Complete tasks to collect stars</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
+                      <TrendingUp className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Build Reputation</p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Stars boost your creator profile</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 bg-white/50 dark:bg-white/10 rounded-lg p-2">
+                      <Sparkles className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300">Unlock Rewards</p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Redeem stars for exclusive perks</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {isLoading || !subscriptions.length ? (
             <div className="flex items-center justify-center py-20">
