@@ -6,26 +6,53 @@ function getPayoutBaseUrl() {
     : 'https://sandbox.cashfree.com/payout/v1';
 }
 
-function getPayoutHeaders() {
-  const clientId = process.env.CASHFREE_APP_ID;
-  const clientSecret = process.env.CASHFREE_SECRET_KEY;
+let cachedToken: string | null = null;
+let tokenExpiresAt: number = 0;
+
+async function getAuthToken(): Promise<string> {
+  const clientId = process.env.CASHFREE_PAYOUT_CLIENT_ID;
+  const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
   
   if (!clientId || !clientSecret) {
-    throw new Error('CASHFREE_APP_ID and CASHFREE_SECRET_KEY are required for payouts');
+    throw new Error('CASHFREE_PAYOUT_CLIENT_ID and CASHFREE_PAYOUT_CLIENT_SECRET are required');
   }
   
-  return {
-    'Content-Type': 'application/json',
-    'x-client-id': clientId,
-    'x-client-secret': clientSecret,
-    'x-api-version': '2024-01-01',
-  };
+  if (cachedToken !== null && Date.now() < tokenExpiresAt) {
+    return cachedToken as string;
+  }
+  
+  const baseUrl = getPayoutBaseUrl();
+  
+  try {
+    const response = await axios.post(`${baseUrl}/authorize`, {}, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id': clientId,
+        'X-Client-Secret': clientSecret,
+      },
+    });
+    
+    const data = response.data;
+    console.log('Cashfree auth response:', { status: data.status, subCode: data.subCode });
+    
+    if (data.status === 'SUCCESS' && data.data?.token) {
+      const token: string = data.data.token;
+      cachedToken = token;
+      tokenExpiresAt = Date.now() + (data.data.expiry * 1000) - 60000;
+      return token;
+    }
+    
+    throw new Error(data.message || 'Failed to get auth token');
+  } catch (error: any) {
+    console.error('Cashfree auth error:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || error.message || 'Authentication failed');
+  }
 }
 
 export function isPayoutsConfigured(): boolean {
-  return !!(process.env.CASHFREE_APP_ID && 
-    process.env.CASHFREE_SECRET_KEY && 
-    !process.env.CASHFREE_APP_ID.includes('placeholder'));
+  return !!(process.env.CASHFREE_PAYOUT_CLIENT_ID && 
+    process.env.CASHFREE_PAYOUT_CLIENT_SECRET && 
+    !process.env.CASHFREE_PAYOUT_CLIENT_ID.includes('placeholder'));
 }
 
 export interface PayoutResult {
@@ -43,50 +70,71 @@ export async function initiateUpiPayout(
   amount: number,
   upiId: string,
   beneficiaryName: string,
-  purpose: string = 'withdrawal'
+  beneficiaryEmail: string = 'payout@mingree.com',
+  beneficiaryPhone: string = '9999999999'
 ): Promise<PayoutResult> {
   const baseUrl = getPayoutBaseUrl();
   
-  const request = {
-    transfer_id: transferId,
-    transfer_amount: amount,
-    transfer_mode: "upi",
-    beneficiary_details: {
-      beneficiary_instrument_details: {
-        vpa: upiId,
-      },
-      beneficiary_name: beneficiaryName,
-    },
-    transfer_remarks: purpose,
-  };
-  
-  console.log('Initiating Cashfree payout:', { transferId, amount, upiId, beneficiaryName });
-  
   try {
-    const response = await axios.post(`${baseUrl}/transfers`, request, {
-      headers: getPayoutHeaders(),
+    const token = await getAuthToken();
+    
+    const beneId = `BENE_${transferId}`;
+    
+    try {
+      await axios.post(`${baseUrl}/addBeneficiary`, {
+        beneId: beneId,
+        name: beneficiaryName,
+        email: beneficiaryEmail,
+        phone: beneficiaryPhone,
+        vpa: upiId,
+        transferMode: 'upi',
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      console.log('Beneficiary added:', beneId);
+    } catch (beneError: any) {
+      const beneData = beneError.response?.data;
+      if (beneData?.subCode !== '409') {
+        console.log('Beneficiary may already exist or error:', beneData?.message);
+      }
+    }
+    
+    console.log('Initiating Cashfree payout:', { transferId, amount, upiId, beneficiaryName });
+    
+    const response = await axios.post(`${baseUrl}/requestTransfer`, {
+      beneId: beneId,
+      amount: amount.toString(),
+      transferId: transferId,
+      transferMode: 'upi',
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
     });
     
     const data = response.data;
     console.log('Cashfree payout response:', data);
     
-    // Check if response indicates an error (Cashfree returns 200 with status: ERROR for some errors)
-    if (data.status === 'ERROR' || data.subCode === '403' || data.subCode === '401') {
+    if (data.status === 'ERROR') {
       return {
         success: false,
         transferId,
         status: 'FAILED',
-        error: data.message || 'Payout failed - check Cashfree credentials',
+        error: data.message || 'Payout failed',
       };
     }
     
     return {
       success: true,
-      transferId: data.transfer_id || transferId,
-      cfTransferId: data.cf_transfer_id,
-      utr: data.utr || data.cf_transfer_id,
+      transferId: data.data?.transferId || transferId,
+      cfTransferId: data.data?.referenceId,
+      utr: data.data?.utr || data.data?.referenceId,
       status: data.status,
-      statusDescription: data.status_description,
+      statusDescription: data.message,
     };
   } catch (error: any) {
     console.error('Cashfree payout error:', error.response?.data || error.message);
@@ -110,19 +158,23 @@ export async function getPayoutStatus(transferId: string): Promise<PayoutResult>
   const baseUrl = getPayoutBaseUrl();
   
   try {
-    const response = await axios.get(`${baseUrl}/transfers?transfer_id=${transferId}`, {
-      headers: getPayoutHeaders(),
+    const token = await getAuthToken();
+    
+    const response = await axios.get(`${baseUrl}/getTransferStatus?transferId=${transferId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
     });
     
     const data = response.data;
     
     return {
-      success: data.status === 'SUCCESS',
-      transferId: data.transfer_id,
-      cfTransferId: data.cf_transfer_id,
-      utr: data.utr,
-      status: data.status,
-      statusDescription: data.status_description,
+      success: data.data?.status === 'SUCCESS',
+      transferId: data.data?.transferId,
+      cfTransferId: data.data?.referenceId,
+      utr: data.data?.utr,
+      status: data.data?.status,
+      statusDescription: data.message,
     };
   } catch (error: any) {
     console.error('Error fetching payout status:', error.response?.data || error.message);

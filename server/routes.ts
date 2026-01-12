@@ -3345,15 +3345,10 @@ export async function registerRoutes(
     }
   });
 
-  // Approve withdrawal request (admin action) - Manual UTR entry
+  // Approve withdrawal request (admin action) - Automatic Cashfree Payout
   app.post("/api/admin/withdrawals/:requestId/approve", isAdmin, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);
-      const { utrNumber } = req.body;
-      
-      if (!utrNumber || utrNumber.trim().length < 5) {
-        return res.status(400).json({ error: "Valid UTR number is required (min 5 characters)" });
-      }
       
       const request = await storage.getWithdrawalRequest(requestId);
       if (!request) {
@@ -3364,8 +3359,51 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Request is not pending" });
       }
       
-      // Update withdrawal request status with UTR
-      await storage.updateWithdrawalRequestStatus(requestId, "completed", utrNumber.trim());
+      // Get bank account details for UPI payout
+      const bankAccount = await storage.getBankAccount(request.bankAccountId);
+      if (!bankAccount) {
+        return res.status(400).json({ error: "Bank account not found" });
+      }
+      
+      if (!bankAccount.upiId) {
+        return res.status(400).json({ error: "UPI ID is required for payout" });
+      }
+      
+      // Get user details
+      const user = await storage.getUser(request.userId);
+      if (!user) {
+        return res.status(400).json({ error: "User not found" });
+      }
+      
+      // Check if Cashfree Payouts is configured
+      if (!isPayoutsConfigured()) {
+        return res.status(400).json({ 
+          error: "Cashfree Payouts not configured. Please add CASHFREE_PAYOUT_CLIENT_ID and CASHFREE_PAYOUT_CLIENT_SECRET in secrets." 
+        });
+      }
+      
+      // Initiate automatic payout via Cashfree
+      const transferId = `WD${requestId}_${Date.now()}`;
+      const payoutResult = await initiateUpiPayout(
+        transferId,
+        parseFloat(request.amount),
+        bankAccount.upiId,
+        bankAccount.accountHolderName,
+        user.email || 'payout@mingree.com',
+        user.phone || '9999999999'
+      );
+      
+      if (!payoutResult.success) {
+        console.error("Cashfree payout failed:", payoutResult.error);
+        return res.status(500).json({ 
+          error: `Payment failed: ${payoutResult.error}` 
+        });
+      }
+      
+      const utrNumber = payoutResult.utr || payoutResult.cfTransferId || transferId;
+      
+      // Update withdrawal request status
+      await storage.updateWithdrawalRequestStatus(requestId, "completed", utrNumber);
       
       // Update related transaction status
       const userTransactions = await storage.getTransactionsByUser(request.userId);
@@ -3381,12 +3419,15 @@ export async function registerRoutes(
         userId: request.userId,
         type: "withdrawal_approved",
         title: "Withdrawal Processed",
-        message: `Your withdrawal of ₹${request.amount} has been processed. UTR: ${utrNumber.trim()}`,
+        message: `Your withdrawal of ₹${request.amount} has been sent to your UPI. Reference: ${utrNumber}`,
         isRead: false,
       });
       
       const updatedRequest = await storage.getWithdrawalRequest(requestId);
-      res.json(updatedRequest);
+      res.json({ 
+        ...updatedRequest, 
+        message: "Payment sent successfully via Cashfree"
+      });
     } catch (error) {
       console.error("Error approving withdrawal:", error);
       res.status(500).json({ error: "Failed to approve withdrawal" });
