@@ -14,7 +14,7 @@ async function getAuthToken(): Promise<string> {
   const clientSecret = process.env.CASHFREE_PAYOUT_CLIENT_SECRET;
   
   if (!clientId || !clientSecret) {
-    throw new Error('CASHFREE_PAYOUT_CLIENT_ID and CASHFREE_PAYOUT_CLIENT_SECRET are required');
+    throw new Error('Cashfree Payouts not configured. Enable Payouts in Cashfree dashboard and add CASHFREE_PAYOUT_CLIENT_ID and CASHFREE_PAYOUT_CLIENT_SECRET');
   }
   
   if (cachedToken !== null && Date.now() < tokenExpiresAt) {
