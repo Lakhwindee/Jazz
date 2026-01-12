@@ -80,6 +80,8 @@ export default function CreateCampaign() {
   const [formData, setFormData] = useState({
     title: "",
     brand: "",
+    brandLogo: "",
+    brandLogoFileName: "",
     category: "music_reels",
     types: [] as string[],
     promotionStyle: "",
@@ -95,7 +97,9 @@ export default function CreateCampaign() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
@@ -151,6 +155,48 @@ export default function CreateCampaign() {
   const removeFile = () => {
     setFormData(prev => ({ ...prev, assetUrl: "", assetFileName: "" }));
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    setIsUploadingLogo(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("file", file);
+    
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFormData(prev => ({
+          ...prev,
+          brandLogo: data.url,
+          brandLogoFileName: data.fileName,
+        }));
+        toast.success("Brand logo uploaded!");
+      } else {
+        toast.error("Failed to upload logo");
+      }
+    } catch {
+      toast.error("Failed to upload logo");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleLogoUpload(file);
+  };
+
+  const removeLogo = () => {
+    setFormData(prev => ({ ...prev, brandLogo: "", brandLogoFileName: "" }));
+    if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
   const toggleTier = (tier: typeof TIERS[0]) => {
@@ -255,7 +301,7 @@ export default function CreateCampaign() {
         await api.createCampaign(sponsor.id, {
           title: `${formData.title} (${tierSelection.tierName})`,
           brand: formData.brand,
-          brandLogo: "",
+          brandLogo: formData.brandLogo,
           category: formData.category,
           payAmount: tierSelection.paymentPerCreator.toString(),
           type: typeLabel || "Reel",
@@ -329,6 +375,60 @@ export default function CreateCampaign() {
                       onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                       data-testid="input-brand"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Brand Logo (Optional)</Label>
+                  <div className="flex items-center gap-4">
+                    {formData.brandLogo ? (
+                      <div className="relative">
+                        <img 
+                          src={formData.brandLogo} 
+                          alt="Brand logo" 
+                          className="h-16 w-16 rounded-full object-cover border-2 border-primary/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center"
+                          data-testid="button-remove-logo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl font-bold">
+                        {formData.brand ? formData.brand.charAt(0).toUpperCase() : "?"}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                        ref={logoInputRef}
+                        className="hidden"
+                        id="logo-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={isUploadingLogo}
+                        data-testid="button-upload-logo"
+                      >
+                        {isUploadingLogo ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
+                        ) : (
+                          <><Upload className="h-4 w-4 mr-2" /> Upload Logo</>
+                        )}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload your brand logo. If not uploaded, first letter of brand name will be shown.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
