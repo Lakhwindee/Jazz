@@ -779,10 +779,11 @@ export const api = {
       return res.json();
     },
 
-    async approveWithdrawal(requestId: number): Promise<ApiWithdrawalRequest> {
+    async approveWithdrawal(requestId: number, utrNumber: string): Promise<ApiWithdrawalRequest> {
       const res = await fetch(`${API_BASE}/admin/withdrawals/${requestId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ utrNumber }),
         credentials: "include",
       });
       if (!res.ok) {
