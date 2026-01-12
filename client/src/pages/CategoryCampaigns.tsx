@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, type ApiCampaign, type ApiReservation, type ApiCategorySubscription, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Instagram, Search, CheckCircle, Clock, AlertCircle, ArrowLeft, XCircle, Lock, Star, Info, Gift, TrendingUp, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Instagram, Search, CheckCircle, Clock, AlertCircle, ArrowLeft, XCircle, Lock, Star, Info, Gift, TrendingUp, Sparkles, Award, Ticket, Crown } from "lucide-react";
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ export default function CategoryCampaignsPage() {
   // Submit functionality moved to MyCampaigns page
   const [selectedCampaign, setSelectedCampaign] = useState<ApiCampaign | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isStarGuideOpen, setIsStarGuideOpen] = useState(false);
 
   const category = PROMOTION_CATEGORIES.find(c => c.id === categoryId);
   const Icon = category ? iconMap[category.icon] || Music : Music;
@@ -232,9 +234,20 @@ export default function CategoryCampaignsPage() {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-                    <Sparkles className="h-5 w-5" /> Promotional Campaigns Guide
-                  </h3>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="font-bold text-lg flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+                      <Sparkles className="h-5 w-5" /> Promotional Campaigns
+                    </h3>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setIsStarGuideOpen(true)}
+                      className="border-yellow-400 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-300 dark:hover:bg-yellow-900/30"
+                      data-testid="button-star-guide"
+                    >
+                      <Info className="h-4 w-4 mr-1" /> View Details
+                    </Button>
+                  </div>
                   <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1 mb-3">
                     Yellow highlighted campaigns are promotional - you earn Stars instead of cash!
                   </p>
@@ -265,6 +278,129 @@ export default function CategoryCampaignsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Star Guide Modal */}
+          <Dialog open={isStarGuideOpen} onOpenChange={setIsStarGuideOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center">
+                    <Star className="h-5 w-5 text-white fill-white" />
+                  </div>
+                  Star Rewards System
+                </DialogTitle>
+                <DialogDescription>
+                  Complete promotional campaigns to earn stars and unlock exclusive rewards!
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 mt-4">
+                {/* What are Stars */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl p-4 border border-yellow-200 dark:border-yellow-800"
+                >
+                  <h4 className="font-semibold flex items-center gap-2 text-yellow-800 dark:text-yellow-300 mb-2">
+                    <Award className="h-5 w-5" /> What are Stars?
+                  </h4>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    Stars are special rewards you earn by completing promotional campaigns. Unlike regular campaigns that pay cash, promotional campaigns (shown with yellow border) reward you with stars.
+                  </p>
+                </motion.div>
+
+                {/* How to Earn */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-muted/50 rounded-xl p-4 border"
+                >
+                  <h4 className="font-semibold flex items-center gap-2 mb-2">
+                    <Gift className="h-5 w-5 text-purple-500" /> How to Earn Stars
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      Reserve a promotional campaign (yellow border)
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      Complete and submit your content
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      Get approved by admin to receive stars
+                    </li>
+                  </ul>
+                </motion.div>
+
+                {/* 5 Stars Reward */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800"
+                >
+                  <h4 className="font-semibold flex items-center gap-2 text-purple-800 dark:text-purple-300 mb-2">
+                    <Crown className="h-5 w-5" /> 5 Stars = FREE Pro Subscription!
+                  </h4>
+                  <p className="text-sm text-purple-700 dark:text-purple-400 mb-3">
+                    When you collect 5 stars, you'll automatically receive a promo code for 1 month FREE Pro subscription!
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-purple-500">
+                      <Star className="h-3 w-3 mr-1 fill-white" /> 5 Stars
+                    </Badge>
+                    <span className="text-purple-600">=</span>
+                    <Badge className="bg-gradient-to-r from-yellow-400 to-amber-500">
+                      <Ticket className="h-3 w-3 mr-1" /> Promo Code
+                    </Badge>
+                    <span className="text-purple-600">=</span>
+                    <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      1 Month FREE
+                    </Badge>
+                  </div>
+                </motion.div>
+
+                {/* How to Use Promo */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-muted/50 rounded-xl p-4 border"
+                >
+                  <h4 className="font-semibold flex items-center gap-2 mb-2">
+                    <Ticket className="h-5 w-5 text-amber-500" /> How to Use Your Promo Code
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
+                      Check your notifications for the promo code
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                      Go to Subscription page
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                      Enter promo code and activate your FREE month!
+                    </li>
+                  </ul>
+                </motion.div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t">
+                <Button 
+                  onClick={() => setIsStarGuideOpen(false)} 
+                  className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-white"
+                >
+                  Got it!
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {isLoading || !subscriptions.length ? (
             <div className="flex items-center justify-center py-20">
