@@ -200,6 +200,27 @@ Password: sponsor123
 - Submissions (content from creators)
 - Transactions (payments)
 
+## Cashfree Payouts Setup (For Automatic Withdrawals)
+
+### How to Enable Automatic Payouts
+
+1. **Activate Payouts on Cashfree:**
+   - Go to: https://merchant.cashfree.com
+   - Left sidebar → Click "Payouts"
+   - Complete KYC (bank account verification required)
+
+2. **Get Payout API Credentials:**
+   - Payouts → Settings → API Keys
+   - Copy Client ID and Client Secret
+
+3. **Add Environment Variables:**
+   ```
+   CASHFREE_PAYOUT_CLIENT_ID = your_payout_client_id
+   CASHFREE_PAYOUT_CLIENT_SECRET = your_payout_client_secret
+   ```
+
+4. **That's it!** Admin can now approve withdrawals and payments are sent automatically via UPI.
+
 ## Deployment
 - Production ready
 - Environment variables required:
