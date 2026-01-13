@@ -13,7 +13,7 @@ import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeCo
 import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
-import { sendEmail } from "./email";
+import { sendEmail, sendNewSignupNotification } from "./email";
 import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -123,18 +123,30 @@ export async function registerRoutes(
         country: data.country || "IN", // User's country for targeting
       });
       
-      // Notify admins about new signup (for creators only)
-      if (role === "creator") {
-        const allUsers = await storage.getAllUsers();
-        const admins = allUsers.filter(u => u.role === "admin");
-        for (const admin of admins) {
-          await storage.createNotification({
-            userId: admin.id,
-            type: "new_creator_signup",
-            title: "New Creator Joined",
-            message: `${user.name} (${user.email}) has signed up as a creator.`,
-            isRead: false,
-          });
+      // Notify admins about new signup (all roles - creator and sponsor)
+      const allUsers = await storage.getAllUsers();
+      const admins = allUsers.filter(u => u.role === "admin");
+      
+      for (const admin of admins) {
+        // Create in-app notification
+        await storage.createNotification({
+          userId: admin.id,
+          type: role === "creator" ? "new_creator_signup" : "new_sponsor_signup",
+          title: role === "creator" ? "New Creator Joined" : "New Sponsor Joined",
+          message: `${user.name} (${user.email}) has signed up as a ${role}.`,
+          isRead: false,
+        });
+        
+        // Send email notification to admin
+        if (admin.email) {
+          sendNewSignupNotification(admin.email, {
+            name: user.name,
+            email: user.email,
+            role: role,
+            handle: user.handle || undefined,
+            companyName: user.companyName || undefined,
+            country: user.country || "IN",
+          }).catch(err => console.error("Failed to send signup email notification:", err));
         }
       }
       
