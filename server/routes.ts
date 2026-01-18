@@ -3365,10 +3365,11 @@ export async function registerRoutes(
     }
   });
 
-  // Approve withdrawal request (admin action) - Automatic Cashfree Payout
+  // Approve withdrawal request (admin action) - Manual or Automatic Cashfree Payout
   app.post("/api/admin/withdrawals/:requestId/approve", isAdmin, async (req, res) => {
     try {
       const requestId = parseInt(req.params.requestId);
+      const { utrNumber: manualUtr } = req.body; // Manual UTR from admin
       
       const request = await storage.getWithdrawalRequest(requestId);
       if (!request) {
@@ -3385,42 +3386,48 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Bank account not found" });
       }
       
-      if (!bankAccount.upiId) {
-        return res.status(400).json({ error: "UPI ID is required for payout" });
-      }
-      
       // Get user details
       const user = await storage.getUser(request.userId);
       if (!user) {
         return res.status(400).json({ error: "User not found" });
       }
       
-      // Check if Cashfree Payouts is configured
-      if (!isPayoutsConfigured()) {
+      let utrNumber: string;
+      let paymentMethod: string;
+      
+      // Check if manual UTR is provided (manual payout)
+      if (manualUtr) {
+        // Manual payout - admin has already paid and entered UTR
+        utrNumber = manualUtr;
+        paymentMethod = "manual";
+      } else if (isPayoutsConfigured() && bankAccount.upiId) {
+        // Automatic payout via Cashfree
+        const transferId = `WD${requestId}_${Date.now()}`;
+        const payoutResult = await initiateUpiPayout(
+          transferId,
+          parseFloat(request.amount),
+          bankAccount.upiId,
+          bankAccount.accountHolderName,
+          user.email || 'payout@mingree.com',
+          user.phone || '9999999999'
+        );
+        
+        if (!payoutResult.success) {
+          console.error("Cashfree payout failed:", payoutResult.error);
+          return res.status(500).json({ 
+            error: `Automatic payment failed: ${payoutResult.error}. Please pay manually and enter UTR.` 
+          });
+        }
+        
+        utrNumber = payoutResult.utr || payoutResult.cfTransferId || transferId;
+        paymentMethod = "cashfree";
+      } else {
+        // No manual UTR and Cashfree not configured - ask admin to provide UTR
         return res.status(400).json({ 
-          error: "Cashfree Payouts not configured. Please add CASHFREE_PAYOUT_CLIENT_ID and CASHFREE_PAYOUT_CLIENT_SECRET in secrets." 
+          error: "Please enter UTR number after making manual payment, or configure Cashfree Payouts for automatic payments.",
+          requireManualUtr: true
         });
       }
-      
-      // Initiate automatic payout via Cashfree
-      const transferId = `WD${requestId}_${Date.now()}`;
-      const payoutResult = await initiateUpiPayout(
-        transferId,
-        parseFloat(request.amount),
-        bankAccount.upiId,
-        bankAccount.accountHolderName,
-        user.email || 'payout@mingree.com',
-        user.phone || '9999999999'
-      );
-      
-      if (!payoutResult.success) {
-        console.error("Cashfree payout failed:", payoutResult.error);
-        return res.status(500).json({ 
-          error: `Payment failed: ${payoutResult.error}` 
-        });
-      }
-      
-      const utrNumber = payoutResult.utr || payoutResult.cfTransferId || transferId;
       
       // Update withdrawal request status
       await storage.updateWithdrawalRequestStatus(requestId, "completed", utrNumber);
@@ -3446,7 +3453,7 @@ export async function registerRoutes(
       const updatedRequest = await storage.getWithdrawalRequest(requestId);
       res.json({ 
         ...updatedRequest, 
-        message: "Payment sent successfully via Cashfree"
+        message: paymentMethod === "manual" ? "Withdrawal approved with manual UTR" : "Payment sent successfully via Cashfree"
       });
     } catch (error) {
       console.error("Error approving withdrawal:", error);

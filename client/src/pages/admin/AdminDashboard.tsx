@@ -1008,6 +1008,7 @@ function WithdrawalsTab() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<AdminWithdrawalRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [manualUtr, setManualUtr] = useState("");
 
   const { data: withdrawals = [], isLoading } = useQuery({
     queryKey: ["admin-withdrawals", statusFilter],
@@ -1015,12 +1016,13 @@ function WithdrawalsTab() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => api.admin.approveWithdrawal(id),
+    mutationFn: ({ id, utrNumber }: { id: number; utrNumber?: string }) => api.admin.approveWithdrawal(id, utrNumber),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-withdrawals"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
       setApproveDialogOpen(false);
-      toast.success("Payment sent successfully via Cashfree!");
+      setManualUtr("");
+      toast.success("Withdrawal approved successfully!");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -1146,12 +1148,12 @@ function WithdrawalsTab() {
         </div>
       )}
 
-      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+      <Dialog open={approveDialogOpen} onOpenChange={(open) => { setApproveDialogOpen(open); if (!open) setManualUtr(""); }}>
         <DialogContent className="bg-gray-800 border-gray-700">
           <DialogHeader>
-            <DialogTitle className="text-white">Approve & Send Payment</DialogTitle>
+            <DialogTitle className="text-white">Approve Withdrawal</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Payment of {selectedRequest && formatINR(selectedRequest.amount)} will be sent automatically via Cashfree to the creator's UPI.
+              Approve payment of {selectedRequest && formatINR(selectedRequest.amount)} to the creator.
             </DialogDescription>
           </DialogHeader>
           {selectedRequest && selectedRequest.bankAccount && (
@@ -1163,17 +1165,35 @@ function WithdrawalsTab() {
               </p>
             </div>
           )}
+          <div className="space-y-4">
+            <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-3">
+              <p className="text-yellow-400 text-sm font-medium mb-2">Manual Payment Mode</p>
+              <p className="text-yellow-300/80 text-xs">
+                Pay manually via UPI app, then enter the UTR/Transaction ID below.
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-300">UTR / Transaction Reference *</Label>
+              <Input
+                value={manualUtr}
+                onChange={(e) => setManualUtr(e.target.value)}
+                placeholder="Enter UTR number after manual payment"
+                className="bg-gray-700 border-gray-600 text-white mt-1"
+                data-testid="input-manual-utr"
+              />
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => selectedRequest && approveMutation.mutate(selectedRequest.id)}
-              disabled={approveMutation.isPending}
+              onClick={() => selectedRequest && approveMutation.mutate({ id: selectedRequest.id, utrNumber: manualUtr || undefined })}
+              disabled={approveMutation.isPending || !manualUtr.trim()}
               data-testid="button-confirm-approve"
             >
-              {approveMutation.isPending ? "Sending Payment..." : "Send Payment"}
+              {approveMutation.isPending ? "Processing..." : "Approve Withdrawal"}
             </Button>
           </DialogFooter>
         </DialogContent>
