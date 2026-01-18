@@ -6,12 +6,15 @@ import { Link } from "wouter";
 import { api, type ApiCampaign, type ApiUser, formatINR } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import heroBg from "@assets/generated_images/abstract_instagram-themed_3d_background.png";
+import { QuickStartGuide, useQuickStartGuide } from "@/components/QuickStartGuide";
 
 export default function Dashboard() {
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
     queryFn: api.getCurrentUser,
   });
+
+  const { showGuide, completeGuide } = useQuickStartGuide("creator");
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ["campaigns"],
@@ -158,6 +161,7 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+      {showGuide && <QuickStartGuide userRole="creator" onComplete={completeGuide} />}
     </div>
   );
 }

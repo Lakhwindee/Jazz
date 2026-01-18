@@ -6,12 +6,15 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Users, Wallet, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { QuickStartGuide, useQuickStartGuide } from "@/components/QuickStartGuide";
 
 export default function SponsorDashboard() {
   const { data: sponsor } = useQuery({
     queryKey: ["currentSponsor"],
     queryFn: api.getCurrentSponsor,
   });
+
+  const { showGuide, completeGuide } = useQuickStartGuide("sponsor");
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ["sponsorCampaigns", sponsor?.id],
@@ -147,6 +150,7 @@ export default function SponsorDashboard() {
           </div>
         </div>
       </main>
+      {showGuide && <QuickStartGuide userRole="sponsor" onComplete={completeGuide} />}
     </div>
   );
 }
