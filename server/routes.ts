@@ -4412,11 +4412,14 @@ export async function registerRoutes(
       const userId = req.user!.id;
       const userRole = req.user!.role;
       
+      console.log("[PROMO APPLY] User:", userId, "Role:", userRole, "Code:", code, "Context:", context);
+      
       if (!code) {
         return res.status(400).json({ error: "Promo code is required" });
       }
       
       const promoCode = await storage.getPromoCodeByCode(code);
+      console.log("[PROMO APPLY] Found promo:", promoCode?.code, "Type:", promoCode?.type, "CreditAmount:", promoCode?.creditAmount);
       
       if (!promoCode || !promoCode.isActive) {
         return res.status(400).json({ error: "Invalid or inactive promo code" });
@@ -4435,13 +4438,17 @@ export async function registerRoutes(
       }
       
       if (promoCode.type === "credit" || promoCode.type === "tax_exempt") {
+        console.log("[PROMO APPLY] Credit/TaxExempt check - userRole:", userRole, "promoType:", promoCode.type);
         if (userRole !== "sponsor") {
+          console.log("[PROMO APPLY] REJECTED - User role is not sponsor, got:", userRole);
           return res.status(400).json({ error: "This promo code is only valid for brands/sponsors" });
         }
         if (context === "subscription") {
           return res.status(400).json({ error: "This promo code cannot be used for subscriptions" });
         }
       }
+      
+      console.log("[PROMO APPLY] Passed role checks, continuing to apply...");
       
       // Validate again
       const now = new Date();
