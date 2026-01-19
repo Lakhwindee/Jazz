@@ -938,6 +938,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePromoCode(id: number): Promise<void> {
+    // First delete all usage records for this promo code
+    await db.delete(promoCodeUsage).where(eq(promoCodeUsage.promoCodeId, id));
+    // Then delete the promo code itself
     await db.delete(promoCodes).where(eq(promoCodes.id, id));
   }
 
