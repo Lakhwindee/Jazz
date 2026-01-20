@@ -11,6 +11,7 @@ import { setupAuth, hashPassword, isAuthenticated, sanitizeUser } from "./auth";
 import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
 import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
+import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
 import { sendEmail, sendNewSignupNotification } from "./email";
@@ -3400,8 +3401,29 @@ export async function registerRoutes(
         // Manual payout - admin has already paid and entered UTR
         utrNumber = manualUtr;
         paymentMethod = "manual";
+      } else if (isRazorpayXConfigured() && bankAccount.upiId) {
+        // Automatic payout via RazorpayX (primary)
+        const transferId = `WD${requestId}_${Date.now()}`;
+        const payoutResult = await initiateRazorpayXPayout(
+          bankAccount.upiId,
+          parseFloat(request.amount),
+          bankAccount.accountHolderName,
+          user.email || 'payout@mingree.com',
+          user.phone || null,
+          transferId
+        );
+        
+        if (!payoutResult.success) {
+          console.error("RazorpayX payout failed:", payoutResult.error);
+          return res.status(500).json({ 
+            error: `Automatic payment failed: ${payoutResult.error}. Please pay manually and enter UTR.` 
+          });
+        }
+        
+        utrNumber = payoutResult.utr || payoutResult.payoutId || transferId;
+        paymentMethod = "razorpayx";
       } else if (isPayoutsConfigured() && bankAccount.upiId) {
-        // Automatic payout via Cashfree
+        // Fallback: Automatic payout via Cashfree
         const transferId = `WD${requestId}_${Date.now()}`;
         const payoutResult = await initiateUpiPayout(
           transferId,
@@ -3422,9 +3444,9 @@ export async function registerRoutes(
         utrNumber = payoutResult.utr || payoutResult.cfTransferId || transferId;
         paymentMethod = "cashfree";
       } else {
-        // No manual UTR and Cashfree not configured - ask admin to provide UTR
+        // No manual UTR and no payout provider configured - ask admin to provide UTR
         return res.status(400).json({ 
-          error: "Please enter UTR number after making manual payment, or configure Cashfree Payouts for automatic payments.",
+          error: "Please enter UTR number after making manual payment, or configure RazorpayX/Cashfree Payouts for automatic payments.",
           requireManualUtr: true
         });
       }
@@ -3451,9 +3473,14 @@ export async function registerRoutes(
       });
       
       const updatedRequest = await storage.getWithdrawalRequest(requestId);
+      const paymentMessages: Record<string, string> = {
+        manual: "Withdrawal approved with manual UTR",
+        razorpayx: "Payment sent successfully via RazorpayX",
+        cashfree: "Payment sent successfully via Cashfree"
+      };
       res.json({ 
         ...updatedRequest, 
-        message: paymentMethod === "manual" ? "Withdrawal approved with manual UTR" : "Payment sent successfully via Cashfree"
+        message: paymentMessages[paymentMethod] || "Withdrawal approved"
       });
     } catch (error) {
       console.error("Error approving withdrawal:", error);

@@ -22,7 +22,8 @@ International influencer marketing platform connecting Instagram creators with b
   - Tax Exempt: Waives GST on sponsor wallet deposits (sponsors only)
   - Credit: Gives free wallet balance (sponsors only)
 - **Cashfree Payment Gateway**: Primary payment gateway for Indian sponsors (UPI, Cards, Net Banking)
-- **Cashfree Payouts**: Automatic UPI payments to creators when admin approves withdrawal (no manual UTR entry needed)
+- **RazorpayX Payouts**: Primary automatic UPI payments to creators when admin approves withdrawal
+- **Cashfree Payouts**: Fallback automatic payout system if RazorpayX not configured
 - Stripe payment integration for international sponsors
 - Professional checkout flow with GST-compliant billing details collection
 - Multi-tier campaign selection with cumulative pricing
@@ -200,9 +201,46 @@ Password: sponsor123
 - Submissions (content from creators)
 - Transactions (payments)
 
-## Cashfree Payouts Setup (For Automatic Withdrawals)
+## RazorpayX Payouts Setup (Primary - For Automatic Withdrawals)
 
-### How to Enable Automatic Payouts
+### How to Enable Automatic Payouts with RazorpayX
+
+1. **Create RazorpayX Account:**
+   - Go to: https://razorpay.com/x/
+   - Sign up and complete KYC verification
+   - Activate payouts feature
+
+2. **Get API Credentials:**
+   - Dashboard → Account & Settings → Developer Controls → API Keys
+   - Generate Live mode keys (Test keys for development)
+
+3. **Get Account Number:**
+   - Dashboard → Settings → Account Details
+   - Copy your RazorpayX account number
+
+4. **Add Environment Variables:**
+   ```
+   RAZORPAY_KEY_ID = your_key_id
+   RAZORPAY_KEY_SECRET = your_key_secret
+   RAZORPAYX_ACCOUNT_NUMBER = your_account_number
+   ```
+
+5. **That's it!** Admin can now approve withdrawals and payments are sent automatically via UPI.
+
+### Payout Flow:
+1. Creator requests withdrawal → Admin approves
+2. System creates contact in RazorpayX
+3. Links UPI ID as fund account
+4. Initiates instant UPI transfer
+5. Creator receives money in seconds
+
+---
+
+## Cashfree Payouts Setup (Fallback - For Automatic Withdrawals)
+
+If RazorpayX is not configured, the system falls back to Cashfree Payouts.
+
+### How to Enable Automatic Payouts with Cashfree
 
 1. **Activate Payouts on Cashfree:**
    - Go to: https://merchant.cashfree.com
@@ -219,7 +257,7 @@ Password: sponsor123
    CASHFREE_PAYOUT_CLIENT_SECRET = your_payout_client_secret
    ```
 
-4. **That's it!** Admin can now approve withdrawals and payments are sent automatically via UPI.
+4. **That's it!** Fallback payout system is ready.
 
 ## Deployment
 - Production ready
