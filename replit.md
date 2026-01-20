@@ -22,8 +22,9 @@ International influencer marketing platform connecting Instagram creators with b
   - Tax Exempt: Waives GST on sponsor wallet deposits (sponsors only)
   - Credit: Gives free wallet balance (sponsors only)
 - **Cashfree Payment Gateway**: Primary payment gateway for Indian sponsors (UPI, Cards, Net Banking)
-- **RazorpayX Payouts**: Primary automatic UPI payments to creators when admin approves withdrawal
-- **Cashfree Payouts**: Fallback automatic payout system if RazorpayX not configured
+- **Bulkpe Payouts**: Primary automatic UPI payments (works for individuals, no business registration required)
+- **RazorpayX Payouts**: Alternative automatic payout (requires registered business)
+- **Cashfree Payouts**: Fallback automatic payout system
 - Stripe payment integration for international sponsors
 - Professional checkout flow with GST-compliant billing details collection
 - Multi-tier campaign selection with cumulative pricing
@@ -201,7 +202,42 @@ Password: sponsor123
 - Submissions (content from creators)
 - Transactions (payments)
 
-## RazorpayX Payouts Setup (Primary - For Automatic Withdrawals)
+## Bulkpe Payouts Setup (Primary - For Automatic Withdrawals)
+
+### Why Bulkpe?
+- **No business registration required** - Works for individuals
+- **Easy signup** - Quick KYC with PAN + Aadhaar
+- **Instant UPI transfers** - 24/7 availability
+- **Developer friendly** - Simple API integration
+
+### How to Enable Automatic Payouts with Bulkpe
+
+1. **Create Bulkpe Account:**
+   - Go to: https://bulkpe.in
+   - Sign up and complete KYC (PAN + Aadhaar)
+
+2. **Get API Key:**
+   - Dashboard → Settings → API Keys
+   - Generate and copy your API Key
+
+3. **Add Environment Variable:**
+   ```
+   BULKPE_API_KEY = your_api_key
+   ```
+
+4. **Add funds to your Bulkpe wallet**
+
+5. **That's it!** Admin can now approve withdrawals and payments are sent automatically via UPI.
+
+### Payout Flow:
+1. Creator requests withdrawal → Admin approves
+2. System calls Bulkpe API with UPI ID
+3. Bulkpe initiates instant UPI transfer
+4. Creator receives money in seconds
+
+---
+
+## RazorpayX Payouts Setup (Alternative - Requires Registered Business)
 
 ### How to Enable Automatic Payouts with RazorpayX
 

@@ -12,6 +12,7 @@ import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
 import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
 import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
 import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payouts";
+import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
 import { sendEmail, sendNewSignupNotification } from "./email";
@@ -3401,8 +3402,28 @@ export async function registerRoutes(
         // Manual payout - admin has already paid and entered UTR
         utrNumber = manualUtr;
         paymentMethod = "manual";
+      } else if (isBulkpeConfigured() && bankAccount.upiId) {
+        // Automatic payout via Bulkpe (primary - easy setup, works for individuals)
+        const transferId = `WD${requestId}_${Date.now()}`;
+        const payoutResult = await initiateBulkpePayout(
+          bankAccount.upiId,
+          parseFloat(request.amount),
+          bankAccount.accountHolderName,
+          transferId,
+          `Withdrawal for ${user.name}`
+        );
+        
+        if (!payoutResult.success) {
+          console.error("Bulkpe payout failed:", payoutResult.error);
+          return res.status(500).json({ 
+            error: `Automatic payment failed: ${payoutResult.error}. Please pay manually and enter UTR.` 
+          });
+        }
+        
+        utrNumber = payoutResult.transactionId || payoutResult.referenceId || transferId;
+        paymentMethod = "bulkpe";
       } else if (isRazorpayXConfigured() && bankAccount.upiId) {
-        // Automatic payout via RazorpayX (primary)
+        // Automatic payout via RazorpayX (requires registered business)
         const transferId = `WD${requestId}_${Date.now()}`;
         const payoutResult = await initiateRazorpayXPayout(
           bankAccount.upiId,
@@ -3446,7 +3467,7 @@ export async function registerRoutes(
       } else {
         // No manual UTR and no payout provider configured - ask admin to provide UTR
         return res.status(400).json({ 
-          error: "Please enter UTR number after making manual payment, or configure RazorpayX/Cashfree Payouts for automatic payments.",
+          error: "Please enter UTR number after making manual payment, or configure Bulkpe/RazorpayX/Cashfree for automatic payments.",
           requireManualUtr: true
         });
       }
@@ -3475,6 +3496,7 @@ export async function registerRoutes(
       const updatedRequest = await storage.getWithdrawalRequest(requestId);
       const paymentMessages: Record<string, string> = {
         manual: "Withdrawal approved with manual UTR",
+        bulkpe: "Payment sent successfully via Bulkpe",
         razorpayx: "Payment sent successfully via RazorpayX",
         cashfree: "Payment sent successfully via Cashfree"
       };
