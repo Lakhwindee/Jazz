@@ -1203,11 +1203,11 @@ export class DatabaseStorage implements IStorage {
     await db.execute(sql`DELETE FROM submissions`);
     console.log("[DATA RESET] Deleted submissions");
     
-    await db.execute(sql`DELETE FROM reservations`);
-    console.log("[DATA RESET] Deleted reservations");
-    
     await db.execute(sql`DELETE FROM transactions`);
     console.log("[DATA RESET] Deleted transactions");
+    
+    await db.execute(sql`DELETE FROM reservations`);
+    console.log("[DATA RESET] Deleted reservations");
     
     await db.execute(sql`DELETE FROM admin_wallet_transactions`);
     console.log("[DATA RESET] Deleted admin_wallet_transactions");
