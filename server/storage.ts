@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans, otpVerifications, newsletters, supportTickets, ticketMessages } from "@shared/schema";
+import { users, campaigns, reservations, submissions, transactions, notifications, categorySubscriptions, bankAccounts, withdrawalRequests, appSettings, promoCodes, promoCodeUsage, adminWallet, adminWalletTransactions, subscriptionPlans, otpVerifications, newsletters, supportTickets, ticketMessages, sessions } from "@shared/schema";
 import type { User, InsertUser, Campaign, InsertCampaign, Reservation, InsertReservation, Submission, InsertSubmission, Transaction, InsertTransaction, Notification, InsertNotification, CategorySubscription, InsertCategorySubscription, BankAccount, InsertBankAccount, WithdrawalRequest, InsertWithdrawalRequest, AppSetting, InsertAppSetting, PromoCode, InsertPromoCode, PromoCodeUsage, InsertPromoCodeUsage, AdminWallet, AdminWalletTransaction, InsertAdminWalletTransaction, SubscriptionPlan, InsertSubscriptionPlan, OtpVerification, InsertOtpVerification, Newsletter, InsertNewsletter, SupportTicket, InsertSupportTicket, TicketMessage, InsertTicketMessage } from "@shared/schema";
 import { eq, desc, and, count, sql, or, isNull, ne, lt } from "drizzle-orm";
 
@@ -1190,6 +1190,9 @@ export class DatabaseStorage implements IStorage {
     // Use transaction to ensure atomicity
     await db.transaction(async (tx) => {
       // Delete in proper order to avoid foreign key issues
+      // 0. Delete all sessions first (to clear any session references)
+      await tx.delete(sessions);
+      
       // 1. Delete ticket messages first (references support tickets)
       await tx.delete(ticketMessages);
       
