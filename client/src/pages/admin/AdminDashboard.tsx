@@ -3407,10 +3407,13 @@ function DataResetSection() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries();
-      toast.success(`Data reset complete! Deleted: ${data.deleted.users} users, ${data.deleted.campaigns} campaigns, ${data.deleted.reservations} reservations, ${data.deleted.transactions} transactions`);
+      toast.success(`Data reset complete! Deleted: ${data.deleted.users} users, ${data.deleted.campaigns} campaigns. Redirecting to login...`);
       setShowConfirmDialog(false);
       setConfirmText("");
+      // Sessions are cleared during reset, so redirect to admin login
+      setTimeout(() => {
+        window.location.href = "/admin";
+      }, 1500);
     },
     onError: (error: Error) => {
       toast.error(error.message);
