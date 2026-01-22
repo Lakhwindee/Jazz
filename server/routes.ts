@@ -3086,19 +3086,22 @@ export async function registerRoutes(
   // Reset all data (admin action) - keeps only admin accounts
   app.post("/api/admin/reset-data", isAdmin, async (req, res) => {
     try {
-      console.log("Starting data reset...");
+      console.log("[DATA RESET] Starting data reset...");
       
       const result = await storage.resetAllData();
       
-      console.log(`Data reset complete. Deleted ${result.users} users, ${result.campaigns} campaigns`);
+      console.log(`[DATA RESET] Complete. Deleted ${result.users} users, ${result.campaigns} campaigns`);
       
       res.json({
         success: true,
         deleted: result,
       });
-    } catch (error) {
-      console.error("Error resetting data:", error);
-      res.status(500).json({ error: "Failed to reset data" });
+    } catch (error: any) {
+      console.error("[DATA RESET] Error:", error);
+      console.error("[DATA RESET] Error message:", error?.message);
+      console.error("[DATA RESET] Error detail:", error?.detail);
+      console.error("[DATA RESET] Error code:", error?.code);
+      res.status(500).json({ error: "Failed to reset data", detail: error?.message || String(error) });
     }
   });
 
