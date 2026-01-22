@@ -1226,16 +1226,16 @@ export class DatabaseStorage implements IStorage {
       // 11. Delete promo codes
       await tx.delete(promoCodes);
       
-      // 12. Delete bank accounts (references users)
-      await tx.delete(bankAccounts);
-      
-      // 13. Delete withdrawal requests (references users)
+      // 12. Delete withdrawal requests FIRST (references bank_accounts)
       await tx.delete(withdrawalRequests);
+      
+      // 13. Delete bank accounts (references users) - AFTER withdrawal_requests
+      await tx.delete(bankAccounts);
       
       // 14. Delete OTP verifications
       await tx.delete(otpVerifications);
       
-      // 15. Delete newsletters
+      // 15. Delete newsletters (references users)
       await tx.delete(newsletters);
       
       // 16. Delete non-admin users
