@@ -3400,11 +3400,13 @@ function DataResetSection() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to reset data");
+        const errorMsg = data.detail || data.error || "Failed to reset data";
+        console.error("Reset error:", data);
+        throw new Error(errorMsg);
       }
-      return res.json();
+      return data;
     },
     onSuccess: (data) => {
       toast.success(`Data reset complete! Deleted: ${data.deleted.users} users, ${data.deleted.campaigns} campaigns. Redirecting to login...`);
@@ -3416,7 +3418,8 @@ function DataResetSection() {
       }, 1500);
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      console.error("Reset mutation error:", error);
+      toast.error(`Reset failed: ${error.message}`);
     },
   });
 

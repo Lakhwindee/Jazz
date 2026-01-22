@@ -1190,60 +1190,60 @@ export class DatabaseStorage implements IStorage {
     // Use transaction to ensure atomicity
     await db.transaction(async (tx) => {
       // Delete in proper order to avoid foreign key issues
-      // 0. Delete all sessions first (to clear any session references)
+      console.log("[DATA RESET] Step 0: Deleting sessions...");
       await tx.delete(sessions);
       
-      // 1. Delete ticket messages first (references support tickets)
+      console.log("[DATA RESET] Step 1: Deleting ticket messages...");
       await tx.delete(ticketMessages);
       
-      // 2. Delete support tickets (references users)
+      console.log("[DATA RESET] Step 2: Deleting support tickets...");
       await tx.delete(supportTickets);
       
-      // 3. Delete notifications (references users)
+      console.log("[DATA RESET] Step 3: Deleting notifications...");
       await tx.delete(notifications);
       
-      // 4. Delete submissions (references reservations)
+      console.log("[DATA RESET] Step 4: Deleting submissions...");
       await tx.delete(submissions);
       
-      // 5. Delete reservations (references campaigns and users)
+      console.log("[DATA RESET] Step 5: Deleting reservations...");
       await tx.delete(reservations);
       
-      // 6. Delete transactions (references users and campaigns)
+      console.log("[DATA RESET] Step 6: Deleting transactions...");
       await tx.delete(transactions);
       
-      // 7. Delete admin wallet transactions
+      console.log("[DATA RESET] Step 7: Deleting admin wallet transactions...");
       await tx.delete(adminWalletTransactions);
       
-      // 8. Delete campaigns (references users as sponsors)
+      console.log("[DATA RESET] Step 8: Deleting campaigns...");
       await tx.delete(campaigns);
       
-      // 9. Delete category subscriptions (group memberships - references users)
+      console.log("[DATA RESET] Step 9: Deleting category subscriptions...");
       await tx.delete(categorySubscriptions);
       
-      // 10. Delete promo code usage (references users and promo codes)
+      console.log("[DATA RESET] Step 10: Deleting promo code usage...");
       await tx.delete(promoCodeUsage);
       
-      // 11. Delete promo codes
+      console.log("[DATA RESET] Step 11: Deleting promo codes...");
       await tx.delete(promoCodes);
       
-      // 12. Delete withdrawal requests FIRST (references bank_accounts)
+      console.log("[DATA RESET] Step 12: Deleting withdrawal requests...");
       await tx.delete(withdrawalRequests);
       
-      // 13. Delete bank accounts (references users) - AFTER withdrawal_requests
+      console.log("[DATA RESET] Step 13: Deleting bank accounts...");
       await tx.delete(bankAccounts);
       
-      // 14. Delete OTP verifications
+      console.log("[DATA RESET] Step 14: Deleting OTP verifications...");
       await tx.delete(otpVerifications);
       
-      // 15. Delete newsletters (references users)
+      console.log("[DATA RESET] Step 15: Deleting newsletters...");
       await tx.delete(newsletters);
       
-      // 16. Delete non-admin users
+      console.log("[DATA RESET] Step 16: Deleting non-admin users...");
       for (const user of nonAdminUsers) {
         await tx.delete(users).where(eq(users.id, user.id));
       }
       
-      // 17. Reset admin wallet to zero
+      console.log("[DATA RESET] Step 17: Resetting admin wallet...");
       await tx.update(adminWallet).set({
         balance: "0.00",
         totalEarnings: "0.00",
