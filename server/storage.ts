@@ -1242,7 +1242,7 @@ export class DatabaseStorage implements IStorage {
     await db.execute(sql`DELETE FROM users WHERE role != 'admin'`);
     console.log("[DATA RESET] Deleted non-admin users");
     
-    await db.execute(sql`UPDATE admin_wallet SET balance = '0.00', "totalEarnings" = '0.00', "totalPayouts" = '0.00', "totalRefunds" = '0.00'`);
+    await db.execute(sql`UPDATE admin_wallet SET balance = '0.00', total_earnings = '0.00', total_payouts = '0.00', total_refunds = '0.00'`);
     console.log("[DATA RESET] Reset admin wallet");
     
     console.log(`[DATA RESET] Completed successfully - deleted ${nonAdminUsers.length} users, ${allCampaigns.length} campaigns`);
