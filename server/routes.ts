@@ -152,13 +152,21 @@ export async function registerRoutes(
         }
       }
       
-      // Log in the user
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Login error after signup:", err);
-          return res.status(500).json({ error: "Failed to log in after signup" });
+      // Regenerate session to prevent session fixation and clear any previous session data
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error("[SIGNUP] Session regeneration error:", regenerateErr);
         }
-        res.status(201).json(sanitizeUser(user));
+        
+        // Log in the user with fresh session
+        req.login(user, (err) => {
+          if (err) {
+            console.error("[SIGNUP] Login error after signup:", err);
+            return res.status(500).json({ error: "Failed to log in after signup" });
+          }
+          console.log(`[SIGNUP] User ${user.email} (ID: ${user.id}, Role: ${user.role}) logged in successfully`);
+          res.status(201).json(sanitizeUser(user));
+        });
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1145,10 +1153,14 @@ export async function registerRoutes(
   // Get current authenticated user (for backward compatibility, also works without auth for demo)
   app.get("/api/users/current", async (req, res) => {
     try {
+      // Debug: Log session info
+      console.log(`[GET_CURRENT_USER] Session ID: ${req.sessionID}, isAuthenticated: ${req.isAuthenticated()}, user in session: ${req.user?.id}`);
+      
       // If user is authenticated, return their data
       if (req.isAuthenticated() && req.user) {
         // Get fresh user data from database
         const user = await storage.getUser(req.user.id);
+        console.log(`[GET_CURRENT_USER] Fetched user from DB: ID=${user?.id}, email=${user?.email}, role=${user?.role}`);
         if (!user) {
           return res.json(null);
         }

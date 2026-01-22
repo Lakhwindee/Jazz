@@ -163,6 +163,15 @@ export default function Signup() {
         throw new Error(verifyData.error || "Invalid OTP");
       }
 
+      // Clear any existing session before signup to prevent session conflicts
+      await fetch("/api/auth/logout", { 
+        method: "POST",
+        credentials: "include"
+      });
+      
+      // Clear all cached data before signup
+      queryClient.clear();
+
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
