@@ -1187,70 +1187,63 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`[DATA RESET] Starting reset - ${nonAdminUsers.length} users, ${allCampaigns.length} campaigns to delete`);
     
-    // Use transaction to ensure atomicity
-    await db.transaction(async (tx) => {
-      // Delete in proper order to avoid foreign key issues
-      console.log("[DATA RESET] Step 0: Deleting sessions...");
-      await tx.delete(sessions);
-      
-      console.log("[DATA RESET] Step 1: Deleting ticket messages...");
-      await tx.delete(ticketMessages);
-      
-      console.log("[DATA RESET] Step 2: Deleting support tickets...");
-      await tx.delete(supportTickets);
-      
-      console.log("[DATA RESET] Step 3: Deleting notifications...");
-      await tx.delete(notifications);
-      
-      console.log("[DATA RESET] Step 4: Deleting submissions...");
-      await tx.delete(submissions);
-      
-      console.log("[DATA RESET] Step 5: Deleting reservations...");
-      await tx.delete(reservations);
-      
-      console.log("[DATA RESET] Step 6: Deleting transactions...");
-      await tx.delete(transactions);
-      
-      console.log("[DATA RESET] Step 7: Deleting admin wallet transactions...");
-      await tx.delete(adminWalletTransactions);
-      
-      console.log("[DATA RESET] Step 8: Deleting campaigns...");
-      await tx.delete(campaigns);
-      
-      console.log("[DATA RESET] Step 9: Deleting category subscriptions...");
-      await tx.delete(categorySubscriptions);
-      
-      console.log("[DATA RESET] Step 10: Deleting promo code usage...");
-      await tx.delete(promoCodeUsage);
-      
-      console.log("[DATA RESET] Step 11: Deleting promo codes...");
-      await tx.delete(promoCodes);
-      
-      console.log("[DATA RESET] Step 12: Deleting withdrawal requests...");
-      await tx.delete(withdrawalRequests);
-      
-      console.log("[DATA RESET] Step 13: Deleting bank accounts...");
-      await tx.delete(bankAccounts);
-      
-      console.log("[DATA RESET] Step 14: Deleting OTP verifications...");
-      await tx.delete(otpVerifications);
-      
-      console.log("[DATA RESET] Step 15: Deleting newsletters...");
-      await tx.delete(newsletters);
-      
-      console.log("[DATA RESET] Step 16: Deleting non-admin users...");
-      for (const user of nonAdminUsers) {
-        await tx.delete(users).where(eq(users.id, user.id));
-      }
-      
-      console.log("[DATA RESET] Step 17: Resetting admin wallet...");
-      await tx.update(adminWallet).set({
-        balance: "0.00",
-        totalEarnings: "0.00",
-        totalPayouts: "0.00",
-        totalRefunds: "0.00",
-      });
-    });
+    // Use raw SQL with proper order to handle foreign keys correctly
+    // This is more reliable than ORM for complex delete operations
+    console.log("[DATA RESET] Executing raw SQL reset...");
+    
+    await db.execute(sql`DELETE FROM ticket_messages`);
+    console.log("[DATA RESET] Deleted ticket_messages");
+    
+    await db.execute(sql`DELETE FROM support_tickets`);
+    console.log("[DATA RESET] Deleted support_tickets");
+    
+    await db.execute(sql`DELETE FROM notifications`);
+    console.log("[DATA RESET] Deleted notifications");
+    
+    await db.execute(sql`DELETE FROM submissions`);
+    console.log("[DATA RESET] Deleted submissions");
+    
+    await db.execute(sql`DELETE FROM reservations`);
+    console.log("[DATA RESET] Deleted reservations");
+    
+    await db.execute(sql`DELETE FROM transactions`);
+    console.log("[DATA RESET] Deleted transactions");
+    
+    await db.execute(sql`DELETE FROM admin_wallet_transactions`);
+    console.log("[DATA RESET] Deleted admin_wallet_transactions");
+    
+    await db.execute(sql`DELETE FROM campaigns`);
+    console.log("[DATA RESET] Deleted campaigns");
+    
+    await db.execute(sql`DELETE FROM category_subscriptions`);
+    console.log("[DATA RESET] Deleted category_subscriptions");
+    
+    await db.execute(sql`DELETE FROM promo_code_usage`);
+    console.log("[DATA RESET] Deleted promo_code_usage");
+    
+    await db.execute(sql`DELETE FROM promo_codes`);
+    console.log("[DATA RESET] Deleted promo_codes");
+    
+    await db.execute(sql`DELETE FROM withdrawal_requests`);
+    console.log("[DATA RESET] Deleted withdrawal_requests");
+    
+    await db.execute(sql`DELETE FROM bank_accounts`);
+    console.log("[DATA RESET] Deleted bank_accounts");
+    
+    await db.execute(sql`DELETE FROM otp_verifications`);
+    console.log("[DATA RESET] Deleted otp_verifications");
+    
+    await db.execute(sql`DELETE FROM newsletters`);
+    console.log("[DATA RESET] Deleted newsletters");
+    
+    await db.execute(sql`DELETE FROM sessions`);
+    console.log("[DATA RESET] Deleted sessions");
+    
+    await db.execute(sql`DELETE FROM users WHERE role != 'admin'`);
+    console.log("[DATA RESET] Deleted non-admin users");
+    
+    await db.execute(sql`UPDATE admin_wallet SET balance = '0.00', "totalEarnings" = '0.00', "totalPayouts" = '0.00', "totalRefunds" = '0.00'`);
+    console.log("[DATA RESET] Reset admin wallet");
     
     console.log(`[DATA RESET] Completed successfully - deleted ${nonAdminUsers.length} users, ${allCampaigns.length} campaigns`);
     
