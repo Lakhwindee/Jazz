@@ -86,8 +86,6 @@ export default function MyCampaigns() {
   const groupedReservations = useMemo(() => {
     const groups: Record<string, GroupedReservations> = {};
     
-    console.log("Grouping reservations:", reservations.length);
-    
     reservations.forEach((reservation) => {
       const campaign = reservation.campaign;
       if (!campaign) return;
@@ -96,11 +94,9 @@ export default function MyCampaigns() {
       const normalizedTitle = campaign.title.trim().toLowerCase();
       const key = normalizedTitle;
       
-      console.log("Campaign:", campaign.title, "Tier:", campaign.tier, "Key:", key);
-      
       if (!groups[key]) {
         groups[key] = {
-          title: campaign.title.trim(), // Keep original case for display
+          title: campaign.title.trim(),
           brand: campaign.brand,
           brandLogo: campaign.brandLogo,
           reservations: [],
@@ -116,10 +112,7 @@ export default function MyCampaigns() {
       }
     });
     
-    const result = Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
-    console.log("Grouped result:", result.map(g => ({ title: g.title, count: g.reservations.length })));
-    
-    return result;
+    return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
   }, [reservations]);
 
   const toggleFolder = (title: string) => {
