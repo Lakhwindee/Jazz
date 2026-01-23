@@ -86,30 +86,27 @@ export default function MyCampaigns() {
   const groupedReservations = useMemo(() => {
     const groups: Record<string, GroupedReservations> = {};
     
-    // Debug: Log all reservations and their titles
-    console.log("=== MY CAMPAIGNS GROUPING DEBUG ===");
-    console.log("Total reservations:", reservations.length);
-    reservations.forEach((r, i) => {
-      console.log(`Reservation ${i + 1}:`, {
-        id: r.id,
-        title: r.campaign?.title,
-        titleLength: r.campaign?.title?.length,
-        tier: r.campaign?.tier,
-        normalizedKey: r.campaign?.title?.trim().toLowerCase()
-      });
-    });
+    // Function to extract base title without tier suffix
+    const getBaseTitle = (title: string): string => {
+      // Remove patterns like "(Tier 1)", "(Tier 2)", etc. from the end
+      return title.trim().replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim().toLowerCase();
+    };
+    
+    // Function to get display title (without tier suffix)
+    const getDisplayTitle = (title: string): string => {
+      return title.trim().replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
+    };
     
     reservations.forEach((reservation) => {
       const campaign = reservation.campaign;
       if (!campaign) return;
       
-      // Normalize title for grouping (trim whitespace, lowercase for comparison)
-      const normalizedTitle = campaign.title.trim().toLowerCase();
-      const key = normalizedTitle;
+      // Use base title (without tier) as grouping key
+      const key = getBaseTitle(campaign.title);
       
       if (!groups[key]) {
         groups[key] = {
-          title: campaign.title.trim(),
+          title: getDisplayTitle(campaign.title),
           brand: campaign.brand,
           brandLogo: campaign.brandLogo,
           reservations: [],
@@ -125,11 +122,7 @@ export default function MyCampaigns() {
       }
     });
     
-    const result = Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
-    console.log("Grouped result:", result.map(g => ({ title: g.title, count: g.reservations.length, tiers: g.tiers })));
-    console.log("=== END DEBUG ===");
-    
-    return result;
+    return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
   }, [reservations]);
 
   const toggleFolder = (title: string) => {
