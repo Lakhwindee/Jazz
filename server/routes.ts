@@ -4427,11 +4427,12 @@ export async function registerRoutes(
       }
       
       if (promoCode.type === "credit" || promoCode.type === "tax_exempt") {
+        console.log("[PROMO VALIDATE] Credit/TaxExempt - userRole:", userRole, "context:", context);
         if (userRole !== "sponsor") {
-          return res.status(400).json({ error: "This promo code is only valid for brands/sponsors" });
+          return res.status(400).json({ error: `This promo code is only valid for brands/sponsors. Your role: ${userRole}` });
         }
-        if (context === "subscription") {
-          return res.status(400).json({ error: "This promo code cannot be used for subscriptions" });
+        if (context !== "deposit") {
+          return res.status(400).json({ error: "This promo code can only be used for wallet deposits" });
         }
       }
       
@@ -4502,13 +4503,15 @@ export async function registerRoutes(
       }
       
       if (promoCode.type === "credit" || promoCode.type === "tax_exempt") {
-        console.log("[PROMO APPLY] Credit/TaxExempt check - userRole:", userRole, "promoType:", promoCode.type);
+        console.log("[PROMO APPLY] Credit/TaxExempt check - userRole:", userRole, "promoType:", promoCode.type, "context:", context);
         if (userRole !== "sponsor") {
           console.log("[PROMO APPLY] REJECTED - User role is not sponsor, got:", userRole);
-          return res.status(400).json({ error: "This promo code is only valid for brands/sponsors" });
+          return res.status(400).json({ error: `This promo code is only valid for brands/sponsors. Your role: ${userRole}` });
         }
-        if (context === "subscription") {
-          return res.status(400).json({ error: "This promo code cannot be used for subscriptions" });
+        // Credit and tax_exempt promos require deposit context
+        if (context !== "deposit") {
+          console.log("[PROMO APPLY] REJECTED - Invalid context for credit/tax_exempt promo:", context);
+          return res.status(400).json({ error: "This promo code can only be used for wallet deposits" });
         }
       }
       
