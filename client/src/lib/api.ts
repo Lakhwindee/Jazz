@@ -339,6 +339,18 @@ export const api = {
     return res.json();
   },
 
+  async cancelReservation(reservationId: number) {
+    const res = await fetch(`${API_BASE}/reservations/${reservationId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to cancel reservation");
+    }
+    return res.json();
+  },
+
   // Transactions
   async getUserTransactions(userId: number): Promise<ApiTransaction[]> {
     const res = await fetch(`${API_BASE}/users/${userId}/transactions`);

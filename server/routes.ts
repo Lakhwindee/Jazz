@@ -847,6 +847,44 @@ export async function registerRoutes(
     }
   });
 
+  // Cancel/Unreserve a reservation (creator can cancel their own reserved campaigns)
+  app.delete("/api/reservations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const reservationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      const reservation = await storage.getReservation(reservationId);
+      if (!reservation) {
+        return res.status(404).json({ error: "Reservation not found" });
+      }
+      
+      // Only allow canceling own reservations
+      if (reservation.userId !== userId) {
+        return res.status(403).json({ error: "You can only cancel your own reservations" });
+      }
+      
+      // Only allow canceling reservations that are in 'reserved' status
+      if (reservation.status !== "reserved") {
+        return res.status(400).json({ error: "Can only cancel reservations that haven't been submitted yet" });
+      }
+      
+      // Get campaign to restore spots
+      const campaign = await storage.getCampaign(reservation.campaignId);
+      if (campaign) {
+        // Restore the spot to the campaign
+        await storage.updateCampaignSpots(campaign.id, campaign.spotsRemaining + 1);
+      }
+      
+      // Delete the reservation
+      await storage.deleteReservation(reservationId);
+      
+      res.json({ success: true, message: "Reservation cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling reservation:", error);
+      res.status(500).json({ error: "Failed to cancel reservation" });
+    }
+  });
+
   // Get user transactions
   app.get("/api/users/:userId/transactions", async (req, res) => {
     try {

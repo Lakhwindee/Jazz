@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiCampaign, type ApiReservation, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download } from "lucide-react";
+import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -98,6 +98,18 @@ export default function MyCampaigns() {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast.success("Payment approved! Funds added to wallet (after 10% tax).");
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (reservationId: number) => api.cancelReservation(reservationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success("Reservation cancelled. The spot has been released.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to cancel reservation");
     },
   });
 
@@ -196,42 +208,59 @@ export default function MyCampaigns() {
                           </div>
 
                           {reservation.status === 'reserved' && (
-                            <Dialog open={isDialogOpen && selectedReservationId === reservation.id} onOpenChange={setIsDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  className="rounded-full bg-blue-600 hover:bg-blue-700 text-white border-0 gap-2"
-                                  onClick={() => setSelectedReservationId(reservation.id)}
-                                  data-testid={`button-submit-${reservation.id}`}
-                                >
-                                  <Upload className="w-4 h-4" /> Submit Work
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Submit Content for {campaign.title}</DialogTitle>
-                                  <DialogDescription>
-                                    Please provide the link to your posted content and verify details.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="link">Post Link (Instagram/YouTube)</Label>
-                                    <Input 
-                                      id="link" 
-                                      placeholder="https://instagram.com/p/..." 
-                                      value={submissionData.link}
-                                      onChange={(e) => setSubmissionData({...submissionData, link: e.target.value})}
-                                      data-testid="input-link"
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button onClick={handleSubmit} disabled={submitMutation.isPending} data-testid="button-submit-confirm">
-                                    {submitMutation.isPending ? "Submitting..." : "Submit for Review"}
+                            <div className="flex gap-2">
+                              <Dialog open={isDialogOpen && selectedReservationId === reservation.id} onOpenChange={setIsDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    className="rounded-full bg-blue-600 hover:bg-blue-700 text-white border-0 gap-2"
+                                    onClick={() => setSelectedReservationId(reservation.id)}
+                                    data-testid={`button-submit-${reservation.id}`}
+                                  >
+                                    <Upload className="w-4 h-4" /> Submit Work
                                   </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Submit Content for {campaign.title}</DialogTitle>
+                                    <DialogDescription>
+                                      Please provide the link to your posted content and verify details.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                      <Label htmlFor="link">Post Link (Instagram/YouTube)</Label>
+                                      <Input 
+                                        id="link" 
+                                        placeholder="https://instagram.com/p/..." 
+                                        value={submissionData.link}
+                                        onChange={(e) => setSubmissionData({...submissionData, link: e.target.value})}
+                                        data-testid="input-link"
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button onClick={handleSubmit} disabled={submitMutation.isPending} data-testid="button-submit-confirm">
+                                      {submitMutation.isPending ? "Submitting..." : "Submit for Review"}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button 
+                                variant="outline"
+                                size="icon"
+                                className="rounded-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => {
+                                  if (window.confirm("Are you sure you want to cancel this reservation? The spot will be released.")) {
+                                    cancelMutation.mutate(reservation.id);
+                                  }
+                                }}
+                                disabled={cancelMutation.isPending}
+                                data-testid={`button-cancel-${reservation.id}`}
+                                title="Cancel Reservation"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
                           )}
 
                           {reservation.status === 'submitted' && (
