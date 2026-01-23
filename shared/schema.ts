@@ -172,6 +172,7 @@ export const campaigns = pgTable("campaigns", {
   productValue: decimal("product_value", { precision: 10, scale: 2 }),
   productImage: text("product_image"),
   productDescription: text("product_description"),
+  mentions: text("mentions").array().default([]), // Instagram handles to mention (e.g., @brandname)
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -9,7 +9,7 @@ import { api, type ApiCategorySubscription, type ApiCampaign, type ApiReservatio
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star } from "lucide-react";
+import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star, AtSign } from "lucide-react";
 import { useLocation } from "wouter";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { TIERS, formatFollowers, getTierByFollowers } from "@shared/tiers";
@@ -148,6 +148,7 @@ export default function Campaigns() {
     deadline: string;
     description: string;
     campaignType: string;
+    mentions: string[];
   }
 
   const campaignGroups = useMemo(() => {
@@ -166,6 +167,7 @@ export default function Campaigns() {
           deadline: campaign.deadline,
           description: campaign.description,
           campaignType: campaign.campaignType || "cash",
+          mentions: campaign.mentions || [],
         });
       }
       
@@ -595,6 +597,16 @@ export default function Campaigns() {
                                       <span>{new Date(group.deadline).toLocaleDateString()}</span>
                                       <span className="ml-2">{group.totalSpots} spots left</span>
                                     </div>
+                                    {group.mentions && group.mentions.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1 mt-2">
+                                        <AtSign className="h-3 w-3 text-primary" />
+                                        {group.mentions.map((mention, idx) => (
+                                          <Badge key={idx} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                                            @{mention}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </CardContent>

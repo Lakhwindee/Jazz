@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiCampaign, type ApiReservation, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download, X, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
+import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download, X, FolderOpen, ChevronDown, ChevronRight, AtSign } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -238,6 +238,17 @@ export default function MyCampaigns() {
           </CardHeader>
           <CardContent className="flex-1 text-xs sm:text-sm text-muted-foreground p-3 sm:p-6 pt-0 sm:pt-0">
             <p className="line-clamp-2 sm:line-clamp-3">{campaign.description}</p>
+            {campaign.mentions && campaign.mentions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 mt-2">
+                <AtSign className="h-3 w-3 text-primary flex-shrink-0" />
+                <span className="text-xs text-muted-foreground mr-1">Tag:</span>
+                {campaign.mentions.map((mention, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                    @{mention}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-1 sm:gap-2 text-xs">
               <span className="font-medium text-foreground">{campaign.spotsRemaining} spots left</span>
               <span>•</span>

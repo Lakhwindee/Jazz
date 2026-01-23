@@ -36,6 +36,7 @@ export interface ApiCampaign {
   campaignType?: string;
   productName?: string | null;
   productValue?: string | null;
+  mentions?: string[] | null;
   // Reservation status counts (added by sponsor campaigns endpoint)
   reservedCount?: number;
   submittedCount?: number;
@@ -237,6 +238,7 @@ export const api = {
     productValue?: string | null;
     productImage?: string | null;
     productDescription?: string | null;
+    mentions?: string[];
   }): Promise<ApiCampaign> {
     const res = await fetch(`${API_BASE}/sponsors/${sponsorId}/campaigns`, {
       method: "POST",

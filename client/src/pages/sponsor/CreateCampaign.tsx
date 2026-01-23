@@ -14,7 +14,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { TIERS, getPaymentByStyle, calculateSponsorPayment, TAX_RATES, formatTierRange } from "@shared/tiers";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
-import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe } from "lucide-react";
+import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe, Plus, AtSign } from "lucide-react";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
 import {
   Dialog,
@@ -90,6 +90,7 @@ export default function CreateCampaign() {
     assetUrl: "",
     assetFileName: "",
     targetCountries: ["IN"] as string[],
+    mentions: [""] as string[],
   });
 
   const [tierSelections, setTierSelections] = useState<TierSelection[]>([]);
@@ -315,6 +316,7 @@ export default function CreateCampaign() {
           minFollowers: tierSelection.minFollowers,
           totalSpots: tierSelection.creatorsNeeded,
           targetCountries: formData.targetCountries,
+          mentions: formData.mentions.filter(m => m.trim() !== ''),
         });
       }
       
@@ -497,6 +499,62 @@ export default function CreateCampaign() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     data-testid="input-description"
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <AtSign className="h-4 w-4 text-primary" />
+                      Accounts to Mention (Optional)
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, mentions: [...formData.mentions, ""] })}
+                      data-testid="button-add-mention"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Add Instagram handles that creators should mention/tag in their posts
+                  </p>
+                  <div className="space-y-2">
+                    {formData.mentions.map((mention, index) => (
+                      <div key={index} className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                          <Input
+                            placeholder="username"
+                            className="pl-8"
+                            value={mention}
+                            onChange={(e) => {
+                              const newMentions = [...formData.mentions];
+                              newMentions[index] = e.target.value.replace(/^@/, '');
+                              setFormData({ ...formData, mentions: newMentions });
+                            }}
+                            data-testid={`input-mention-${index}`}
+                          />
+                        </div>
+                        {formData.mentions.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              const newMentions = formData.mentions.filter((_, i) => i !== index);
+                              setFormData({ ...formData, mentions: newMentions });
+                            }}
+                            data-testid={`button-remove-mention-${index}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
