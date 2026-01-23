@@ -1238,11 +1238,26 @@ function WithdrawalsTab() {
   );
 }
 
+interface TitleGroup {
+  baseTitle: string;
+  brand: string;
+  campaigns: CampaignGroup[];
+  totalStats: {
+    submitted: number;
+    approved: number;
+    rejected: number;
+    reserved: number;
+  };
+  totalPayout: number;
+  tiers: string[];
+}
+
 function SubmissionsTab() {
   const queryClient = useQueryClient();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [expandedTitleGroups, setExpandedTitleGroups] = useState<Set<string>>(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<number>>(new Set());
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
@@ -1250,6 +1265,59 @@ function SubmissionsTab() {
     queryKey: ["admin-campaign-submissions"],
     queryFn: () => api.admin.getCampaignSubmissions(),
   });
+
+  // Function to extract base title without tier suffix
+  const getBaseTitle = (title: string): string => {
+    return title.trim().replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim().toLowerCase();
+  };
+
+  const getDisplayTitle = (title: string): string => {
+    return title.trim().replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
+  };
+
+  // Group campaigns by base title
+  const titleGroups = useMemo(() => {
+    const groups: Record<string, TitleGroup> = {};
+
+    campaignGroups.forEach((cg) => {
+      const key = getBaseTitle(cg.campaign.title);
+      
+      if (!groups[key]) {
+        groups[key] = {
+          baseTitle: getDisplayTitle(cg.campaign.title),
+          brand: cg.sponsor?.companyName || cg.sponsor?.name || "Unknown Sponsor",
+          campaigns: [],
+          totalStats: { submitted: 0, approved: 0, rejected: 0, reserved: 0 },
+          totalPayout: 0,
+          tiers: [],
+        };
+      }
+
+      groups[key].campaigns.push(cg);
+      groups[key].totalStats.submitted += cg.stats.submitted;
+      groups[key].totalStats.approved += cg.stats.approved;
+      groups[key].totalStats.rejected += cg.stats.rejected;
+      groups[key].totalStats.reserved += cg.stats.reserved;
+      groups[key].totalPayout += parseFloat(cg.campaign.payAmount || "0");
+      if (!groups[key].tiers.includes(cg.campaign.tier)) {
+        groups[key].tiers.push(cg.campaign.tier);
+      }
+    });
+
+    return Object.values(groups).sort((a, b) => a.baseTitle.localeCompare(b.baseTitle));
+  }, [campaignGroups]);
+
+  const toggleTitleGroup = (title: string) => {
+    setExpandedTitleGroups((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(title)) {
+        newSet.delete(title);
+      } else {
+        newSet.add(title);
+      }
+      return newSet;
+    });
+  };
 
   const approveMutation = useMutation({
     mutationFn: (reservationId: number) => api.admin.approveSubmission(reservationId),
@@ -1346,203 +1414,393 @@ function SubmissionsTab() {
       </div>
 
       <div className="space-y-3">
-        {campaignGroups.map((group) => {
-          const isExpanded = expandedCampaigns.has(group.campaign.id);
-          
-          const filteredSubmissions = filterStatus === "all" 
-            ? group.submissions 
-            : group.submissions.filter(s => {
-                if (filterStatus === "pending") return s.reservation.status === "submitted";
-                if (filterStatus === "approved") return s.reservation.status === "approved";
-                if (filterStatus === "rejected") return s.reservation.status === "rejected";
-                return true;
-              });
+        {titleGroups.map((titleGroup) => {
+          const isTitleExpanded = expandedTitleGroups.has(titleGroup.baseTitle);
+          const isSingleCampaign = titleGroup.campaigns.length === 1;
 
-          if (filterStatus !== "all" && filteredSubmissions.length === 0) return null;
+          // For single campaign groups, render directly without extra nesting
+          if (isSingleCampaign) {
+            const group = titleGroup.campaigns[0];
+            const isExpanded = expandedCampaigns.has(group.campaign.id);
+            
+            const filteredSubmissions = filterStatus === "all" 
+              ? group.submissions 
+              : group.submissions.filter(s => {
+                  if (filterStatus === "pending") return s.reservation.status === "submitted";
+                  if (filterStatus === "approved") return s.reservation.status === "approved";
+                  if (filterStatus === "rejected") return s.reservation.status === "rejected";
+                  return true;
+                });
 
+            if (filterStatus !== "all" && filteredSubmissions.length === 0) return null;
+
+            return (
+              <Card 
+                key={group.campaign.id} 
+                className="bg-gray-800 border-gray-700 overflow-visible"
+                data-testid={`campaign-group-${group.campaign.id}`}
+              >
+                <div 
+                  className="p-4 cursor-pointer hover-elevate rounded-t-md"
+                  onClick={() => toggleCampaign(group.campaign.id)}
+                >
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <ChevronRight 
+                        className={`h-5 w-5 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} 
+                      />
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{group.campaign.title}</h3>
+                        <p className="text-sm text-gray-400">
+                          {group.sponsor?.companyName || group.sponsor?.name || "Unknown Sponsor"} 
+                          {" - "}{group.campaign.tier}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {group.stats.submitted > 0 && (
+                          <Badge className="bg-yellow-500/20 text-yellow-400">
+                            {group.stats.submitted} Pending
+                          </Badge>
+                        )}
+                        {group.stats.approved > 0 && (
+                          <Badge className="bg-green-500/20 text-green-400">
+                            {group.stats.approved} Approved
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-green-400 font-semibold">
+                          {formatINR(group.campaign.payAmount)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isExpanded && filteredSubmissions.length > 0 && (
+                  <div className="border-t border-gray-700 p-4 space-y-3">
+                    {filteredSubmissions.map((item) => (
+                      <div 
+                        key={item.reservation.id}
+                        className={`p-3 rounded-lg ${
+                          item.reservation.status === "submitted" ? "bg-yellow-500/10 border border-yellow-500/30" :
+                          item.reservation.status === "approved" ? "bg-green-500/10 border border-green-500/30" :
+                          "bg-red-500/10 border border-red-500/30"
+                        }`}
+                        data-testid={`submission-item-${item.reservation.id}`}
+                      >
+                        <div className="flex justify-between items-start gap-4 flex-wrap">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="bg-purple-600 text-white text-xs">
+                                  {item.user?.name?.charAt(0) || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-white">{item.user?.name || "Unknown"}</p>
+                                <p className="text-xs text-gray-400 flex items-center gap-1">
+                                  <Instagram className="h-3 w-3" />
+                                  @{item.user?.instagramUsername || "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {item.submission && (
+                              <div className="ml-10">
+                                <a
+                                  href={item.submission.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  View Submission
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {item.reservation.status === "submitted" ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    approveMutation.mutate(item.reservation.id);
+                                  }}
+                                  disabled={approveMutation.isPending}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSubmission({ reservation: item.reservation, user: item.user });
+                                    setRejectDialogOpen(true);
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </>
+                            ) : item.reservation.status === "approved" ? (
+                              <Badge className="bg-green-600 text-white">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Approved
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-600 text-white">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Rejected
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isExpanded && filteredSubmissions.length === 0 && (
+                  <div className="border-t border-gray-700 p-4 text-center text-gray-500">
+                    No submissions in this category
+                  </div>
+                )}
+              </Card>
+            );
+          }
+
+          // For multi-tier campaign groups, show folder structure
           return (
             <Card 
-              key={group.campaign.id} 
-              className="bg-gray-800 border-gray-700 overflow-visible"
-              data-testid={`campaign-group-${group.campaign.id}`}
+              key={titleGroup.baseTitle} 
+              className="bg-gray-800 border-gray-700 overflow-visible border-l-4 border-l-purple-500"
+              data-testid={`title-group-${titleGroup.baseTitle}`}
             >
               <div 
                 className="p-4 cursor-pointer hover-elevate rounded-t-md"
-                onClick={() => toggleCampaign(group.campaign.id)}
+                onClick={() => toggleTitleGroup(titleGroup.baseTitle)}
               >
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <ChevronRight 
-                      className={`h-5 w-5 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} 
+                      className={`h-5 w-5 text-gray-400 transition-transform ${isTitleExpanded ? "rotate-90" : ""}`} 
                     />
                     <div>
-                      <h3 className="text-lg font-bold text-white">{group.campaign.title}</h3>
-                      <p className="text-sm text-gray-400">
-                        {group.sponsor?.companyName || group.sponsor?.name || "Unknown Sponsor"} 
-                        {" - "}Tier {group.campaign.tier}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white">{titleGroup.baseTitle}</h3>
+                        <Badge className="bg-purple-500/20 text-purple-400">
+                          {titleGroup.campaigns.length} Tiers
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-400">{titleGroup.brand}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4 flex-wrap">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 uppercase">Spots</div>
-                      <div className="text-white font-semibold">
-                        {group.campaign.totalSpots - group.campaign.spotsRemaining}/{group.campaign.totalSpots}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {group.stats.submitted > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {titleGroup.totalStats.submitted > 0 && (
                         <Badge className="bg-yellow-500/20 text-yellow-400">
-                          {group.stats.submitted} Pending
+                          {titleGroup.totalStats.submitted} Pending
                         </Badge>
                       )}
-                      {group.stats.approved > 0 && (
+                      {titleGroup.totalStats.approved > 0 && (
                         <Badge className="bg-green-500/20 text-green-400">
-                          {group.stats.approved} Approved
+                          {titleGroup.totalStats.approved} Approved
                         </Badge>
                       )}
-                      {group.stats.rejected > 0 && (
+                      {titleGroup.totalStats.rejected > 0 && (
                         <Badge className="bg-red-500/20 text-red-400">
-                          {group.stats.rejected} Rejected
-                        </Badge>
-                      )}
-                      {group.stats.reserved > 0 && (
-                        <Badge className="bg-blue-500/20 text-blue-400">
-                          {group.stats.reserved} Reserved
+                          {titleGroup.totalStats.rejected} Rejected
                         </Badge>
                       )}
                     </div>
 
                     <div className="text-right">
-                      <div className="text-xs text-gray-500 uppercase">Payment</div>
+                      <div className="text-xs text-gray-500 uppercase">Total Payout</div>
                       <div className="text-green-400 font-semibold">
-                        {group.campaign.isPromotional ? (
-                          <span className="flex items-center gap-1">
-                            <Star className="h-4 w-4" /> {group.campaign.starReward} Stars
-                          </span>
-                        ) : (
-                          formatINR(group.campaign.payAmount)
-                        )}
+                        {formatINR(titleGroup.totalPayout.toString())}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-purple-500 to-blue-500"
-                      style={{ width: `${group.stats.spotsFilledPercent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1 text-xs text-gray-500">
-                    <span>{group.stats.spotsFilledPercent}% Spots Filled</span>
-                    <span>{group.campaign.spotsRemaining} spots remaining</span>
-                  </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {titleGroup.tiers.sort().map(tier => (
+                    <Badge key={tier} variant="outline" className="text-xs border-gray-600 text-gray-400">
+                      {tier}
+                    </Badge>
+                  ))}
                 </div>
               </div>
 
-              {isExpanded && filteredSubmissions.length > 0 && (
+              {isTitleExpanded && (
                 <div className="border-t border-gray-700 p-4 space-y-3">
-                  {filteredSubmissions.map((item, idx) => (
-                    <div 
-                      key={item.reservation.id}
-                      className={`p-3 rounded-lg ${
-                        item.reservation.status === "submitted" ? "bg-yellow-500/10 border border-yellow-500/30" :
-                        item.reservation.status === "approved" ? "bg-green-500/10 border border-green-500/30" :
-                        "bg-red-500/10 border border-red-500/30"
-                      }`}
-                      data-testid={`submission-item-${item.reservation.id}`}
-                    >
-                      <div className="flex justify-between items-start gap-4 flex-wrap">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-purple-600 text-white text-xs">
-                                {item.user?.name?.charAt(0) || "?"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold text-white">{item.user?.name || "Unknown"}</p>
-                              <p className="text-xs text-gray-400 flex items-center gap-1">
-                                <Instagram className="h-3 w-3" />
-                                @{item.user?.instagramUsername || "N/A"}
-                              </p>
+                  {titleGroup.campaigns.map((group) => {
+                    const isExpanded = expandedCampaigns.has(group.campaign.id);
+                    
+                    const filteredSubmissions = filterStatus === "all" 
+                      ? group.submissions 
+                      : group.submissions.filter(s => {
+                          if (filterStatus === "pending") return s.reservation.status === "submitted";
+                          if (filterStatus === "approved") return s.reservation.status === "approved";
+                          if (filterStatus === "rejected") return s.reservation.status === "rejected";
+                          return true;
+                        });
+
+                    if (filterStatus !== "all" && filteredSubmissions.length === 0) return null;
+
+                    return (
+                      <div 
+                        key={group.campaign.id}
+                        className="bg-gray-700/50 rounded-lg overflow-hidden"
+                      >
+                        <div 
+                          className="p-3 cursor-pointer hover-elevate"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCampaign(group.campaign.id);
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3">
+                              <ChevronRight 
+                                className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} 
+                              />
+                              <div>
+                                <Badge className="bg-primary/20 text-primary">
+                                  {group.campaign.tier}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                {group.stats.submitted > 0 && (
+                                  <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
+                                    {group.stats.submitted} Pending
+                                  </Badge>
+                                )}
+                                {group.stats.approved > 0 && (
+                                  <Badge className="bg-green-500/20 text-green-400 text-xs">
+                                    {group.stats.approved} Approved
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-green-400 font-semibold text-sm">
+                                {formatINR(group.campaign.payAmount)}
+                              </div>
                             </div>
                           </div>
-                          
-                          {item.submission && (
-                            <div className="ml-10">
-                              <a
-                                href={item.submission.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
-                                data-testid={`link-submission-${item.reservation.id}`}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                View Submission
-                              </a>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Submitted: {new Date(item.submission.submittedAt).toLocaleString()}
-                              </p>
-                            </div>
-                          )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {item.reservation.status === "submitted" ? (
-                            <>
-                              <Button
-                                size="sm"
-                                className="bg-green-600"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  approveMutation.mutate(item.reservation.id);
-                                }}
-                                disabled={approveMutation.isPending}
-                                data-testid={`button-approve-${item.reservation.id}`}
+                        {isExpanded && filteredSubmissions.length > 0 && (
+                          <div className="border-t border-gray-600 p-3 space-y-2">
+                            {filteredSubmissions.map((item) => (
+                              <div 
+                                key={item.reservation.id}
+                                className={`p-3 rounded-lg ${
+                                  item.reservation.status === "submitted" ? "bg-yellow-500/10 border border-yellow-500/30" :
+                                  item.reservation.status === "approved" ? "bg-green-500/10 border border-green-500/30" :
+                                  "bg-red-500/10 border border-red-500/30"
+                                }`}
                               >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSubmission({ reservation: item.reservation, user: item.user });
-                                  setRejectDialogOpen(true);
-                                }}
-                                data-testid={`button-reject-${item.reservation.id}`}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </>
-                          ) : item.reservation.status === "approved" ? (
-                            <Badge className="bg-green-600 text-white">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Approved
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-red-600 text-white">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Rejected
-                            </Badge>
-                          )}
-                        </div>
+                                <div className="flex justify-between items-start gap-4 flex-wrap">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarFallback className="bg-purple-600 text-white text-xs">
+                                          {item.user?.name?.charAt(0) || "?"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-semibold text-white">{item.user?.name || "Unknown"}</p>
+                                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                                          <Instagram className="h-3 w-3" />
+                                          @{item.user?.instagramUsername || "N/A"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    
+                                    {item.submission && (
+                                      <div className="ml-10">
+                                        <a
+                                          href={item.submission.link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                          View Submission
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {item.reservation.status === "submitted" ? (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          className="bg-green-600"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            approveMutation.mutate(item.reservation.id);
+                                          }}
+                                          disabled={approveMutation.isPending}
+                                        >
+                                          <CheckCircle className="h-4 w-4 mr-1" />
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedSubmission({ reservation: item.reservation, user: item.user });
+                                            setRejectDialogOpen(true);
+                                          }}
+                                        >
+                                          <XCircle className="h-4 w-4 mr-1" />
+                                          Reject
+                                        </Button>
+                                      </>
+                                    ) : item.reservation.status === "approved" ? (
+                                      <Badge className="bg-green-600 text-white">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Approved
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-red-600 text-white">
+                                        <XCircle className="h-3 w-3 mr-1" />
+                                        Rejected
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {isExpanded && filteredSubmissions.length === 0 && (
+                          <div className="border-t border-gray-600 p-3 text-center text-gray-500 text-sm">
+                            No submissions in this category
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isExpanded && filteredSubmissions.length === 0 && (
-                <div className="border-t border-gray-700 p-4 text-center text-gray-500">
-                  No submissions in this category
+                    );
+                  })}
                 </div>
               )}
             </Card>
