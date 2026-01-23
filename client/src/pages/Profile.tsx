@@ -334,10 +334,31 @@ export default function Profile() {
                     {!user.isInstagramVerified && (
                       <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-4 space-y-4">
                         {user.instagramVerificationStatus === "pending" ? (
-                          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
-                            <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
-                            <p className="text-xs text-blue-600 dark:text-blue-300">We're verifying your Instagram bio. This usually takes a few hours.</p>
+                          <div className="space-y-4">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 text-center">
+                              <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Submitted for Review</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-300">Admin is verifying your Instagram bio. This usually takes a few hours.</p>
+                            </div>
+                            
+                            {user.instagramVerificationCode && (
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                                <p className="text-xs text-muted-foreground mb-2">Your Verification Code (paste this in your Instagram bio):</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-gray-100 dark:bg-gray-700 border rounded-lg p-3 font-mono text-sm break-all font-bold">
+                                    {user.instagramVerificationCode}
+                                  </div>
+                                  <Button
+                                    onClick={handleCopyCode}
+                                    variant="outline"
+                                    size="icon"
+                                    data-testid="button-copy-code"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <>
@@ -346,7 +367,7 @@ export default function Profile() {
                               <div>
                                 <h4 className="font-medium text-yellow-800 dark:text-yellow-200">Verify Your Instagram</h4>
                                 <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                                  To verify account ownership, copy the code below and paste it in your Instagram bio. Then click "Verify".
+                                  To verify account ownership, copy the code below and paste it in your Instagram bio. Then click "Submit for Verification".
                                 </p>
                               </div>
                             </div>
@@ -363,8 +384,9 @@ export default function Profile() {
                           </Button>
                         ) : (
                           <div className="space-y-3">
+                            <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">Your Verification Code:</p>
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-white dark:bg-gray-800 border rounded-lg p-3 font-mono text-sm break-all">
+                              <div className="flex-1 bg-white dark:bg-gray-800 border-2 border-yellow-400 rounded-lg p-3 font-mono text-base break-all font-bold text-center">
                                 {user.instagramVerificationCode}
                               </div>
                               <Button
@@ -376,15 +398,17 @@ export default function Profile() {
                                 <Copy className="h-4 w-4" />
                               </Button>
                             </div>
-                            <div className="text-xs text-yellow-700 dark:text-yellow-300">
-                              Step 1: Copy the code above<br />
-                              Step 2: Open Instagram and paste it in your bio<br />
-                              Step 3: Click "Submit for Verification" button below
+                            <div className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-800/30 p-2 rounded">
+                              <strong>Steps:</strong><br />
+                              1. Copy the code above<br />
+                              2. Open Instagram → Edit Profile → Bio<br />
+                              3. Paste the code in your bio<br />
+                              4. Click "Submit for Verification" below
                             </div>
                             <Button
                               onClick={() => submitVerificationMutation.mutate()}
                               disabled={submitVerificationMutation.isPending}
-                              className="w-full"
+                              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                               data-testid="button-submit-verification"
                             >
                               {submitVerificationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
