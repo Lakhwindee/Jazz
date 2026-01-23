@@ -86,9 +86,18 @@ export default function Profile() {
   const updateInstagramMutation = useMutation({
     mutationFn: ({ username, profileUrl, followers }: { username: string; profileUrl?: string; followers?: number }) => 
       api.updateUserInstagram(user!.id, username, profileUrl, followers),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      toast.success("Instagram account linked successfully! Pending verification.");
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      if (variables.username) {
+        // Auto-generate verification code after linking
+        try {
+          await api.generateInstagramVerificationCode(user!.id);
+          await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+          toast.success("Instagram linked! Copy the verification code and paste it in your Instagram bio.");
+        } catch {
+          toast.success("Instagram account linked! Now generate verification code.");
+        }
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to link Instagram");
@@ -399,8 +408,8 @@ export default function Profile() {
                           </div>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-base sm:text-lg">Connect Instagram</h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Add your Instagram details to start earning from campaigns</p>
+                          <h3 className="font-semibold text-base sm:text-lg">Connect & Verify Instagram</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Add your Instagram details and verify ownership</p>
                         </div>
                       </div>
                     </div>
@@ -415,6 +424,16 @@ export default function Profile() {
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3 sm:p-4">
+                      <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">How Verification Works:</h4>
+                      <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
+                        <li>Enter your Instagram username and followers below</li>
+                        <li>Click "Connect & Get Code" to generate verification code</li>
+                        <li>Copy the code and paste it in your Instagram bio</li>
+                        <li>Click "Submit for Verification" - Admin will verify and approve</li>
+                      </ol>
                     </div>
 
 
@@ -476,13 +495,12 @@ export default function Profile() {
                       <Button 
                         onClick={handleLinkInstagram}
                         disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
-                        className="w-full"
-                        variant="outline"
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
                         data-testid="button-link-instagram"
                       >
                         {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         <Instagram className="mr-2 h-4 w-4" />
-                        Connect Instagram
+                        Connect & Get Verification Code
                       </Button>
                     </div>
                   </div>
