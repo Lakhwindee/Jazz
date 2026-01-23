@@ -48,6 +48,7 @@ export default function Groups() {
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
     queryFn: api.getCurrentUser,
+    staleTime: 0, // Always fetch fresh data
   });
 
   const { data: subscriptions = [] } = useQuery({
@@ -90,6 +91,12 @@ export default function Groups() {
   });
 
   const getUserTierId = (): number => {
+    // Calculate tier from followers (more reliable than stored tier)
+    if (user?.followers && user.followers >= 500) {
+      const calculatedTier = getTierByFollowers(user.followers);
+      if (calculatedTier) return calculatedTier.id;
+    }
+    // Fallback to stored tier
     if (!user?.tier) return 1;
     const tier = TIERS.find(t => t.name === user.tier);
     return tier?.id || 1;
@@ -160,7 +167,7 @@ export default function Groups() {
             </div>
           </div>
 
-          {user?.instagramUsername && user?.tier && (
+          {user?.instagramUsername && user?.followers && user.followers >= 500 && (
             <div className="mb-6 rounded-lg border-2 border-green-500/50 bg-green-50 dark:bg-green-950/30 p-4" data-testid="tier-info-banner">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500 text-white font-bold">
@@ -168,10 +175,10 @@ export default function Groups() {
                 </div>
                 <div>
                   <p className="font-semibold text-green-700 dark:text-green-400">
-                    Your Current Tier: {user.tier}
+                    Your Current Tier: Tier {getUserTierId()}
                   </p>
                   <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-                    You can reserve campaigns from your tier and all tiers below! This means you have access to campaigns from Tier 1 to {user.tier}.
+                    You can reserve campaigns from your tier and all tiers below! This means you have access to campaigns from Tier 1 to Tier {getUserTierId()}.
                   </p>
                 </div>
               </div>

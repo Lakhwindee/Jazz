@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
-import { TIERS, formatFollowers } from "@shared/tiers";
+import { TIERS, formatFollowers, getTierByFollowers } from "@shared/tiers";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
 import { 
   Music, 
@@ -99,6 +99,12 @@ export default function Campaigns() {
   };
 
   const getUserTierId = (): number => {
+    // Calculate tier from followers (more reliable than stored tier)
+    if (user?.followers && user.followers >= 500) {
+      const calculatedTier = getTierByFollowers(user.followers);
+      if (calculatedTier) return calculatedTier.id;
+    }
+    // Fallback to stored tier
     if (!user?.tier) return 1;
     const tier = TIERS.find(t => t.name === user.tier);
     return tier?.id || 1;
