@@ -152,20 +152,27 @@ export async function registerRoutes(
         }
       }
       
-      // Regenerate session to prevent session fixation and clear any previous session data
-      req.session.regenerate((regenerateErr) => {
-        if (regenerateErr) {
-          console.error("[SIGNUP] Session regeneration error:", regenerateErr);
+      // First destroy any existing session completely
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error("[SIGNUP] Session destroy error:", destroyErr);
         }
         
-        // Log in the user with fresh session
+        // Create a completely new session by logging in
         req.login(user, (err) => {
           if (err) {
             console.error("[SIGNUP] Login error after signup:", err);
             return res.status(500).json({ error: "Failed to log in after signup" });
           }
-          console.log(`[SIGNUP] User ${user.email} (ID: ${user.id}, Role: ${user.role}) logged in successfully`);
-          res.status(201).json(sanitizeUser(user));
+          
+          // Force save the new session with correct user
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error("[SIGNUP] Session save error:", saveErr);
+            }
+            console.log(`[SIGNUP] User ${user.email} (ID: ${user.id}, Role: ${user.role}) logged in with fresh session`);
+            res.status(201).json(sanitizeUser(user));
+          });
         });
       });
     } catch (error) {
