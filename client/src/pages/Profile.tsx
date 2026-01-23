@@ -341,7 +341,7 @@ export default function Profile() {
                               <p className="text-xs text-blue-600 dark:text-blue-300">Admin is verifying your Instagram bio. This usually takes a few hours.</p>
                             </div>
                             
-                            {user.instagramVerificationCode && (
+                            {user.instagramVerificationCode ? (
                               <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
                                 <p className="text-xs text-muted-foreground mb-2">Your Verification Code (paste this in your Instagram bio):</p>
                                 <div className="flex items-center gap-2">
@@ -357,6 +357,21 @@ export default function Profile() {
                                     <Copy className="h-4 w-4" />
                                   </Button>
                                 </div>
+                              </div>
+                            ) : (
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border space-y-3">
+                                <p className="text-xs text-muted-foreground">No verification code found. Generate one to add to your Instagram bio:</p>
+                                <Button
+                                  onClick={() => generateCodeMutation.mutate()}
+                                  disabled={generateCodeMutation.isPending}
+                                  variant="outline"
+                                  className="w-full"
+                                  data-testid="button-generate-code-pending"
+                                >
+                                  {generateCodeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  Generate Verification Code
+                                </Button>
                               </div>
                             )}
                           </div>
