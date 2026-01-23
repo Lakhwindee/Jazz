@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, Calendar, Users, IndianRupee, Clock, Sparkles, FileDown, Film, Smartphone, Image, LayoutGrid, Music, Video, Share2, Gift, Package } from "lucide-react";
+import { Download, Calendar, Users, IndianRupee, Clock, Sparkles, FileDown, Film, Smartphone, Image, LayoutGrid, Music, Video, Share2, Gift, Package, AlertTriangle } from "lucide-react";
 import { formatINR, type ApiCampaign } from "@/lib/api";
 import { format } from "date-fns";
+import { useState, useEffect } from "react";
 
 const PROMOTION_STYLE_LABELS: Record<string, { label: string; icon: React.ElementType; description: string }> = {
   lyricals: { label: "Lyricals / Page Promotion", icon: Music, description: "Use provided content/audio only" },
@@ -29,12 +30,30 @@ interface CampaignDetailsModalProps {
 }
 
 export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isReserving }: CampaignDetailsModalProps) {
+  const [hasDownloaded, setHasDownloaded] = useState(false);
+  
+  // Reset download state when campaign changes or modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHasDownloaded(false);
+    }
+  }, [isOpen, campaign?.id]);
+  
   if (!campaign) return null;
 
   const promotionStyle = campaign.promotionStyle ? PROMOTION_STYLE_LABELS[campaign.promotionStyle] : null;
   const deadlineDate = new Date(campaign.deadline);
   const isDeadlineSoon = deadlineDate.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
   const isProductCampaign = campaign.campaignType === "product";
+  
+  // Check if file download is required before reserving
+  const requiresDownload = !!campaign.assetUrl;
+  const canReserve = !requiresDownload || hasDownloaded;
+  
+  const handleDownload = () => {
+    window.open(campaign.assetUrl!, '_blank');
+    setHasDownloaded(true);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -204,13 +223,14 @@ export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isR
                         </div>
                       </div>
                       <Button 
-                        variant="outline" 
+                        variant={hasDownloaded ? "outline" : "default"}
                         size="sm"
-                        onClick={() => window.open(campaign.assetUrl!, '_blank')}
+                        onClick={handleDownload}
+                        className={!hasDownloaded ? "bg-primary animate-pulse" : ""}
                         data-testid="button-download-asset"
                       >
                         <Download className="h-4 w-4 mr-2" />
-                        Download
+                        {hasDownloaded ? "Downloaded ✓" : "Download First"}
                       </Button>
                     </div>
                   </div>
@@ -226,14 +246,20 @@ export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isR
         </ScrollArea>
 
         <div className="p-6 pt-4 border-t">
+          {requiresDownload && !hasDownloaded && (
+            <div className="flex items-center gap-2 mb-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 text-sm">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>Please download the campaign file first before reserving</span>
+            </div>
+          )}
           <div className="flex gap-3">
             <Button
               className="flex-1 rounded-full bg-insta-gradient hover:opacity-90"
               onClick={() => onReserve(campaign)}
-              disabled={isReserving || campaign.spotsRemaining <= 0}
+              disabled={isReserving || campaign.spotsRemaining <= 0 || !canReserve}
               data-testid="button-confirm-reserve"
             >
-              {isReserving ? "Reserving..." : campaign.spotsRemaining <= 0 ? "No Spots Available" : "Reserve This Campaign"}
+              {isReserving ? "Reserving..." : campaign.spotsRemaining <= 0 ? "No Spots Available" : !canReserve ? "Download File First" : "Reserve This Campaign"}
             </Button>
             <Button variant="outline" className="rounded-full" onClick={onClose}>
               Cancel

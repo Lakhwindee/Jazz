@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiCampaign, type ApiReservation, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer } from "lucide-react";
+import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
