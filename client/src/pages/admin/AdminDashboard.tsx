@@ -1588,34 +1588,34 @@ function SubmissionsTab() {
               data-testid={`title-group-${titleGroup.baseTitle}`}
             >
               <div 
-                className="p-4 cursor-pointer hover-elevate rounded-t-md"
+                className="p-3 sm:p-4 cursor-pointer hover-elevate rounded-t-md"
                 onClick={() => toggleTitleGroup(titleGroup.baseTitle)}
               >
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-2">
                     <ChevronRight 
-                      className={`h-5 w-5 text-gray-400 transition-transform ${isTitleExpanded ? "rotate-90" : ""}`} 
+                      className={`h-5 w-5 text-gray-400 transition-transform flex-shrink-0 mt-1 ${isTitleExpanded ? "rotate-90" : ""}`} 
                     />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-white">{titleGroup.baseTitle}</h3>
-                        <Badge className="bg-purple-500/20 text-purple-400">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-bold text-white break-words">{titleGroup.baseTitle}</h3>
+                        <Badge className="bg-purple-500/20 text-purple-400 text-xs">
                           {titleGroup.campaigns.length} Tiers
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-400">{titleGroup.brand}</p>
+                      <p className="text-xs sm:text-sm text-gray-400">{titleGroup.brand}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-7 sm:ml-0">
+                    <div className="flex flex-wrap items-center gap-1">
                       {titleGroup.totalStats.submitted > 0 && (
-                        <Badge className="bg-yellow-500/20 text-yellow-400">
+                        <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
                           {titleGroup.totalStats.submitted} Pending
                         </Badge>
                       )}
                       {titleGroup.totalStats.approved > 0 && (
-                        <Badge className="bg-green-500/20 text-green-400">
+                        <Badge className="bg-green-500/20 text-green-400 text-xs">
                           {titleGroup.totalStats.approved} Approved
                         </Badge>
                       )}
@@ -1645,7 +1645,7 @@ function SubmissionsTab() {
               </div>
 
               {isTitleExpanded && (
-                <div className="border-t border-gray-700 p-4 space-y-3">
+                <div className="border-t border-gray-700 p-2 sm:p-4 space-y-2 sm:space-y-3">
                   {titleGroup.campaigns.map((group) => {
                     const isExpanded = expandedCampaigns.has(group.campaign.id);
                     
@@ -1666,37 +1666,33 @@ function SubmissionsTab() {
                         className="bg-gray-700/50 rounded-lg overflow-hidden"
                       >
                         <div 
-                          className="p-3 cursor-pointer hover-elevate"
+                          className="p-2 sm:p-3 cursor-pointer hover-elevate"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleCampaign(group.campaign.id);
                           }}
                         >
-                          <div className="flex items-center justify-between gap-4 flex-wrap">
-                            <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
                               <ChevronRight 
-                                className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} 
+                                className={`h-4 w-4 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`} 
                               />
-                              <div>
-                                <Badge className="bg-primary/20 text-primary">
-                                  {group.campaign.tier}
-                                </Badge>
-                              </div>
+                              <Badge className="bg-primary/20 text-primary text-xs">
+                                {group.campaign.tier}
+                              </Badge>
                             </div>
 
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2">
-                                {group.stats.submitted > 0 && (
-                                  <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
-                                    {group.stats.submitted} Pending
-                                  </Badge>
-                                )}
-                                {group.stats.approved > 0 && (
-                                  <Badge className="bg-green-500/20 text-green-400 text-xs">
-                                    {group.stats.approved} Approved
-                                  </Badge>
-                                )}
-                              </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {group.stats.submitted > 0 && (
+                                <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
+                                  {group.stats.submitted} Pending
+                                </Badge>
+                              )}
+                              {group.stats.approved > 0 && (
+                                <Badge className="bg-green-500/20 text-green-400 text-xs">
+                                  {group.stats.approved} Approved
+                                </Badge>
+                              )}
                               <div className="text-green-400 font-semibold text-sm">
                                 {formatINR(group.campaign.payAmount)}
                               </div>
@@ -1705,78 +1701,79 @@ function SubmissionsTab() {
                         </div>
 
                         {isExpanded && filteredSubmissions.length > 0 && (
-                          <div className="border-t border-gray-600 p-3 space-y-2">
+                          <div className="border-t border-gray-600 p-2 sm:p-3 space-y-2">
                             {filteredSubmissions.map((item) => (
                               <div 
                                 key={item.reservation.id}
-                                className={`p-3 rounded-lg ${
+                                className={`p-2 sm:p-3 rounded-lg ${
                                   item.reservation.status === "submitted" ? "bg-yellow-500/10 border border-yellow-500/30" :
                                   item.reservation.status === "approved" ? "bg-green-500/10 border border-green-500/30" :
                                   "bg-red-500/10 border border-red-500/30"
                                 }`}
                               >
-                                <div className="flex justify-between items-start gap-4 flex-wrap">
-                                  <div className="space-y-1">
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                                  <div className="space-y-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <Avatar className="h-8 w-8">
+                                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
                                         <AvatarFallback className="bg-purple-600 text-white text-xs">
                                           {item.user?.name?.charAt(0) || "?"}
                                         </AvatarFallback>
                                       </Avatar>
-                                      <div>
-                                        <p className="font-semibold text-white">{item.user?.name || "Unknown"}</p>
-                                        <p className="text-xs text-gray-400 flex items-center gap-1">
-                                          <Instagram className="h-3 w-3" />
+                                      <div className="min-w-0">
+                                        <p className="font-semibold text-white text-sm sm:text-base truncate">{item.user?.name || "Unknown"}</p>
+                                        <p className="text-xs text-gray-400 flex items-center gap-1 truncate">
+                                          <Instagram className="h-3 w-3 flex-shrink-0" />
                                           @{item.user?.instagramUsername || "N/A"}
                                         </p>
                                       </div>
                                     </div>
                                     
                                     {item.submission && (
-                                      <div className="ml-10">
+                                      <div className="ml-9 sm:ml-10">
                                         <a
                                           href={item.submission.link}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
+                                          className="text-blue-400 hover:underline flex items-center gap-1 text-xs sm:text-sm"
                                         >
-                                          <ExternalLink className="h-4 w-4" />
+                                          <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                                           View Submission
                                         </a>
                                       </div>
                                     )}
                                   </div>
 
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 ml-9 sm:ml-0">
                                     {item.reservation.status === "submitted" ? (
                                       <>
                                         <Button
                                           size="sm"
-                                          className="bg-green-600"
+                                          className="bg-green-600 text-xs h-8"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             approveMutation.mutate(item.reservation.id);
                                           }}
                                           disabled={approveMutation.isPending}
                                         >
-                                          <CheckCircle className="h-4 w-4 mr-1" />
-                                          Approve
+                                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                                          <span className="hidden sm:inline">Approve</span>
                                         </Button>
                                         <Button
                                           size="sm"
                                           variant="destructive"
+                                          className="text-xs h-8"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedSubmission({ reservation: item.reservation, user: item.user });
                                             setRejectDialogOpen(true);
                                           }}
                                         >
-                                          <XCircle className="h-4 w-4 mr-1" />
-                                          Reject
+                                          <XCircle className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                                          <span className="hidden sm:inline">Reject</span>
                                         </Button>
                                       </>
                                     ) : item.reservation.status === "approved" ? (
-                                      <Badge className="bg-green-600 text-white">
+                                      <Badge className="bg-green-600 text-white text-xs">
                                         <CheckCircle className="h-3 w-3 mr-1" />
                                         Approved
                                       </Badge>

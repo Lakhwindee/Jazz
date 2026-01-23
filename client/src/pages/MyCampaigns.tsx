@@ -210,12 +210,12 @@ export default function MyCampaigns() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: index * 0.05 }}
       >
-        <Card className={`flex h-full flex-col overflow-hidden transition-all hover:shadow-lg border-primary/20 ${isInFolder ? 'ml-4 border-l-4 border-l-primary/30' : ''}`} data-testid={`card-reservation-${reservation.id}`}>
-          <div className="h-32 w-full bg-gradient-to-br from-gray-100 to-gray-200 p-6 flex items-center justify-center relative">
+        <Card className={`flex h-full flex-col overflow-hidden transition-all hover:shadow-lg border-primary/20 ${isInFolder ? 'ml-2 sm:ml-4 border-l-4 border-l-primary/30' : ''}`} data-testid={`card-reservation-${reservation.id}`}>
+          <div className="h-24 sm:h-32 w-full bg-gradient-to-br from-gray-100 to-gray-200 p-4 sm:p-6 flex items-center justify-center relative">
             {campaign.brandLogo ? (
-              <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-16 max-w-[150px] object-contain mix-blend-multiply" />
+              <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-12 sm:max-h-16 max-w-[120px] sm:max-w-[150px] object-contain mix-blend-multiply" />
             ) : (
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg">
                 {campaign.brand.charAt(0).toUpperCase()}
               </div>
             )}
@@ -223,9 +223,9 @@ export default function MyCampaigns() {
               {getStatusBadge(reservation.status)}
             </div>
           </div>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+          <CardHeader className="pb-2 p-3 sm:p-6 sm:pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 text-xs">
                 {campaign.tier}
               </Badge>
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -233,22 +233,22 @@ export default function MyCampaigns() {
                 {campaign.type}
               </span>
             </div>
-            <h3 className="mt-2 text-xl font-bold leading-tight">{campaign.title}</h3>
-            <p className="text-sm font-semibold text-muted-foreground">{campaign.brand}</p>
+            <h3 className="mt-2 text-lg sm:text-xl font-bold leading-tight">{campaign.title}</h3>
+            <p className="text-xs sm:text-sm font-semibold text-muted-foreground">{campaign.brand}</p>
           </CardHeader>
-          <CardContent className="flex-1 text-sm text-muted-foreground">
-            <p className="line-clamp-3">{campaign.description}</p>
-            <div className="mt-4 flex items-center gap-2 text-xs">
+          <CardContent className="flex-1 text-xs sm:text-sm text-muted-foreground p-3 sm:p-6 pt-0 sm:pt-0">
+            <p className="line-clamp-2 sm:line-clamp-3">{campaign.description}</p>
+            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-1 sm:gap-2 text-xs">
               <span className="font-medium text-foreground">{campaign.spotsRemaining} spots left</span>
               <span>•</span>
               <span>Due {new Date(campaign.deadline).toLocaleDateString()}</span>
             </div>
           </CardContent>
-          <CardFooter className="border-t bg-muted/20 p-4 flex flex-col gap-2">
-            <div className="flex w-full items-center justify-between">
+          <CardFooter className="border-t bg-muted/20 p-3 sm:p-4 flex flex-col gap-2">
+            <div className="flex w-full items-center justify-between gap-2">
               <div>
                 <p className="text-xs text-muted-foreground">Payout</p>
-                <p className="text-lg font-bold text-green-600" data-testid={`text-payout-${reservation.id}`}>{formatINR(campaign.payAmount)}</p>
+                <p className="text-base sm:text-lg font-bold text-green-600" data-testid={`text-payout-${reservation.id}`}>{formatINR(campaign.payAmount)}</p>
               </div>
 
               {reservation.status === 'reserved' && (
@@ -256,11 +256,12 @@ export default function MyCampaigns() {
                   <Dialog open={isDialogOpen && selectedReservationId === reservation.id} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                       <Button 
-                        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white border-0 gap-2"
+                        size="sm"
+                        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white border-0 gap-1 sm:gap-2 text-xs sm:text-sm"
                         onClick={() => setSelectedReservationId(reservation.id)}
                         data-testid={`button-submit-${reservation.id}`}
                       >
-                        <Upload className="w-4 h-4" /> Submit Work
+                        <Upload className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Submit Work</span><span className="sm:hidden">Submit</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -310,18 +311,19 @@ export default function MyCampaigns() {
               {reservation.status === 'submitted' && (
                 <Button 
                   variant="outline" 
-                  className="text-muted-foreground"
+                  size="sm"
+                  className="text-muted-foreground text-xs sm:text-sm"
                   onClick={() => approveMutation.mutate(reservation.id)}
                   disabled={approveMutation.isPending}
                   data-testid={`button-approve-${reservation.id}`}
                 >
-                  {approveMutation.isPending ? "Approving..." : "Review Pending..."}
+                  {approveMutation.isPending ? "..." : <><span className="hidden sm:inline">Review </span>Pending...</>}
                 </Button>
               )}
 
               {reservation.status === 'approved' && (
-                <Button disabled variant="outline" className="text-green-600 border-green-200 bg-green-50" data-testid={`button-approved-${reservation.id}`}>
-                  Payment Added
+                <Button disabled size="sm" variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs sm:text-sm" data-testid={`button-approved-${reservation.id}`}>
+                  <span className="hidden sm:inline">Payment </span>Added
                 </Button>
               )}
             </div>
@@ -341,14 +343,14 @@ export default function MyCampaigns() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
-        <div className="mx-auto max-w-6xl p-6">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">My Campaigns</h1>
-            <p className="text-muted-foreground">Manage your reserved and active sponsorships.</p>
+        <div className="mx-auto max-w-6xl p-4 sm:p-6">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Campaigns</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage your reserved and active sponsorships.</p>
           </div>
 
           {reservations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-12 text-center animate-in fade-in zoom-in duration-500">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-6 sm:p-12 text-center animate-in fade-in zoom-in duration-500">
               <div className="rounded-full bg-muted p-4">
                 <LayoutList className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -384,34 +386,36 @@ export default function MyCampaigns() {
                       onClick={() => toggleFolder(group.title)}
                       data-testid={`folder-${group.title}`}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                            {group.brandLogo ? (
-                              <img src={group.brandLogo} alt={group.brand} className="max-h-10 max-w-[40px] object-contain mix-blend-multiply" />
-                            ) : (
-                              <FolderOpen className="h-7 w-7 text-primary" />
-                            )}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
+                              {group.brandLogo ? (
+                                <img src={group.brandLogo} alt={group.brand} className="max-h-8 sm:max-h-10 max-w-[32px] sm:max-w-[40px] object-contain mix-blend-multiply" />
                               ) : (
-                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                <FolderOpen className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                               )}
-                              <h3 className="text-lg font-bold">{group.title}</h3>
-                              <Badge variant="secondary" className="ml-2">
-                                {group.reservations.length} Tiers
-                              </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground">{group.brand}</p>
+                            
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+                                )}
+                                <h3 className="text-base sm:text-lg font-bold truncate">{group.title}</h3>
+                                <Badge variant="secondary" className="text-xs">
+                                  {group.reservations.length} Tiers
+                                </Badge>
+                              </div>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">{group.brand}</p>
+                            </div>
                           </div>
                           
-                          <div className="flex flex-col items-end gap-1">
-                            <p className="text-lg font-bold text-green-600">{formatINR(group.totalPayout.toString())}</p>
-                            <div className="flex gap-1">
+                          <div className="flex flex-col items-start sm:items-end gap-1 ml-15 sm:ml-0">
+                            <p className="text-base sm:text-lg font-bold text-green-600">{formatINR(group.totalPayout.toString())}</p>
+                            <div className="flex flex-wrap gap-1">
                               {statusCounts.reserved > 0 && (
                                 <Badge className="bg-yellow-500 text-xs">{statusCounts.reserved} Reserved</Badge>
                               )}
@@ -428,7 +432,7 @@ export default function MyCampaigns() {
                           </div>
                         </div>
                         
-                        <div className="mt-3 flex flex-wrap gap-1">
+                        <div className="mt-2 sm:mt-3 flex flex-wrap gap-1">
                           {group.tiers.sort().map(tier => (
                             <Badge key={tier} variant="outline" className="text-xs">
                               {tier}
@@ -443,7 +447,7 @@ export default function MyCampaigns() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pl-4"
+                        className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pl-2 sm:pl-4"
                       >
                         {group.reservations.map((reservation, i) => 
                           renderReservationCard(reservation, i, true)
