@@ -104,6 +104,10 @@ export default function CategoryCampaignsPage() {
   const maxJoinedTier = getMaxJoinedTierNumber();
   const maxTierName = TIERS.find(t => t.id === maxJoinedTier)?.name || "Tier 1";
 
+  // Get user's tier based on their Instagram followers
+  const userTier = user?.tier ? TIERS.find(t => t.name === user.tier) : null;
+  const userTierId = userTier?.id || 1;
+
   const filteredCampaigns = campaigns.filter((c: ApiCampaign) => {
     // Don't show campaigns with 0 spots remaining
     if (c.spotsRemaining <= 0) return false;
@@ -111,8 +115,12 @@ export default function CategoryCampaignsPage() {
     const matchesSearch = searchTerm === "" || 
       c.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
       c.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Show campaigns where user's tier >= campaign tier (higher tier creators can do lower tier campaigns)
     const campaignTier = TIERS.find(t => t.name === c.tier);
-    const matchesTier = campaignTier ? campaignTier.id <= maxJoinedTier : false;
+    const campaignTierId = campaignTier?.id || 1;
+    const matchesTier = userTierId >= campaignTierId;
+    
     return matchesSearch && matchesTier;
   });
 
