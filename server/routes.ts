@@ -3866,10 +3866,14 @@ export async function registerRoutes(
       console.log(`[STARS DEBUG] User ${user.id} current stars: ${user.stars}`);
       
       // Convert to proper types to handle any database type issues
-      const isPromo = campaign.isPromotional === true || String(campaign.isPromotional) === 'true' || Number(campaign.isPromotional) === 1;
-      const starRewardNum = Number(campaign.starReward) || 0;
+      // Check all possible truthy values for isPromotional (cast to any to handle runtime type variations)
+      const isPromoRaw = campaign.isPromotional as any;
+      const isPromo = isPromoRaw === true || isPromoRaw === 1 || isPromoRaw === 't' || isPromoRaw === 'true' || isPromoRaw === 'TRUE' || isPromoRaw === '1' || Boolean(isPromoRaw) === true;
+      const starRewardNum = parseInt(String(campaign.starReward)) || 0;
       
-      console.log(`[STARS DEBUG] isPromo (after conversion): ${isPromo}, starRewardNum (after conversion): ${starRewardNum}`);
+      console.log(`[STARS DEBUG] isPromoRaw: "${isPromoRaw}" (type: ${typeof isPromoRaw})`);
+      console.log(`[STARS DEBUG] isPromo (final check): ${isPromo}, starRewardNum: ${starRewardNum}`);
+      console.log(`[STARS DEBUG] Will award stars: ${isPromo && starRewardNum > 0}`);
       
       if (isPromo && starRewardNum > 0) {
         // Award stars instead of money
