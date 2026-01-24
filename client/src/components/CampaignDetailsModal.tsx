@@ -51,7 +51,13 @@ export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isR
   const canReserve = !requiresDownload || hasDownloaded;
   
   const handleDownload = () => {
-    window.open(campaign.assetUrl!, '_blank');
+    // Create a temporary link element to trigger direct download
+    const link = document.createElement('a');
+    link.href = campaign.assetUrl!;
+    link.download = campaign.assetFileName || 'campaign-asset';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setHasDownloaded(true);
   };
 

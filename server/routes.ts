@@ -590,7 +590,8 @@ export async function registerRoutes(
       
       // Check if user already has a reservation for this campaign
       const existingReservation = await storage.getUserReservationForCampaign(userId, campaignId);
-      if (existingReservation) {
+      // Allow re-reservation if the previous reservation was rejected
+      if (existingReservation && existingReservation.status !== 'rejected') {
         return res.status(400).json({ error: "You already have a reservation for this campaign" });
       }
 
