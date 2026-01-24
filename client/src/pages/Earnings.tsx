@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiTransaction, type ApiBankAccount, type ApiWithdrawalRequest, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { DollarSign, Download, History, ArrowDownLeft, Wallet as WalletIcon, AlertCircle, Plus, Trash2, Check, Clock, CreditCard } from "lucide-react";
+import { DollarSign, Download, History, ArrowDownLeft, Wallet as WalletIcon, AlertCircle, Plus, Trash2, Check, Clock, CreditCard, XCircle, Instagram } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,6 +48,16 @@ export default function Earnings() {
     queryKey: ["withdrawalRequests"],
     queryFn: api.getWithdrawalRequests,
   });
+
+  // Fetch user reservations for rejected history
+  const { data: reservations = [] } = useQuery({
+    queryKey: ["reservations", user?.id],
+    queryFn: () => user ? api.getUserReservations(user.id) : [],
+    enabled: !!user,
+  });
+
+  // Filter rejected reservations
+  const rejectedReservations = reservations.filter(r => r.status === 'rejected' && r.campaign);
 
   // Auto-select default bank account when opening withdrawal dialog
   useEffect(() => {
@@ -368,6 +378,7 @@ export default function Earnings() {
               <TabsList className="w-full md:w-auto inline-flex">
                 <TabsTrigger value="transactions" className="text-xs md:text-sm whitespace-nowrap">History</TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-xs md:text-sm whitespace-nowrap">Withdrawals</TabsTrigger>
+                <TabsTrigger value="rejected" className="text-xs md:text-sm whitespace-nowrap">Rejected</TabsTrigger>
                 <TabsTrigger value="bank-accounts" className="text-xs md:text-sm whitespace-nowrap">Bank Accounts</TabsTrigger>
               </TabsList>
             </div>
@@ -476,6 +487,71 @@ export default function Earnings() {
                             <div className="text-right">
                               <p className="text-lg font-bold text-blue-600">{formatINR(request.amount)}</p>
                               {getStatusBadge(request.status)}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="rejected">
+              <Card>
+                <CardContent className="p-6">
+                  {rejectedReservations.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <XCircle className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                      <p className="mt-4 text-sm text-muted-foreground">No rejected campaigns</p>
+                      <p className="text-xs text-muted-foreground/80">Rejected submissions will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {rejectedReservations.map((reservation, i) => {
+                        const campaign = reservation.campaign!;
+                        return (
+                          <motion.div
+                            key={reservation.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="flex items-center justify-between rounded-lg border border-red-200 dark:border-red-900/50 p-4 bg-red-50/30 dark:bg-red-950/10"
+                            data-testid={`rejected-campaign-${reservation.id}`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                {campaign.brandLogo ? (
+                                  <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-8 max-w-[32px] object-contain mix-blend-multiply" />
+                                ) : (
+                                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-sm font-bold">
+                                    {campaign.brand.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm">{campaign.title}</p>
+                                  <Badge className="bg-red-500 text-xs">
+                                    <XCircle className="w-3 h-3 mr-1" /> Rejected
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>{campaign.brand}</span>
+                                  <span>•</span>
+                                  <Badge variant="outline" className="text-xs">{campaign.tier}</Badge>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Instagram className="h-3 w-3" /> {campaign.type}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-muted-foreground line-through">{formatINR(campaign.payAmount)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(reservation.reservedAt).toLocaleDateString()}
+                              </p>
                             </div>
                           </motion.div>
                         );

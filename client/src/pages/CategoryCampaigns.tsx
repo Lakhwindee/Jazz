@@ -152,7 +152,8 @@ export default function CategoryCampaignsPage() {
   };
 
   const getReservationForCampaign = (campaignId: number): ApiReservation | undefined => {
-    return reservations.find(r => r.campaignId === campaignId);
+    // Only return active reservations (not rejected) - rejected campaigns can be reserved again
+    return reservations.find(r => r.campaignId === campaignId && r.status !== 'rejected');
   };
 
   const getStatusBadge = (status: string) => {
@@ -160,7 +161,6 @@ export default function CategoryCampaignsPage() {
       case 'reserved': return <Badge className="bg-yellow-500 hover:bg-yellow-600"><Clock className="w-3 h-3 mr-1"/> Reserved</Badge>;
       case 'submitted': return <Badge className="bg-blue-500 hover:bg-blue-600"><CheckCircle className="w-3 h-3 mr-1"/> Under Review</Badge>;
       case 'approved': return <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1"/> Approved</Badge>;
-      case 'rejected': return <Badge className="bg-red-500 hover:bg-red-600"><AlertCircle className="w-3 h-3 mr-1"/> Rejected</Badge>;
       default: return null;
     }
   };

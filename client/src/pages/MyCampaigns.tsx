@@ -93,20 +93,9 @@ export default function MyCampaigns() {
     return title.trim().replace(/\s*\(Tier\s*\d+\)\s*$/i, '').trim();
   };
 
-  // Separate active reservations (reserved, submitted, approved) from rejected (history)
-  const { activeReservations, rejectedReservations } = useMemo(() => {
-    const active: typeof reservations = [];
-    const rejected: typeof reservations = [];
-    
-    reservations.forEach(r => {
-      if (r.status === 'rejected') {
-        rejected.push(r);
-      } else {
-        active.push(r);
-      }
-    });
-    
-    return { activeReservations: active, rejectedReservations: rejected };
+  // Filter out rejected reservations - they show in Earnings page now
+  const activeReservations = useMemo(() => {
+    return reservations.filter(r => r.status !== 'rejected');
   }, [reservations]);
 
   const groupedReservations = useMemo(() => {
@@ -139,37 +128,6 @@ export default function MyCampaigns() {
     
     return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
   }, [activeReservations]);
-  
-  // Group rejected reservations for history
-  const groupedRejectedReservations = useMemo(() => {
-    const groups: Record<string, GroupedReservations> = {};
-    
-    rejectedReservations.forEach((reservation) => {
-      const campaign = reservation.campaign;
-      if (!campaign) return;
-      
-      const key = getBaseTitle(campaign.title);
-      
-      if (!groups[key]) {
-        groups[key] = {
-          title: getDisplayTitle(campaign.title),
-          brand: campaign.brand,
-          brandLogo: campaign.brandLogo,
-          reservations: [],
-          totalPayout: 0,
-          tiers: [],
-        };
-      }
-      
-      groups[key].reservations.push(reservation as ApiReservation & { campaign: ApiCampaign });
-      groups[key].totalPayout += parseFloat(campaign.payAmount);
-      if (!groups[key].tiers.includes(campaign.tier)) {
-        groups[key].tiers.push(campaign.tier);
-      }
-    });
-    
-    return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
-  }, [rejectedReservations]);
 
   const toggleFolder = (title: string) => {
     setExpandedFolders(prev => {
@@ -420,7 +378,7 @@ export default function MyCampaigns() {
             <p className="text-sm sm:text-base text-muted-foreground">Manage your reserved and active sponsorships.</p>
           </div>
 
-          {activeReservations.length === 0 && rejectedReservations.length === 0 ? (
+          {activeReservations.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-6 sm:p-12 text-center animate-in fade-in zoom-in duration-500">
               <div className="rounded-full bg-muted p-4">
                 <LayoutList className="h-8 w-8 text-muted-foreground" />
@@ -436,25 +394,7 @@ export default function MyCampaigns() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-8">
-              {/* Active Campaigns Section */}
-              {activeReservations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
-                  <div className="rounded-full bg-muted p-4">
-                    <LayoutList className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="mt-3 text-base font-semibold">No active campaigns</h3>
-                  <p className="mb-3 mt-1 text-sm text-muted-foreground">
-                    All your campaigns have been completed or rejected.
-                  </p>
-                  <Link href="/campaigns">
-                    <Button size="sm" className="rounded-full bg-insta-gradient text-white border-0 hover:opacity-90">
-                      Find New Campaigns
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-6">
+            <div className="space-y-6">
               {groupedReservations.map((group) => {
                 const isExpanded = expandedFolders.has(group.title);
                 const statusCounts = getStatusCounts(group.reservations);
@@ -546,56 +486,6 @@ export default function MyCampaigns() {
                   </div>
                 );
               })}
-                </div>
-              )}
-              
-              {/* History Section - Rejected Campaigns */}
-              {rejectedReservations.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-t pt-6">
-                    <AlertCircle className="h-5 w-5 text-muted-foreground" />
-                    <h2 className="text-lg font-semibold text-muted-foreground">History (Rejected)</h2>
-                    <Badge variant="secondary" className="text-xs">{rejectedReservations.length}</Badge>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 opacity-60">
-                    {rejectedReservations.filter(r => r.campaign).map((reservation) => {
-                      const campaign = reservation.campaign!;
-                      return (
-                        <Card key={reservation.id} className="overflow-hidden border-red-200 dark:border-red-900" data-testid={`card-rejected-${reservation.id}`}>
-                          <div className="h-20 w-full bg-gradient-to-br from-gray-100 to-gray-200 p-4 flex items-center justify-center relative">
-                            {campaign.brandLogo ? (
-                              <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-10 max-w-[100px] object-contain mix-blend-multiply" />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-bold">
-                                {campaign.brand.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <div className="absolute top-2 right-2">
-                              <Badge className="bg-red-500 hover:bg-red-600" data-testid="badge-history-rejected">
-                                <AlertCircle className="w-3 h-3 mr-1"/> Rejected
-                              </Badge>
-                            </div>
-                          </div>
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <Badge variant="secondary" className="text-xs">{campaign.tier}</Badge>
-                              <span className="text-xs text-muted-foreground">{campaign.type}</span>
-                            </div>
-                            <h3 className="font-semibold text-sm line-clamp-1">{campaign.title}</h3>
-                            <p className="text-xs text-muted-foreground">{campaign.brand}</p>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-sm font-medium text-muted-foreground line-through">{formatINR(campaign.payAmount)}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(reservation.reservedAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
