@@ -228,6 +228,9 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
   const [banReason, setBanReason] = useState("");
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAwardStarsDialog, setShowAwardStarsDialog] = useState(false);
+  const [starsToAward, setStarsToAward] = useState(1);
+  const [starsReason, setStarsReason] = useState("");
 
   const verifyMutation = useMutation({
     mutationFn: async (userId: number) => {
@@ -285,6 +288,26 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
       toast.success("User deleted successfully");
       setShowDeleteDialog(false);
       onClose();
+    },
+  });
+
+  const awardStarsMutation = useMutation({
+    mutationFn: async ({ userId, stars, reason }: { userId: number; stars: number; reason?: string }) => {
+      return api.admin.awardStars(userId, stars, reason);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      if (data.promoCode) {
+        toast.success(`Stars awarded! User reached 5 stars and earned promo code: ${data.promoCode}`);
+      } else {
+        toast.success(`Stars awarded! User now has ${data.newStars} stars`);
+      }
+      setShowAwardStarsDialog(false);
+      setStarsToAward(1);
+      setStarsReason("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 
@@ -696,6 +719,18 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete User
                     </Button>
+                    
+                    {user.role === "creator" && (
+                      <Button
+                        variant="outline"
+                        className="border-yellow-500 text-yellow-500"
+                        onClick={() => setShowAwardStarsDialog(true)}
+                        data-testid="button-award-stars"
+                      >
+                        <Star className="h-4 w-4 mr-2" />
+                        Award Stars
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -776,6 +811,57 @@ function UserDetailDialog({ user, open, onClose }: { user: ApiUser | null; open:
                 data-testid="button-confirm-delete"
               >
                 {deleteMutation.isPending ? "Deleting..." : "Permanently Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAwardStarsDialog} onOpenChange={setShowAwardStarsDialog}>
+          <DialogContent className="bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" />
+                Award Stars to {user.name}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Current stars: {(user as any).stars || 0}. At 5 stars, creator earns a free Pro month promo code.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-gray-300">Stars to Award (1-5)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={starsToAward}
+                  onChange={(e) => setStarsToAward(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  data-testid="input-stars-to-award"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Reason (optional)</Label>
+                <Input
+                  value={starsReason}
+                  onChange={(e) => setStarsReason(e.target.value)}
+                  placeholder="e.g., For promotional campaign participation"
+                  className="bg-gray-700 border-gray-600 text-white"
+                  data-testid="input-stars-reason"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAwardStarsDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-yellow-600 hover:bg-yellow-700"
+                onClick={() => awardStarsMutation.mutate({ userId: user.id, stars: starsToAward, reason: starsReason || undefined })}
+                disabled={awardStarsMutation.isPending}
+                data-testid="button-confirm-award-stars"
+              >
+                {awardStarsMutation.isPending ? "Awarding..." : `Award ${starsToAward} Star${starsToAward > 1 ? 's' : ''}`}
               </Button>
             </DialogFooter>
           </DialogContent>

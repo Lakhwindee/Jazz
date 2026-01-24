@@ -41,6 +41,7 @@ International influencer marketing platform connecting Instagram creators with b
   - Delete users permanently  
   - Disconnect Instagram accounts
   - Ban/Unban Instagram accounts separately
+  - **Award Stars manually**: Retroactively award stars to creators (for promotional campaign participation)
 - **Campaign Folder View**: Sponsor campaigns grouped by title with collapsible tiers
   - Same title campaigns shown as folder
   - Expand to see individual tier cards

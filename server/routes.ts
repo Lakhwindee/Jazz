@@ -3290,6 +3290,74 @@ export async function registerRoutes(
     }
   });
 
+  // Manually award stars to a user (admin action) - for retroactive star awards
+  app.post("/api/admin/users/:userId/award-stars", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { stars, reason } = req.body;
+      
+      if (!stars || stars < 1 || stars > 5) {
+        return res.status(400).json({ error: "Stars must be between 1 and 5" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const newStars = (user.stars || 0) + stars;
+      await storage.updateUserStars(userId, newStars);
+      
+      // Create notification for the user
+      await storage.createNotification({
+        userId,
+        type: "stars_awarded",
+        title: "Stars Awarded!",
+        message: reason || `You have been awarded ${stars} star(s) by admin! Total: ${newStars} stars.`,
+        isRead: false,
+      });
+      
+      // Check if user reached 5 stars - generate free month promo code
+      if (newStars >= 5) {
+        const remainingStars = newStars - 5;
+        await storage.updateUserStars(userId, remainingStars);
+        
+        // Generate unique promo code
+        const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
+        
+        // Create 1 month free trial promo code
+        await storage.createPromoCode({
+          code: promoCode,
+          type: "trial",
+          discountPercent: 0,
+          trialDays: 30,
+          maxUses: 1,
+          isActive: true,
+          validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          afterTrialAction: "keep_pro",
+          creatorOnly: true,
+          sponsorOnly: false,
+          assignedToUserId: userId,
+        });
+        
+        await storage.createNotification({
+          userId,
+          type: "promo_code_generated",
+          title: "FREE Pro Subscription Earned!",
+          message: `Congratulations! You collected 5 stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode}`,
+          isRead: false,
+        });
+        
+        res.json({ success: true, newStars: remainingStars, promoCode });
+      } else {
+        res.json({ success: true, newStars });
+      }
+    } catch (error) {
+      console.error("Error awarding stars:", error);
+      res.status(500).json({ error: "Failed to award stars" });
+    }
+  });
+
   // Convert campaign to money-based (admin action)
   app.post("/api/admin/campaigns/:campaignId/convert-to-money", isAdmin, async (req, res) => {
     try {

@@ -723,6 +723,20 @@ export const api = {
       return res.json();
     },
 
+    async awardStars(userId: number, stars: number, reason?: string): Promise<{ success: boolean; newStars: number; promoCode?: string }> {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/award-stars`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stars, reason }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to award stars");
+      }
+      return res.json();
+    },
+
     async getCampaigns(): Promise<ApiCampaign[]> {
       const res = await fetch(`${API_BASE}/admin/campaigns`, { credentials: "include" });
       if (!res.ok) {
