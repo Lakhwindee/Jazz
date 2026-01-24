@@ -3256,8 +3256,8 @@ export async function registerRoutes(
       const campaignId = parseInt(req.params.campaignId);
       const { starReward } = req.body;
       
-      if (!starReward || starReward < 1 || starReward > 5) {
-        return res.status(400).json({ error: "Star reward must be between 1 and 5" });
+      if (!starReward || starReward < 1 || starReward > 10) {
+        return res.status(400).json({ error: "Star reward must be between 1 and 10" });
       }
       
       const campaign = await storage.getCampaign(campaignId);
@@ -3335,9 +3335,6 @@ export async function registerRoutes(
           isActive: true,
           validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           afterTrialAction: "keep_pro",
-          creatorOnly: true,
-          sponsorOnly: false,
-          assignedToUserId: userId,
         });
         
         await storage.createNotification({
