@@ -3827,10 +3827,17 @@ export async function registerRoutes(
       }
 
       // Check if promotional campaign (stars) or regular (money)
+      console.log(`[STARS DEBUG] Campaign ID: ${campaign.id}, Title: "${campaign.title}"`);
+      console.log(`[STARS DEBUG] isPromotional: ${campaign.isPromotional} (type: ${typeof campaign.isPromotional})`);
+      console.log(`[STARS DEBUG] starReward: ${campaign.starReward} (type: ${typeof campaign.starReward})`);
+      console.log(`[STARS DEBUG] User current stars: ${user.stars}`);
+      
       if (campaign.isPromotional && campaign.starReward > 0) {
         // Award stars instead of money
+        console.log(`[STARS DEBUG] ✓ Promotional campaign detected! Awarding ${campaign.starReward} stars to user ${user.id}`);
         const newStars = (user.stars || 0) + campaign.starReward;
         await storage.updateUserStars(reservation.userId, newStars);
+        console.log(`[STARS DEBUG] ✓ Stars updated. New total: ${newStars}`);
 
         // Create notification for stars
         await storage.createNotification({

@@ -1407,10 +1407,12 @@ function SubmissionsTab() {
 
   const approveMutation = useMutation({
     mutationFn: (reservationId: number) => api.admin.approveSubmission(reservationId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-campaign-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
-      toast.success("Submission approved and payment sent");
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      // Show the correct message from backend (stars or payment)
+      toast.success(data.message || "Submission approved");
     },
     onError: (error: Error) => {
       toast.error(error.message);
