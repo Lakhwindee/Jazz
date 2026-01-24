@@ -12,6 +12,8 @@ export default function Dashboard() {
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
     queryFn: api.getCurrentUser,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds to show updated stars
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 
   const { showGuide, completeGuide } = useQuickStartGuide("creator");
