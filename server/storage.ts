@@ -20,7 +20,7 @@ export interface IStorage {
   updateUserInstagramOAuth(id: number, accessToken: string, instagramUserId: string, expiresAt: Date): Promise<void>;
   updateUserInstagramProfile(id: number, username: string, profileUrl: string, followers: number): Promise<void>;
   updateUserSubscription(id: number, plan: string, expiresAt: Date | null, isTrial?: boolean, autoRenew?: boolean): Promise<void>;
-  updateUserStars(id: number, stars: number): Promise<void>;
+  updateUserStars(id: number, stars: number): Promise<number>;
 
   // Campaigns
   getAllCampaigns(): Promise<Campaign[]>;
@@ -280,8 +280,13 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set(updateData).where(eq(users.id, id));
   }
 
-  async updateUserStars(id: number, stars: number): Promise<void> {
+  async updateUserStars(id: number, stars: number): Promise<number> {
     await db.update(users).set({ stars }).where(eq(users.id, id));
+    // Verify the update
+    const updated = await db.select({ stars: users.stars }).from(users).where(eq(users.id, id)).limit(1);
+    const actualStars = updated[0]?.stars || 0;
+    console.log(`[STARS DB] User ${id} stars updated to ${stars}. Verified: ${actualStars}`);
+    return actualStars;
   }
 
   async downgradeExpiredTrials(): Promise<number> {

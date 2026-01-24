@@ -2136,6 +2136,7 @@ function CampaignsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-campaign-submissions"] });
       setConvertDialogOpen(false);
       setConvertStarReward(1);
       toast.success("Campaign converted to star-based promotional campaign!");

@@ -3813,10 +3813,15 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Submission is not pending review" });
       }
       
+      // Fetch fresh campaign data to ensure we have latest isPromotional status
       const campaign = await storage.getCampaign(reservation.campaignId);
       if (!campaign) {
         return res.status(404).json({ error: "Campaign not found" });
       }
+      
+      // CRITICAL: Log the raw campaign object to debug
+      console.log(`[STARS DEBUG] ========== APPROVAL START ==========`);
+      console.log(`[STARS DEBUG] Raw campaign object:`, JSON.stringify(campaign, null, 2));
       
       // Approve the reservation
       await storage.updateReservationStatus(reservationId, "approved", new Date());
@@ -3828,22 +3833,23 @@ export async function registerRoutes(
 
       // Check if promotional campaign (stars) or regular (money)
       console.log(`[STARS DEBUG] Campaign ID: ${campaign.id}, Title: "${campaign.title}"`);
-      console.log(`[STARS DEBUG] isPromotional: ${campaign.isPromotional} (type: ${typeof campaign.isPromotional})`);
-      console.log(`[STARS DEBUG] starReward: ${campaign.starReward} (type: ${typeof campaign.starReward})`);
-      console.log(`[STARS DEBUG] User current stars: ${user.stars}`);
+      console.log(`[STARS DEBUG] isPromotional RAW: ${campaign.isPromotional} (type: ${typeof campaign.isPromotional})`);
+      console.log(`[STARS DEBUG] starReward RAW: ${campaign.starReward} (type: ${typeof campaign.starReward})`);
+      console.log(`[STARS DEBUG] User ${user.id} current stars: ${user.stars}`);
       
       // Convert to proper types to handle any database type issues
-      const isPromo = campaign.isPromotional === true || (campaign.isPromotional as any) === 'true' || (campaign.isPromotional as any) === 1;
+      const isPromo = campaign.isPromotional === true || String(campaign.isPromotional) === 'true' || Number(campaign.isPromotional) === 1;
       const starRewardNum = Number(campaign.starReward) || 0;
       
-      console.log(`[STARS DEBUG] isPromo (converted): ${isPromo}, starRewardNum (converted): ${starRewardNum}`);
+      console.log(`[STARS DEBUG] isPromo (after conversion): ${isPromo}, starRewardNum (after conversion): ${starRewardNum}`);
       
       if (isPromo && starRewardNum > 0) {
         // Award stars instead of money
         console.log(`[STARS DEBUG] ✓ Promotional campaign detected! Awarding ${starRewardNum} stars to user ${user.id}`);
-        const newStars = (user.stars || 0) + starRewardNum;
-        await storage.updateUserStars(reservation.userId, newStars);
-        console.log(`[STARS DEBUG] ✓ Stars updated. New total: ${newStars}`);
+        const oldStars = user.stars || 0;
+        const newStars = oldStars + starRewardNum;
+        const verifiedStars = await storage.updateUserStars(reservation.userId, newStars);
+        console.log(`[STARS DEBUG] ✓ Stars updated. Old: ${oldStars}, Added: ${starRewardNum}, New: ${newStars}, DB Verified: ${verifiedStars}`);
 
         // Create notification for stars
         await storage.createNotification({
@@ -3893,7 +3899,14 @@ export async function registerRoutes(
           });
         }
 
-        res.json({ success: true, message: `Submission approved. ${starRewardNum} stars awarded.` });
+        console.log(`[STARS DEBUG] ========== APPROVAL COMPLETE ==========`);
+        res.json({ 
+          success: true, 
+          message: `Submission approved. ${starRewardNum} stars awarded.`,
+          starsAwarded: starRewardNum,
+          totalStars: verifiedStars,
+          isPromotional: true
+        });
       } else {
         // Regular payment flow - payment from admin wallet to creator
         const payAmount = parseFloat(campaign.payAmount);
