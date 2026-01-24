@@ -485,24 +485,17 @@ export async function registerRoutes(
       // Only show approved campaigns to creators
       campaigns = campaigns.filter(c => c.isApproved === true);
       
-      // Filter campaigns by user's country if user is logged in as creator
-      // Also support optional country filter query parameter
+      // Filter campaigns by country - support optional country filter query parameter
+      // If "all" is passed or no filter, show all campaigns (no country filtering)
       const filterCountry = req.query.country as string | undefined;
       
-      if (filterCountry) {
+      if (filterCountry && filterCountry !== "all") {
         // Use explicit country filter from query parameter
         campaigns = campaigns.filter(c => 
           !c.targetCountries || c.targetCountries.length === 0 || c.targetCountries.includes(filterCountry)
         );
-      } else if (req.user && req.user.role === "creator") {
-        // Default: filter by user's country
-        const user = await storage.getUser(req.user.id);
-        if (user && user.country) {
-          campaigns = campaigns.filter(c => 
-            !c.targetCountries || c.targetCountries.length === 0 || c.targetCountries.includes(user.country)
-          );
-        }
       }
+      // Note: Removed auto-filter by user's country - now "All Countries" shows everything
       
       res.json(campaigns);
     } catch (error) {
