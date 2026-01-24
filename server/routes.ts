@@ -3832,10 +3832,16 @@ export async function registerRoutes(
       console.log(`[STARS DEBUG] starReward: ${campaign.starReward} (type: ${typeof campaign.starReward})`);
       console.log(`[STARS DEBUG] User current stars: ${user.stars}`);
       
-      if (campaign.isPromotional && campaign.starReward > 0) {
+      // Convert to proper types to handle any database type issues
+      const isPromo = campaign.isPromotional === true || (campaign.isPromotional as any) === 'true' || (campaign.isPromotional as any) === 1;
+      const starRewardNum = Number(campaign.starReward) || 0;
+      
+      console.log(`[STARS DEBUG] isPromo (converted): ${isPromo}, starRewardNum (converted): ${starRewardNum}`);
+      
+      if (isPromo && starRewardNum > 0) {
         // Award stars instead of money
-        console.log(`[STARS DEBUG] ✓ Promotional campaign detected! Awarding ${campaign.starReward} stars to user ${user.id}`);
-        const newStars = (user.stars || 0) + campaign.starReward;
+        console.log(`[STARS DEBUG] ✓ Promotional campaign detected! Awarding ${starRewardNum} stars to user ${user.id}`);
+        const newStars = (user.stars || 0) + starRewardNum;
         await storage.updateUserStars(reservation.userId, newStars);
         console.log(`[STARS DEBUG] ✓ Stars updated. New total: ${newStars}`);
 
@@ -3844,7 +3850,7 @@ export async function registerRoutes(
           userId: reservation.userId,
           type: "submission_approved",
           title: "Submission Approved!",
-          message: `Your work for "${campaign.title}" has been approved. You earned ${campaign.starReward} star(s)! Total: ${newStars} stars.`,
+          message: `Your work for "${campaign.title}" has been approved. You earned ${starRewardNum} star(s)! Total: ${newStars} stars.`,
           isRead: false,
           campaignId: campaign.id,
           reservationId,
@@ -3855,6 +3861,7 @@ export async function registerRoutes(
           const starsUsed = 5;
           const remainingStars = newStars - starsUsed;
           await storage.updateUserStars(reservation.userId, remainingStars);
+          console.log(`[STARS DEBUG] ✓ User reached 5+ stars! Remaining after promo: ${remainingStars}`);
 
           // Generate unique promo code for this user
           const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
@@ -3882,7 +3889,7 @@ export async function registerRoutes(
           });
         }
 
-        res.json({ success: true, message: `Submission approved. ${campaign.starReward} stars awarded.` });
+        res.json({ success: true, message: `Submission approved. ${starRewardNum} stars awarded.` });
       } else {
         // Regular payment flow - payment from admin wallet to creator
         const payAmount = parseFloat(campaign.payAmount);
