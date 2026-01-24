@@ -3250,6 +3250,28 @@ export async function registerRoutes(
     }
   });
 
+  // Debug endpoint to check campaign state
+  app.get("/api/admin/campaigns/:campaignId/debug", isAdmin, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json({
+        id: campaign.id,
+        title: campaign.title,
+        isPromotional: campaign.isPromotional,
+        isPromotionalType: typeof campaign.isPromotional,
+        starReward: campaign.starReward,
+        starRewardType: typeof campaign.starReward,
+        isApproved: campaign.isApproved,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get campaign debug info" });
+    }
+  });
+
   // Convert campaign to promotional (admin action)
   app.post("/api/admin/campaigns/:campaignId/convert-to-promotional", isAdmin, async (req, res) => {
     try {
@@ -3269,7 +3291,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Campaign must be approved first" });
       }
       
+      console.log(`[CONVERT DEBUG] Converting campaign ${campaignId} to promotional with ${starReward} stars`);
       const updatedCampaign = await storage.convertCampaignToPromotional(campaignId, starReward);
+      console.log(`[CONVERT DEBUG] Result:`, JSON.stringify(updatedCampaign, null, 2));
+      
+      // Verify conversion
+      const verifiedCampaign = await storage.getCampaign(campaignId);
+      console.log(`[CONVERT DEBUG] Verified campaign isPromotional: ${verifiedCampaign?.isPromotional}, starReward: ${verifiedCampaign?.starReward}`);
       
       // Notify sponsor about conversion
       if (campaign.sponsorId) {
