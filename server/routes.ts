@@ -661,6 +661,17 @@ export async function registerRoutes(
       const startTime = req.body.startTime || "00:00";
       const endTime = req.body.endTime || "00:00";
       
+      // Validate link is provided
+      if (!link || typeof link !== 'string' || link.trim() === "") {
+        return res.status(400).json({ error: "Instagram post/reel link is required" });
+      }
+      
+      // Basic URL validation
+      const urlPattern = /^https?:\/\/.+/i;
+      if (!urlPattern.test(link.trim())) {
+        return res.status(400).json({ error: "Please provide a valid URL starting with http:// or https://" });
+      }
+      
       // Validate reservation exists and is in correct state
       const reservation = await storage.getReservation(reservationId);
       if (!reservation) {

@@ -177,6 +177,20 @@ export default function MyCampaigns() {
 
   const handleSubmit = () => {
     if (!selectedReservationId) return;
+    
+    // Validate link is provided
+    if (!submissionData.link || submissionData.link.trim() === "") {
+      toast.error("Please provide the Instagram post/reel link");
+      return;
+    }
+    
+    // Basic URL validation
+    const urlPattern = /^https?:\/\/.+/i;
+    if (!urlPattern.test(submissionData.link.trim())) {
+      toast.error("Please enter a valid URL starting with http:// or https://");
+      return;
+    }
+    
     submitMutation.mutate({ reservationId: selectedReservationId, data: submissionData });
   };
 
