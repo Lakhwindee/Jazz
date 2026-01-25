@@ -3308,17 +3308,7 @@ export async function registerRoutes(
       const verifiedCampaign = await storage.getCampaign(campaignId);
       console.log(`[CONVERT DEBUG] Verified campaign isPromotional: ${verifiedCampaign?.isPromotional}, starReward: ${verifiedCampaign?.starReward}`);
       
-      // Notify sponsor about conversion
-      if (campaign.sponsorId) {
-        await storage.createNotification({
-          userId: campaign.sponsorId,
-          type: "campaign_updated",
-          title: "Campaign Converted to Promotional",
-          message: `Your campaign "${campaign.title}" has been converted to a promotional campaign with ${starReward} star rewards.`,
-          isRead: false,
-          campaignId: campaign.id,
-        });
-      }
+      // Note: No notification to sponsor - this is an internal admin action
       
       res.json(updatedCampaign);
     } catch (error) {
@@ -3413,17 +3403,7 @@ export async function registerRoutes(
       
       const updatedCampaign = await storage.convertCampaignToMoney(campaignId);
       
-      // Notify sponsor about conversion
-      if (campaign.sponsorId) {
-        await storage.createNotification({
-          userId: campaign.sponsorId,
-          type: "campaign_updated",
-          title: "Campaign Converted to Money-Based",
-          message: `Your campaign "${campaign.title}" has been converted back to a money-based campaign.`,
-          isRead: false,
-          campaignId: campaign.id,
-        });
-      }
+      // Note: No notification to sponsor - this is an internal admin action
       
       res.json(updatedCampaign);
     } catch (error) {
