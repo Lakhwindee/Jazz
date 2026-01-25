@@ -6,6 +6,27 @@
 
 Build a complete React Native mobile app for "Mingree" - an international influencer marketing platform. The app must be an EXACT replica of the website with ALL features.
 
+## ⚠️ CRITICAL: CREATOR vs SPONSOR ROLES - DO NOT MIX!
+
+**CREATOR (Instagram Influencer):**
+- Earns money by completing brand campaigns
+- Has: Total Earnings, Wallet Balance, Stars, Active Campaigns
+- Bottom Nav: Dashboard, Campaigns, My Campaigns, Wallet, Profile
+- Can browse and join campaigns, submit content, earn stars
+
+**SPONSOR (Brand):**
+- Spends money to create campaigns for influencers
+- Has: Active Campaigns, Total Budget, Creators Reached, Fill Rate
+- Bottom Nav: Dashboard, Campaigns, Create Campaign, Wallet, Profile
+- Can create campaigns, review submissions, approve/reject creators
+
+**THESE ARE COMPLETELY DIFFERENT SCREENS! DO NOT USE SPONSOR STATS ON CREATOR DASHBOARD OR VICE VERSA!**
+
+## ⚠️ COMMON BUG: "Tier Tier 16"
+- The tier `name` field already contains "Tier X" (e.g., "Tier 16")
+- CORRECT: Display `tier.name` directly → Shows "Tier 16"
+- WRONG: Display `"Tier " + tier.name` → Shows "Tier Tier 16" (BUG!)
+
 ## API BASE URL (PRODUCTION)
 ```
 https://mingree.com
@@ -608,29 +629,46 @@ Body: { orderId, paymentId }
 
 ## 20-TIER SYSTEM
 
+**IMPORTANT: The `name` field already contains "Tier X" - DO NOT add "Tier" prefix again!**
+- CORRECT: Display `tier.name` directly → Shows "Tier 16"
+- WRONG: Display `"Tier " + tier.name` → Shows "Tier Tier 16" (BUG!)
+
+**Actual Tier Data from Backend API:**
 ```javascript
 const TIERS = [
-  { tier: 1, label: "Tier 1", min: 1000, max: 5000, basePrice: 100 },
-  { tier: 2, label: "Tier 2", min: 5000, max: 10000, basePrice: 150 },
-  { tier: 3, label: "Tier 3", min: 10000, max: 25000, basePrice: 300 },
-  { tier: 4, label: "Tier 4", min: 25000, max: 50000, basePrice: 500 },
-  { tier: 5, label: "Tier 5", min: 50000, max: 100000, basePrice: 1000 },
-  { tier: 6, label: "Tier 6", min: 100000, max: 150000, basePrice: 1500 },
-  { tier: 7, label: "Tier 7", min: 150000, max: 200000, basePrice: 2000 },
-  { tier: 8, label: "Tier 8", min: 200000, max: 300000, basePrice: 3000 },
-  { tier: 9, label: "Tier 9", min: 300000, max: 400000, basePrice: 4000 },
-  { tier: 10, label: "Tier 10", min: 400000, max: 500000, basePrice: 5000 },
-  { tier: 11, label: "Tier 11", min: 500000, max: 600000, basePrice: 6000 },
-  { tier: 12, label: "Tier 12", min: 600000, max: 700000, basePrice: 7000 },
-  { tier: 13, label: "Tier 13", min: 700000, max: 800000, basePrice: 8000 },
-  { tier: 14, label: "Tier 14", min: 800000, max: 900000, basePrice: 9000 },
-  { tier: 15, label: "Tier 15", min: 900000, max: 1000000, basePrice: 10000 },
-  { tier: 16, label: "Tier 16", min: 1000000, max: 2000000, basePrice: 15000 },
-  { tier: 17, label: "Tier 17", min: 2000000, max: 3000000, basePrice: 25000 },
-  { tier: 18, label: "Tier 18", min: 3000000, max: 5000000, basePrice: 40000 },
-  { tier: 19, label: "Tier 19", min: 5000000, max: 10000000, basePrice: 75000 },
-  { tier: 20, label: "Tier 20", min: 10000000, max: 999999999, basePrice: 100000 },
+  // Nano Influencers (500 - 50K)
+  { id: 1, name: "Tier 1", minFollowers: 500, maxFollowers: 1000, basePayment: 20 },
+  { id: 2, name: "Tier 2", minFollowers: 1000, maxFollowers: 2000, basePayment: 50 },
+  { id: 3, name: "Tier 3", minFollowers: 2000, maxFollowers: 5000, basePayment: 80 },
+  { id: 4, name: "Tier 4", minFollowers: 5000, maxFollowers: 10000, basePayment: 150 },
+  { id: 5, name: "Tier 5", minFollowers: 10000, maxFollowers: 20000, basePayment: 200 },
+  { id: 6, name: "Tier 6", minFollowers: 20000, maxFollowers: 35000, basePayment: 300 },
+  { id: 7, name: "Tier 7", minFollowers: 35000, maxFollowers: 50000, basePayment: 500 },
+  
+  // Micro Influencers (50K - 100K)
+  { id: 8, name: "Tier 8", minFollowers: 50000, maxFollowers: 75000, basePayment: 700 },
+  { id: 9, name: "Tier 9", minFollowers: 75000, maxFollowers: 100000, basePayment: 900 },
+  
+  // Mid-Tier Influencers (100K - 500K)
+  { id: 10, name: "Tier 10", minFollowers: 100000, maxFollowers: 150000, basePayment: 1200 },
+  { id: 11, name: "Tier 11", minFollowers: 150000, maxFollowers: 200000, basePayment: 1500 },
+  { id: 12, name: "Tier 12", minFollowers: 200000, maxFollowers: 300000, basePayment: 2000 },
+  { id: 13, name: "Tier 13", minFollowers: 300000, maxFollowers: 500000, basePayment: 2500 },
+  
+  // Macro Influencers (500K - 1M)
+  { id: 14, name: "Tier 14", minFollowers: 500000, maxFollowers: 750000, basePayment: 3000 },
+  { id: 15, name: "Tier 15", minFollowers: 750000, maxFollowers: 1000000, basePayment: 4000 },
+  
+  // Mega Influencers (1M+)
+  { id: 16, name: "Tier 16", minFollowers: 1000000, maxFollowers: 2000000, basePayment: 5000 },
+  { id: 17, name: "Tier 17", minFollowers: 2000000, maxFollowers: 3000000, basePayment: 7000 },
+  { id: 18, name: "Tier 18", minFollowers: 3000000, maxFollowers: 5000000, basePayment: 9000 },
+  { id: 19, name: "Tier 19", minFollowers: 5000000, maxFollowers: 7000000, basePayment: 12000 },
+  { id: 20, name: "Tier 20", minFollowers: 7000000, maxFollowers: 10000000, basePayment: 15000 },
 ];
+
+// MINIMUM followers required to be a creator
+const MIN_FOLLOWERS = 500;
 ```
 
 ---
