@@ -6,8 +6,17 @@ import seed from "./seed";
 import { startEscrowRefundScheduler } from "./escrow-service";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cors from "cors";
 
 const app = express();
+
+// Enable CORS for mobile app requests
+app.use(cors({
+  origin: true, // Allow all origins (mobile apps, Expo, etc.)
+  credentials: true, // Allow cookies/sessions
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+}));
 const httpServer = createServer(app);
 
 declare module "http" {
