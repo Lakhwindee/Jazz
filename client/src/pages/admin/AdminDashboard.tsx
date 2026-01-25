@@ -1096,10 +1096,26 @@ function WithdrawalsTab() {
   const [rejectReason, setRejectReason] = useState("");
   const [manualUtr, setManualUtr] = useState("");
 
-  const { data: withdrawals = [], isLoading } = useQuery({
+  const { data: withdrawalsData = [], isLoading } = useQuery({
     queryKey: ["admin-withdrawals", statusFilter],
     queryFn: () => api.admin.getWithdrawals(statusFilter || undefined),
   });
+
+  // Sort withdrawals: pending first, then approved, then rejected
+  const withdrawals = useMemo(() => {
+    const getStatusPriority = (status: string) => {
+      if (status === 'pending') return 1;
+      if (status === 'approved') return 2;
+      if (status === 'rejected') return 3;
+      return 2;
+    };
+    return [...withdrawalsData].sort((a, b) => {
+      const priorityDiff = getStatusPriority(a.status) - getStatusPriority(b.status);
+      if (priorityDiff !== 0) return priorityDiff;
+      // Sort by ID descending (newer requests have higher IDs)
+      return b.id - a.id;
+    });
+  }, [withdrawalsData]);
 
   const approveMutation = useMutation({
     mutationFn: ({ id, utrNumber }: { id: number; utrNumber?: string }) => api.admin.approveWithdrawal(id, utrNumber),
@@ -1390,7 +1406,25 @@ function SubmissionsTab() {
       }
     });
 
-    return Object.values(groups).sort((a, b) => a.baseTitle.localeCompare(b.baseTitle));
+    // Sort by priority: campaigns with pending submissions first, then active, then completed
+    const getGroupPriority = (group: any) => {
+      const hasSubmitted = group.totalStats.submitted > 0; // Pending review
+      const hasReserved = group.totalStats.reserved > 0; // Work in progress
+      const hasPendingApproval = group.campaigns.some((c: any) => !c.campaign.isApproved);
+      const allCompleted = group.campaigns.every((c: any) => c.campaign.spotsRemaining === 0);
+      
+      if (hasSubmitted) return 1; // Needs review - highest priority
+      if (hasPendingApproval) return 2; // Pending campaign approval
+      if (hasReserved) return 3; // Work in progress
+      if (allCompleted) return 4; // Completed - lowest
+      return 3;
+    };
+    
+    return Object.values(groups).sort((a, b) => {
+      const priorityDiff = getGroupPriority(a) - getGroupPriority(b);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.baseTitle.localeCompare(b.baseTitle);
+    });
   }, [campaignGroups]);
 
   const toggleTitleGroup = (title: string) => {
@@ -2045,7 +2079,23 @@ function CampaignsTab() {
       });
     });
 
-    return Array.from(groups.values());
+    // Sort groups by priority: active with spots first, then paused, then completed
+    const getGroupPriority = (group: any) => {
+      const hasActiveWithSpots = group.campaigns.some((c: any) => c.status === 'active' && c.spotsRemaining > 0);
+      const hasPaused = group.campaigns.some((c: any) => c.status === 'paused');
+      const allFilled = group.campaigns.every((c: any) => c.spotsRemaining === 0);
+      
+      if (hasActiveWithSpots) return 1;
+      if (hasPaused) return 2;
+      if (allFilled) return 3;
+      return 2;
+    };
+
+    return Array.from(groups.values()).sort((a, b) => {
+      const priorityDiff = getGroupPriority(a) - getGroupPriority(b);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.title.localeCompare(b.title);
+    });
   }, [campaigns]);
 
   // Active campaign groups (with active/paused campaigns)
@@ -2055,7 +2105,16 @@ function CampaignsTab() {
         ...group,
         campaigns: group.campaigns.filter(c => c.isApproved && (c.status === "active" || c.status === "paused")),
       }))
-      .filter(group => group.campaigns.length > 0);
+      .filter(group => group.campaigns.length > 0)
+      .sort((a, b) => {
+        // Sort: active with spots > paused > filled
+        const getPriority = (g: any) => {
+          const hasActive = g.campaigns.some((c: any) => c.status === 'active' && c.spotsRemaining > 0);
+          if (hasActive) return 1;
+          return 2;
+        };
+        return getPriority(a) - getPriority(b);
+      });
   }, [approvedCampaignGroups]);
 
   // Completed campaign groups

@@ -126,7 +126,25 @@ export default function MyCampaigns() {
       }
     });
     
-    return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
+    // Sort by status priority: pending/active first, completed last
+    const getStatusPriority = (reservations: any[]) => {
+      const hasReserved = reservations.some(r => r.status === 'reserved');
+      const hasSubmitted = reservations.some(r => r.status === 'submitted');
+      const allApproved = reservations.every(r => r.status === 'approved');
+      const allExpired = reservations.every(r => r.status === 'expired');
+      
+      if (hasReserved) return 1; // Needs action - highest priority
+      if (hasSubmitted) return 2; // Waiting for review
+      if (allApproved) return 3; // Completed
+      if (allExpired) return 4; // Expired - lowest
+      return 2;
+    };
+    
+    return Object.values(groups).sort((a, b) => {
+      const priorityDiff = getStatusPriority(a.reservations) - getStatusPriority(b.reservations);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.title.localeCompare(b.title);
+    });
   }, [activeReservations]);
 
   const toggleFolder = (title: string) => {

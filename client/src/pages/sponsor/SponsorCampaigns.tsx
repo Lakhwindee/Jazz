@@ -143,7 +143,25 @@ export default function SponsorCampaigns() {
       });
     });
 
-    return Array.from(groups.values());
+    // Sort groups by priority: pending/active first, completed last
+    const getGroupPriority = (group: any) => {
+      const hasPending = group.campaigns.some((c: any) => !c.isApproved || c.status === 'pending');
+      const hasActive = group.campaigns.some((c: any) => c.isApproved && c.status === 'active' && c.spotsRemaining > 0);
+      const hasInReview = group.campaigns.some((c: any) => c.spotsRemaining === 0 && !c.isTierCompleted);
+      const allCompleted = group.campaigns.every((c: any) => c.isTierCompleted);
+      
+      if (hasPending) return 1; // Pending approval - highest
+      if (hasActive) return 2; // Active campaigns
+      if (hasInReview) return 3; // In review
+      if (allCompleted) return 4; // Completed - lowest
+      return 2;
+    };
+
+    return Array.from(groups.values()).sort((a, b) => {
+      const priorityDiff = getGroupPriority(a) - getGroupPriority(b);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.title.localeCompare(b.title);
+    });
   }, [campaigns]);
 
   const handleGroupOpenChange = (title: string, open: boolean) => {
