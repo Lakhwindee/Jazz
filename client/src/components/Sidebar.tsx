@@ -58,6 +58,12 @@ export function Sidebar() {
             </Link>
           );
         })}
+        {/* Notification Bell for Mobile */}
+        {user && (
+          <div className="flex flex-col items-center gap-1">
+            <NotificationDropdown userId={user.id} />
+          </div>
+        )}
         <div 
           className="relative flex flex-col items-center gap-1 cursor-pointer text-muted-foreground"
           onClick={() => setShowMoreMenu(!showMoreMenu)}
