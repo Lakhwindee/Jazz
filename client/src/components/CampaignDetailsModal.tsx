@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, Calendar, Users, IndianRupee, Clock, Sparkles, FileDown, Film, Smartphone, Image, LayoutGrid, Music, Video, Share2, Gift, Package, AlertTriangle } from "lucide-react";
+import { Download, Calendar, Users, IndianRupee, Clock, Sparkles, FileDown, Film, Smartphone, Image, LayoutGrid, Music, Video, Share2, Gift, Package, AlertTriangle, Star } from "lucide-react";
 import { formatINR, type ApiCampaign } from "@/lib/api";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
@@ -45,6 +45,7 @@ export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isR
   const deadlineDate = new Date(campaign.deadline);
   const isDeadlineSoon = deadlineDate.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
   const isProductCampaign = campaign.campaignType === "product";
+  const isPromotionalCampaign = campaign.isPromotional === true;
   
   // Check if file download is required before reserving
   const requiresDownload = !!campaign.assetUrl;
@@ -87,6 +88,14 @@ export function CampaignDetailsModal({ campaign, isOpen, onClose, onReserve, isR
                   <span className="text-xs text-muted-foreground">Reward</span>
                   <span className="text-lg font-bold text-purple-600" data-testid="modal-payment">
                     Free Product
+                  </span>
+                </div>
+              ) : isPromotionalCampaign ? (
+                <div className="flex flex-col items-center justify-center rounded-xl bg-yellow-50 dark:bg-yellow-900/20 p-4">
+                  <Star className="h-5 w-5 text-yellow-600 mb-1 fill-yellow-500" />
+                  <span className="text-xs text-muted-foreground">Stars Reward</span>
+                  <span className="text-lg font-bold text-yellow-600" data-testid="modal-payment">
+                    {campaign.starReward || 1} ⭐
                   </span>
                 </div>
               ) : (
