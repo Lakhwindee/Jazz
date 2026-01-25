@@ -39,7 +39,7 @@ export function SponsorSidebar() {
     <>
       {/* Mobile Bottom Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-background/80 px-4 backdrop-blur-md md:hidden">
-        {links.slice(0, 4).map((link) => {
+        {links.slice(0, 5).map((link) => {
           const Icon = link.icon;
           const isActive = location === link.href;
           return (
@@ -57,14 +57,6 @@ export function SponsorSidebar() {
             <NotificationDropdown userId={sponsor.id} />
           </div>
         )}
-        <div 
-          className="flex flex-col items-center gap-1 cursor-pointer text-red-500"
-          onClick={handleLogout}
-          data-testid="button-mobile-logout"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="text-[10px] font-medium">Logout</span>
-        </div>
       </nav>
 
       {/* Desktop Sidebar */}
