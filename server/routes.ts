@@ -152,13 +152,13 @@ export async function registerRoutes(
         }
       }
       
-      // First destroy any existing session completely
-      req.session.destroy((destroyErr) => {
-        if (destroyErr) {
-          console.error("[SIGNUP] Session destroy error:", destroyErr);
+      // Regenerate session to prevent fixation attacks, then login
+      req.session.regenerate((regenErr) => {
+        if (regenErr) {
+          console.error("[SIGNUP] Session regenerate error:", regenErr);
         }
         
-        // Create a completely new session by logging in
+        // Login the new user
         req.login(user, (err) => {
           if (err) {
             console.error("[SIGNUP] Login error after signup:", err);
