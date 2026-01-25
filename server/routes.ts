@@ -762,9 +762,15 @@ export async function registerRoutes(
       await storage.updateReservationStatus(reservationId, "approved", new Date());
 
       // Check if promotional campaign (stars) or regular (money)
-      if (campaign.isPromotional && campaign.starReward > 0) {
-        // Award stars instead of money
-        const newStars = (user.stars || 0) + campaign.starReward;
+      // Convert to proper types to handle any database type issues
+      const isPromoRaw = campaign.isPromotional as any;
+      const isPromo = isPromoRaw === true || isPromoRaw === 1 || isPromoRaw === 't' || isPromoRaw === 'true' || isPromoRaw === 'TRUE' || isPromoRaw === '1' || Boolean(isPromoRaw) === true;
+      const starRewardNum = parseInt(String(campaign.starReward)) || 0;
+      
+      if (isPromo && starRewardNum > 0) {
+        // Award stars instead of money - stars accumulate and do NOT reset
+        const previousStars = user.stars || 0;
+        const newStars = previousStars + starRewardNum;
         await storage.updateUserStars(reservation.userId, newStars);
 
         // Create notification for stars
@@ -772,20 +778,23 @@ export async function registerRoutes(
           userId: reservation.userId,
           type: "submission_approved",
           title: "Submission Approved!",
-          message: `Your work for "${campaign.title}" has been approved. You earned ${campaign.starReward} star(s)! Total: ${newStars} stars.`,
+          message: `Your work for "${campaign.title}" has been approved. You earned ${starRewardNum} star(s)! Total: ${newStars} stars.`,
           isRead: false,
           campaignId: reservation.campaignId,
           reservationId,
         });
 
-        // Check if user reached 5 stars - generate free month promo code
-        if (newStars >= 5) {
-          const starsUsed = 5;
-          const remainingStars = newStars - starsUsed;
-          await storage.updateUserStars(reservation.userId, remainingStars);
+        // Check if user crossed a 5-star milestone - generate free month promo code
+        // Stars accumulate and do NOT reset - promo generated at 5, 10, 15, 20...
+        const previousMilestone = Math.floor(previousStars / 5);
+        const newMilestone = Math.floor(newStars / 5);
+        
+        if (newMilestone > previousMilestone) {
+          // User crossed a new 5-star milestone
+          console.log(`[STARS] User ${user.id} crossed ${newMilestone * 5} stars milestone! Generating promo code.`);
 
           // Generate unique promo code for this user
-          const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
+          const promoCode = `STAR${newMilestone * 5}-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
           
           // Create 1 month free trial promo code
           await storage.createPromoCode({
@@ -805,12 +814,12 @@ export async function registerRoutes(
             userId: reservation.userId,
             type: "subscription_reward",
             title: "You Earned a Free Month!",
-            message: `Congratulations! You collected 5 stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode} - Use it anytime on the Subscription page.`,
+            message: `Congratulations! You collected ${newMilestone * 5} stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode} - Use it anytime on the Subscription page.`,
             isRead: false,
           });
         }
 
-        res.json({ stars: campaign.starReward, newTotal: newStars >= 5 ? newStars - 5 : newStars, reservation });
+        res.json({ stars: starRewardNum, newTotal: newStars, reservation });
       } else {
         // Regular payment flow
         const gross = parseFloat(campaign.payAmount);
@@ -3333,7 +3342,8 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
       
-      const newStars = (user.stars || 0) + stars;
+      const previousStars = user.stars || 0;
+      const newStars = previousStars + stars;
       await storage.updateUserStars(userId, newStars);
       
       // Create notification for the user
@@ -3345,35 +3355,39 @@ export async function registerRoutes(
         isRead: false,
       });
       
-      // Check if user reached 5 stars - generate free month promo code
-      if (newStars >= 5) {
-        const remainingStars = newStars - 5;
-        await storage.updateUserStars(userId, remainingStars);
+      // Check if user crossed a 5-star milestone - generate free month promo code
+      // Stars accumulate and do NOT reset - promo generated at 5, 10, 15, 20...
+      const previousMilestone = Math.floor(previousStars / 5);
+      const newMilestone = Math.floor(newStars / 5);
+      
+      if (newMilestone > previousMilestone) {
+        console.log(`[STARS] User ${userId} crossed ${newMilestone * 5} stars milestone via admin award! Generating promo code.`);
         
         // Generate unique promo code
-        const promoCode = `STAR5-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
+        const promoCode = `STAR${newMilestone * 5}-${user.handle?.toUpperCase().slice(0, 4) || 'USER'}-${Date.now().toString(36).toUpperCase()}`;
         
         // Create 1 month free trial promo code
         await storage.createPromoCode({
           code: promoCode,
           type: "trial",
-          discountPercent: 0,
+          discountPercent: null,
           trialDays: 30,
+          creditAmount: null,
+          afterTrialAction: "downgrade",
           maxUses: 1,
           isActive: true,
-          validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          afterTrialAction: "keep_pro",
+          validUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Valid for 90 days
         });
         
         await storage.createNotification({
           userId,
-          type: "promo_code_generated",
-          title: "FREE Pro Subscription Earned!",
-          message: `Congratulations! You collected 5 stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode}`,
+          type: "subscription_reward",
+          title: "You Earned a Free Month!",
+          message: `Congratulations! You collected ${newMilestone * 5} stars and earned a promo code for 1 month FREE Pro subscription! Your code: ${promoCode} - Use it anytime on the Subscription page.`,
           isRead: false,
         });
         
-        res.json({ success: true, newStars: remainingStars, promoCode });
+        res.json({ success: true, newStars, promoCode });
       } else {
         res.json({ success: true, newStars });
       }
