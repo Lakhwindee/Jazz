@@ -303,7 +303,8 @@ const gradients = {
 - Cancel button
 
 ### 17. NOTIFICATIONS
-- Bell icon in header with unread count badge
+- IMPORTANT: Bell icon appears ONLY in Dashboard header (not in bottom navigation)
+- Shows unread count badge when notifications exist
 - Notification list:
   - Group by date: Today, Yesterday, This Week, Older
   - Each notification:

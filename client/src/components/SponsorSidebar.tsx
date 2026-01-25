@@ -51,12 +51,6 @@ export function SponsorSidebar() {
             </Link>
           );
         })}
-        {/* Notification Bell for Mobile */}
-        {sponsor && (
-          <div className="flex flex-col items-center gap-1">
-            <NotificationDropdown userId={sponsor.id} />
-          </div>
-        )}
       </nav>
 
       {/* Desktop Sidebar */}

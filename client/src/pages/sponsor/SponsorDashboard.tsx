@@ -7,6 +7,7 @@ import { BarChart3, Users, Wallet, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { QuickStartGuide, useQuickStartGuide } from "@/components/QuickStartGuide";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export default function SponsorDashboard() {
   const { data: sponsor } = useQuery({
@@ -49,6 +50,12 @@ export default function SponsorDashboard() {
     <div className="flex min-h-screen bg-background">
       <SponsorSidebar />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+        {/* Mobile Header with Notification */}
+        <div className="sticky top-0 z-40 flex items-center justify-between bg-background/80 backdrop-blur-md px-4 py-3 border-b md:hidden">
+          <h1 className="text-lg font-bold">Dashboard</h1>
+          <NotificationDropdown userId={sponsor.id} />
+        </div>
+        
         <div className="mx-auto max-w-5xl p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

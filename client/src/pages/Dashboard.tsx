@@ -7,6 +7,7 @@ import { api, type ApiCampaign, type ApiUser, formatINR } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import heroBg from "@assets/generated_images/abstract_instagram-themed_3d_background.png";
 import { QuickStartGuide, useQuickStartGuide } from "@/components/QuickStartGuide";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export default function Dashboard() {
   const { data: user } = useQuery({
@@ -53,6 +54,12 @@ export default function Dashboard() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+        {/* Mobile Header with Notification */}
+        <div className="sticky top-0 z-40 flex items-center justify-between bg-background/80 backdrop-blur-md px-4 py-3 border-b md:hidden">
+          <h1 className="text-lg font-bold">Dashboard</h1>
+          <NotificationDropdown userId={user.id} />
+        </div>
+        
         <div className="mx-auto max-w-5xl p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
