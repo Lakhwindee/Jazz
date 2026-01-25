@@ -16,6 +16,7 @@ import Campaigns from "@/pages/Campaigns";
 import Earnings from "@/pages/Earnings";
 import Profile from "@/pages/Profile";
 import MyCampaigns from "@/pages/MyCampaigns";
+import Offers from "@/pages/Offers";
 import Groups from "@/pages/Groups";
 import CategoryCampaignsPage from "@/pages/CategoryCampaigns";
 import SponsorDashboard from "@/pages/sponsor/SponsorDashboard";
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/campaigns/:categoryId" component={CategoryCampaignsPage} />
       <Route path="/my-campaigns" component={MyCampaigns} />
+      <Route path="/offers" component={Offers} />
       <Route path="/groups" component={Groups} />
       <Route path="/earnings" component={Earnings} />
       <Route path="/profile" component={Profile} />

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api, type ApiCampaign, type ApiReservation, formatINR } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download, X, FolderOpen, ChevronDown, ChevronRight, AtSign } from "lucide-react";
+import { Instagram, Clock, Upload, CheckCircle, AlertCircle, LayoutList, Timer, Download, X, FolderOpen, ChevronDown, ChevronRight, AtSign, Star } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -59,6 +59,8 @@ interface GroupedReservations {
   brandLogo?: string | null;
   reservations: (ApiReservation & { campaign: ApiCampaign })[];
   totalPayout: number;
+  totalStars: number;
+  isPromotional: boolean;
   tiers: string[];
 }
 
@@ -115,12 +117,19 @@ export default function MyCampaigns() {
           brandLogo: campaign.brandLogo,
           reservations: [],
           totalPayout: 0,
+          totalStars: 0,
+          isPromotional: campaign.isPromotional || false,
           tiers: [],
         };
       }
       
       groups[key].reservations.push(reservation as ApiReservation & { campaign: ApiCampaign });
-      groups[key].totalPayout += parseFloat(campaign.payAmount);
+      if (campaign.isPromotional) {
+        groups[key].totalStars += campaign.starReward || 1;
+        groups[key].isPromotional = true;
+      } else {
+        groups[key].totalPayout += parseFloat(campaign.payAmount);
+      }
       if (!groups[key].tiers.includes(campaign.tier)) {
         groups[key].tiers.push(campaign.tier);
       }
@@ -294,8 +303,14 @@ export default function MyCampaigns() {
           <CardFooter className="border-t bg-muted/20 p-3 sm:p-4 flex flex-col gap-2">
             <div className="flex w-full items-center justify-between gap-2">
               <div>
-                <p className="text-xs text-muted-foreground">Payout</p>
-                <p className="text-base sm:text-lg font-bold text-green-600" data-testid={`text-payout-${reservation.id}`}>{formatINR(campaign.payAmount)}</p>
+                <p className="text-xs text-muted-foreground">{campaign.isPromotional ? 'Stars Reward' : 'Payout'}</p>
+                {campaign.isPromotional ? (
+                  <p className="text-base sm:text-lg font-bold text-yellow-500 flex items-center gap-1" data-testid={`text-payout-${reservation.id}`}>
+                    <Star className="h-4 w-4 fill-yellow-500" /> {campaign.starReward || 1} Stars
+                  </p>
+                ) : (
+                  <p className="text-base sm:text-lg font-bold text-green-600" data-testid={`text-payout-${reservation.id}`}>{formatINR(campaign.payAmount)}</p>
+                )}
               </div>
 
               {reservation.status === 'reserved' && (
@@ -461,7 +476,13 @@ export default function MyCampaigns() {
                           </div>
                           
                           <div className="flex flex-col items-start sm:items-end gap-1 ml-15 sm:ml-0">
-                            <p className="text-base sm:text-lg font-bold text-green-600">{formatINR(group.totalPayout.toString())}</p>
+                            {group.isPromotional ? (
+                              <p className="text-base sm:text-lg font-bold text-yellow-500 flex items-center gap-1">
+                                <Star className="h-4 w-4 fill-yellow-500" /> {group.totalStars} Stars
+                              </p>
+                            ) : (
+                              <p className="text-base sm:text-lg font-bold text-green-600">{formatINR(group.totalPayout.toString())}</p>
+                            )}
                             <div className="flex flex-wrap gap-1">
                               {statusCounts.reserved > 0 && (
                                 <Badge className="bg-yellow-500 text-xs">{statusCounts.reserved} Reserved</Badge>
