@@ -4110,7 +4110,15 @@ export async function registerRoutes(
       }
 
       const orderId = `sub_${userId}_${Date.now()}`;
-      const returnUrl = `${req.protocol}://${req.get('host')}/subscription?order_id={order_id}&status=success`;
+      
+      // Get proper HTTPS return URL for Cashfree (production requires HTTPS)
+      let baseUrl = 'https://mingree.com';
+      if (process.env.REPLIT_DOMAINS) {
+        baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+      } else if (process.env.REPLIT_DEV_DOMAIN) {
+        baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+      }
+      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
