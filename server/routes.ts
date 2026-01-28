@@ -4137,6 +4137,7 @@ export async function registerRoutes(
       res.json({ 
         orderId: order.order_id,
         sessionId: order.payment_session_id,
+        paymentLink: order.payment_link,  // Direct payment URL for mobile apps
         amount: paymentAmount,
         currency: "INR",
       });

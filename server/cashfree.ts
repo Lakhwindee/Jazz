@@ -56,6 +56,16 @@ export async function createCashfreeOrder(
     headers: getHeaders(),
   });
   
+  // Add payment link URL for mobile apps (redirect-based flow)
+  const paymentSessionId = response.data.payment_session_id;
+  const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+  const paymentLinkBase = environment === 'production' 
+    ? 'https://payments.cashfree.com/forms' 
+    : 'https://sandbox.cashfree.com/pg/orders/sessions';
+  
+  // Direct payment URL for mobile
+  response.data.payment_link = `${paymentLinkBase}/${paymentSessionId}`;
+  
   return response.data;
 }
 

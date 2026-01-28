@@ -260,13 +260,6 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
-      const scriptLoaded = await loadCashfreeScript();
-      if (!scriptLoaded) {
-        toast.error("Failed to load payment gateway");
-        setIsProcessing(false);
-        return;
-      }
-      
       const finalAmount = calculateFinalAmount();
       const orderData = await api.createPaymentOrder(user.id, {
         amount: finalAmount,
@@ -274,18 +267,42 @@ export default function Subscription() {
         billingDetails,
       });
       
-      const config = await api.getCashfreeConfig();
+      // Try to load Cashfree SDK
+      const scriptLoaded = await loadCashfreeScript();
       
-      const cashfree = window.Cashfree({
-        mode: config.environment === 'production' ? 'production' : 'sandbox',
-      });
-      
-      const checkoutOptions = {
-        paymentSessionId: orderData.sessionId,
-        redirectTarget: "_self",
-      };
-      
-      cashfree.checkout(checkoutOptions);
+      if (scriptLoaded && window.Cashfree) {
+        // Use SDK-based checkout (for desktop browsers)
+        try {
+          const config = await api.getCashfreeConfig();
+          
+          const cashfree = window.Cashfree({
+            mode: config.environment === 'production' ? 'production' : 'sandbox',
+          });
+          
+          const checkoutOptions = {
+            paymentSessionId: orderData.sessionId,
+            redirectTarget: "_self",
+          };
+          
+          cashfree.checkout(checkoutOptions);
+        } catch (sdkError) {
+          console.error("SDK checkout failed, using redirect:", sdkError);
+          // Fallback to redirect if SDK fails
+          if (orderData.paymentLink) {
+            window.location.href = orderData.paymentLink;
+          } else {
+            throw new Error("Payment gateway unavailable");
+          }
+        }
+      } else {
+        // Use redirect-based checkout (for mobile/webview)
+        console.log("Using redirect-based payment flow");
+        if (orderData.paymentLink) {
+          window.location.href = orderData.paymentLink;
+        } else {
+          throw new Error("Payment gateway unavailable");
+        }
+      }
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");

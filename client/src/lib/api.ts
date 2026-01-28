@@ -475,7 +475,7 @@ export const api = {
     return res.json();
   },
 
-  async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ orderId: string; sessionId: string; amount: number; currency: string }> {
+  async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ orderId: string; sessionId: string; paymentLink?: string; amount: number; currency: string }> {
     const res = await fetch(`${API_BASE}/subscription/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
