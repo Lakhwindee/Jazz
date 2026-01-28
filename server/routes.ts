@@ -4094,32 +4094,50 @@ export async function registerRoutes(
   // Create Cashfree order for subscription
   app.post("/api/subscription/create-order", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const { userId, amount, promoCode, billingDetails } = req.body;
       
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
+      // Use amount from frontend, default to 499 if not provided
+      const paymentAmount = amount || 499;
+      
+      // If amount is 0 (free trial), don't create payment order
+      if (paymentAmount <= 0) {
+        return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
+      }
+
       const orderId = `sub_${userId}_${Date.now()}`;
       const returnUrl = `${req.protocol}://${req.get('host')}/subscription?order_id={order_id}&status=success`;
       
+      // Get customer details from billing info or user
+      const customerName = billingDetails?.name || user.name || "Customer";
+      const customerEmail = billingDetails?.email || user.email;
+      const customerPhone = billingDetails?.phone || "9999999999";
+      
       const order = await createCashfreeOrder(
         orderId,
-        499,
+        paymentAmount,
         {
           customerId: `user_${userId}`,
-          customerPhone: "9999999999",
-          customerName: user.name,
-          customerEmail: user.email,
+          customerPhone: customerPhone,
+          customerName: customerName,
+          customerEmail: customerEmail,
         },
         returnUrl
       );
 
+      // Store promo code with order for later verification if provided
+      if (promoCode) {
+        console.log(`Order ${orderId} created with promo code: ${promoCode}`);
+      }
+
       res.json({ 
         orderId: order.order_id,
         sessionId: order.payment_session_id,
-        amount: 499,
+        amount: paymentAmount,
         currency: "INR",
       });
     } catch (error) {
