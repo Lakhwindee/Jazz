@@ -4232,8 +4232,10 @@ export async function registerRoutes(
 
       res.json({ 
         orderId: order.order_id,
+        cfOrderId: order.cf_order_id || order.order_id,  // For React Native SDK
         sessionId: order.payment_session_id,
-        paymentLink: paymentPageUrl,  // Payment page URL for mobile apps
+        paymentSessionId: order.payment_session_id,  // For React Native SDK
+        paymentLink: paymentPageUrl,  // Payment page URL for web/mobile browser
         amount: paymentAmount,
         currency: "INR",
       });

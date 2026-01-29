@@ -571,11 +571,148 @@ GET /api/subscription-plans
 Returns: Array of available plans
 
 POST /api/subscription/create-order
-Body: { planId, months, promoCode }
+Body: { userId, amount, promoCode, billingDetails }
+Returns: { orderId, paymentSessionId, cfOrderId, amount }
 
 POST /api/subscription/verify-payment
 Body: { orderId, paymentId }
 ```
+
+---
+
+## ⚠️ PAYMENT INTEGRATION (VERY IMPORTANT!)
+
+### Cashfree React Native SDK Setup
+
+**Cashfree's JavaScript SDK does NOT work in WebViews!** You MUST use the native React Native SDK.
+
+#### Step 1: Install Packages
+```bash
+npm install react-native-cashfree-pg-sdk --save
+npm install cashfree-pg-api-contract --save
+```
+
+#### Step 2: iOS Configuration (ios/Info.plist)
+```xml
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>phonepe</string>
+    <string>tez</string>
+    <string>paytmmp</string>
+    <string>bhim</string>
+    <string>amazonpay</string>
+    <string>credpay</string>
+</array>
+```
+
+#### Step 3: Complete Payment Flow Implementation
+
+```javascript
+import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
+import {
+  CFDropCheckoutPayment,
+  CFEnvironment,
+  CFSession,
+  CFPaymentComponentBuilder,
+  CFPaymentModes,
+} from 'cashfree-pg-api-contract';
+
+// Setup callback in useEffect
+useEffect(() => {
+  CFPaymentGatewayService.setCallback({
+    onVerify(orderID) {
+      console.log('Payment verified:', orderID);
+      // Call verify API
+      verifyPayment(orderID);
+    },
+    onError(error, orderID) {
+      console.log('Payment error:', error);
+      Alert.alert('Payment Failed', error.message);
+    },
+  });
+
+  return () => {
+    CFPaymentGatewayService.removeCallback();
+  };
+}, []);
+
+// Start Payment Function
+const startPayment = async (userId, amount, promoCode, billingDetails) => {
+  try {
+    // Step 1: Create order on backend
+    const response = await fetch(`${API_BASE}/api/subscription/create-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': sessionCookie, // Important for auth
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        userId,
+        amount,
+        promoCode,
+        billingDetails: {
+          name: billingDetails.name,
+          email: billingDetails.email,
+          phone: billingDetails.phone,
+          address: billingDetails.address,
+          gstin: billingDetails.gstin, // optional
+        }
+      }),
+    });
+    
+    const order = await response.json();
+    // order = { orderId, paymentSessionId, cfOrderId, amount }
+    
+    // Step 2: Create CFSession
+    const session = new CFSession(
+      order.paymentSessionId,  // payment_session_id from backend
+      order.cfOrderId,          // cf_order_id from backend
+      CFEnvironment.PRODUCTION  // or CFEnvironment.SANDBOX for testing
+    );
+    
+    // Step 3: Configure payment modes
+    const paymentModes = new CFPaymentComponentBuilder()
+      .add(CFPaymentModes.UPI)
+      .add(CFPaymentModes.CARD)
+      .add(CFPaymentModes.NB)
+      .add(CFPaymentModes.WALLET)
+      .build();
+    
+    // Step 4: Create payment object
+    const payment = new CFDropCheckoutPayment(session, paymentModes, null);
+    
+    // Step 5: Start payment (opens native Cashfree UI)
+    CFPaymentGatewayService.doPayment(payment);
+    
+  } catch (error) {
+    console.error('Payment error:', error);
+    Alert.alert('Error', 'Could not start payment');
+  }
+};
+
+// Verify payment after success
+const verifyPayment = async (orderId) => {
+  const response = await fetch(`${API_BASE}/api/subscription/verify-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ orderId }),
+  });
+  
+  const result = await response.json();
+  if (result.success) {
+    Alert.alert('Success', 'Subscription activated!');
+    // Navigate to dashboard or refresh user data
+  }
+};
+```
+
+#### Key Points:
+1. **Never use WebView for Cashfree** - SDK won't load
+2. **Use `react-native-cashfree-pg-sdk`** for native payment UI
+3. **Backend returns `paymentSessionId`** - use this with CFSession
+4. **Always verify payment server-side** after onVerify callback
 
 ### Promo Codes
 ```
