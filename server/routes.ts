@@ -4091,12 +4091,15 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page for mobile apps (uses Cashfree SDK)
+  // Payment redirect page for mobile apps (uses Form POST - no JS SDK needed)
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+    const cashfreeUrl = environment === 'production' 
+      ? 'https://api.cashfree.com/pg/orders/sessions' 
+      : 'https://sandbox.cashfree.com/pg/orders/sessions';
     
-    // Serve a simple HTML page that redirects to Cashfree payment
+    // Use form auto-submit instead of JavaScript SDK
     const html = `
 <!DOCTYPE html>
 <html>
@@ -4131,74 +4134,38 @@ export async function registerRoutes(
         .container { padding: 20px; }
         h2 { margin-bottom: 10px; }
         p { opacity: 0.8; font-size: 14px; }
-        .retry-btn {
+        .pay-btn {
             background: white;
             color: #667eea;
             border: none;
-            padding: 12px 24px;
+            padding: 16px 32px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: bold;
             margin-top: 20px;
             cursor: pointer;
         }
-        .retry-btn:active { opacity: 0.9; }
+        .pay-btn:active { opacity: 0.9; }
     </style>
 </head>
 <body>
-    <div class="container" id="content">
-        <div class="loader" id="loader"></div>
-        <h2 id="title">Redirecting to Payment</h2>
-        <p id="message">Loading payment gateway...</p>
+    <div class="container">
+        <div class="loader"></div>
+        <h2>Redirecting to Payment</h2>
+        <p>Please wait, loading payment page...</p>
+        
+        <form id="paymentForm" method="GET" action="${cashfreeUrl}/${sessionId}">
+            <noscript>
+                <button type="submit" class="pay-btn">Click here to continue to payment</button>
+            </noscript>
+        </form>
     </div>
     
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <script>
-        var sessionId = "${sessionId}";
-        var environment = "${environment}";
-        var retryCount = 0;
-        var maxRetries = 3;
-        
-        function showError(msg) {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('title').textContent = 'Error';
-            document.getElementById('message').innerHTML = msg + '<br><button class="retry-btn" onclick="initPayment()">Try Again</button>';
-        }
-        
-        function initPayment() {
-            retryCount++;
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('title').textContent = 'Redirecting to Payment';
-            document.getElementById('message').textContent = 'Loading payment gateway...';
-            
-            if (typeof Cashfree === 'undefined') {
-                if (retryCount < maxRetries) {
-                    setTimeout(initPayment, 1000);
-                } else {
-                    showError('Payment gateway could not load. Please check your internet connection.');
-                }
-                return;
-            }
-            
-            try {
-                var cashfree = Cashfree({ mode: environment });
-                cashfree.checkout({
-                    paymentSessionId: sessionId,
-                    redirectTarget: "_self"
-                });
-            } catch (error) {
-                console.error('Cashfree error:', error);
-                showError('Failed to initialize payment. Error: ' + (error.message || 'Unknown'));
-            }
-        }
-        
-        // Wait for SDK to load
-        if (document.readyState === 'complete') {
-            setTimeout(initPayment, 500);
-        } else {
-            window.onload = function() {
-                setTimeout(initPayment, 500);
-            };
-        }
+        // Auto-redirect after small delay
+        setTimeout(function() {
+            window.location.href = "${cashfreeUrl}/${sessionId}";
+        }, 500);
     </script>
 </body>
 </html>`;
