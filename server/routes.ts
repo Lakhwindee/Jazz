@@ -9,7 +9,7 @@ import fs from "fs";
 import passport from "passport";
 import { setupAuth, hashPassword, isAuthenticated, sanitizeUser } from "./auth";
 import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
-import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured } from "./cashfree";
+import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured, createCashfreePaymentLink } from "./cashfree";
 import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
 import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payouts";
 import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
@@ -4091,6 +4091,75 @@ export async function registerRoutes(
     }
   });
 
+  // Payment redirect page for mobile apps (uses Cashfree SDK)
+  app.get("/pay/:sessionId", async (req, res) => {
+    const { sessionId } = req.params;
+    const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+    
+    // Serve a simple HTML page that redirects to Cashfree payment
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Payment...</title>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .container { padding: 20px; }
+        h2 { margin-bottom: 10px; }
+        p { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader"></div>
+        <h2>Redirecting to Payment</h2>
+        <p>Please wait...</p>
+    </div>
+    <script>
+        (function() {
+            try {
+                const cashfree = Cashfree({ mode: "${environment}" });
+                cashfree.checkout({
+                    paymentSessionId: "${sessionId}",
+                    redirectTarget: "_self"
+                });
+            } catch (error) {
+                document.body.innerHTML = '<div class="container"><h2>Error</h2><p>Failed to load payment. Please try again.</p></div>';
+            }
+        })();
+    </script>
+</body>
+</html>`;
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
   // Create Cashfree order for subscription
   app.post("/api/subscription/create-order", async (req, res) => {
     try {
@@ -4125,6 +4194,7 @@ export async function registerRoutes(
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
       
+      // Create order for SDK-based checkout (website)
       const order = await createCashfreeOrder(
         orderId,
         paymentAmount,
@@ -4137,6 +4207,10 @@ export async function registerRoutes(
         returnUrl
       );
 
+      // Create payment page URL for mobile apps (uses server-side redirect page)
+      const paymentPageUrl = `${baseUrl}/pay/${order.payment_session_id}`;
+      console.log(`Payment page URL: ${paymentPageUrl}`);
+
       // Store promo code with order for later verification if provided
       if (promoCode) {
         console.log(`Order ${orderId} created with promo code: ${promoCode}`);
@@ -4145,7 +4219,7 @@ export async function registerRoutes(
       res.json({ 
         orderId: order.order_id,
         sessionId: order.payment_session_id,
-        paymentLink: order.payment_link,  // Direct payment URL for mobile apps
+        paymentLink: paymentPageUrl,  // Payment page URL for mobile apps
         amount: paymentAmount,
         currency: "INR",
       });

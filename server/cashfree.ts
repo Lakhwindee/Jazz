@@ -79,6 +79,50 @@ export async function fetchCashfreeOrder(orderId: string) {
   return response.data;
 }
 
+// Create a Payment Link (returns direct URL for mobile apps)
+export async function createCashfreePaymentLink(
+  linkId: string,
+  amount: number,
+  purpose: string,
+  customerDetails: {
+    customerName: string;
+    customerPhone: string;
+    customerEmail: string;
+  },
+  returnUrl: string
+) {
+  const baseUrl = getBaseUrl();
+  
+  // Set expiry to 24 hours from now
+  const expiryTime = new Date();
+  expiryTime.setHours(expiryTime.getHours() + 24);
+  
+  const request = {
+    link_id: linkId,
+    link_amount: amount,
+    link_currency: "INR",
+    link_purpose: purpose,
+    customer_details: {
+      customer_name: customerDetails.customerName,
+      customer_phone: customerDetails.customerPhone,
+      customer_email: customerDetails.customerEmail,
+    },
+    link_meta: {
+      return_url: returnUrl,
+      payment_methods: "upi,cc,dc,nb",
+    },
+    link_expiry_time: expiryTime.toISOString(),
+  };
+  
+  console.log('Creating Cashfree payment link:', { baseUrl, linkId, amount });
+  
+  const response = await axios.post(`${baseUrl}/links`, request, {
+    headers: getHeaders(),
+  });
+  
+  return response.data;
+}
+
 export function getCashfreeAppId(): string {
   const appId = process.env.CASHFREE_APP_ID;
   if (!appId) {
