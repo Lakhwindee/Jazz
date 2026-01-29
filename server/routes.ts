@@ -4104,7 +4104,6 @@ export async function registerRoutes(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redirecting to Payment...</title>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -4131,27 +4130,75 @@ export async function registerRoutes(
         }
         .container { padding: 20px; }
         h2 { margin-bottom: 10px; }
-        p { opacity: 0.8; }
+        p { opacity: 0.8; font-size: 14px; }
+        .retry-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        .retry-btn:active { opacity: 0.9; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="loader"></div>
-        <h2>Redirecting to Payment</h2>
-        <p>Please wait...</p>
+    <div class="container" id="content">
+        <div class="loader" id="loader"></div>
+        <h2 id="title">Redirecting to Payment</h2>
+        <p id="message">Loading payment gateway...</p>
     </div>
+    
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <script>
-        (function() {
+        var sessionId = "${sessionId}";
+        var environment = "${environment}";
+        var retryCount = 0;
+        var maxRetries = 3;
+        
+        function showError(msg) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('title').textContent = 'Error';
+            document.getElementById('message').innerHTML = msg + '<br><button class="retry-btn" onclick="initPayment()">Try Again</button>';
+        }
+        
+        function initPayment() {
+            retryCount++;
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('title').textContent = 'Redirecting to Payment';
+            document.getElementById('message').textContent = 'Loading payment gateway...';
+            
+            if (typeof Cashfree === 'undefined') {
+                if (retryCount < maxRetries) {
+                    setTimeout(initPayment, 1000);
+                } else {
+                    showError('Payment gateway could not load. Please check your internet connection.');
+                }
+                return;
+            }
+            
             try {
-                const cashfree = Cashfree({ mode: "${environment}" });
+                var cashfree = Cashfree({ mode: environment });
                 cashfree.checkout({
-                    paymentSessionId: "${sessionId}",
+                    paymentSessionId: sessionId,
                     redirectTarget: "_self"
                 });
             } catch (error) {
-                document.body.innerHTML = '<div class="container"><h2>Error</h2><p>Failed to load payment. Please try again.</p></div>';
+                console.error('Cashfree error:', error);
+                showError('Failed to initialize payment. Error: ' + (error.message || 'Unknown'));
             }
-        })();
+        }
+        
+        // Wait for SDK to load
+        if (document.readyState === 'complete') {
+            setTimeout(initPayment, 500);
+        } else {
+            window.onload = function() {
+                setTimeout(initPayment, 500);
+            };
+        }
     </script>
 </body>
 </html>`;
