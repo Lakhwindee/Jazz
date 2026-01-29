@@ -4091,91 +4091,18 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page (uses Cashfree V3 SDK)
+  // Payment redirect page - Direct redirect to Cashfree payment page
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
     
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *; img-src * data: blob:; frame-src *; style-src * 'unsafe-inline';">
-    <title>Payment - Mingree</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
-        }
-        .loader { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .container { padding: 20px; max-width: 350px; }
-        h2 { margin-bottom: 10px; font-size: 20px; }
-        p { opacity: 0.9; font-size: 14px; }
-        .btn { background: white; color: #667eea; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 15px; display: none; }
-    </style>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js" crossorigin="anonymous"></script>
-</head>
-<body>
-    <div class="container">
-        <div class="loader" id="loader"></div>
-        <h2 id="title">Opening Payment Gateway</h2>
-        <p id="msg">Please wait...</p>
-        <button class="btn" id="retryBtn" onclick="startPayment()">Retry Payment</button>
-    </div>
-    <script>
-        var sid = "${sessionId}";
-        var env = "${environment}";
-        var tries = 0;
-        
-        function showErr(m) {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('title').innerText = 'Payment Error';
-            document.getElementById('msg').innerText = m;
-            document.getElementById('retryBtn').style.display = 'inline-block';
-        }
-        
-        function startPayment() {
-            tries++;
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('title').innerText = 'Opening Payment Gateway';
-            document.getElementById('msg').innerText = 'Attempt ' + tries + '...';
-            document.getElementById('retryBtn').style.display = 'none';
-            
-            setTimeout(function() {
-                if (typeof Cashfree === 'undefined') {
-                    if (tries < 5) {
-                        setTimeout(startPayment, 1000);
-                    } else {
-                        showErr('Cashfree SDK not available. Try: 1) Disable ad blocker 2) Use Chrome/Safari 3) Refresh page');
-                    }
-                    return;
-                }
-                try {
-                    var cf = Cashfree({ mode: env });
-                    cf.checkout({ paymentSessionId: sid, redirectTarget: "_self" });
-                } catch (e) {
-                    showErr('Error: ' + (e.message || 'Checkout failed'));
-                }
-            }, 500);
-        }
-        
-        window.onload = function() { startPayment(); };
-    </script>
-</body>
-</html>`;
+    // Direct Cashfree payment URL (no SDK needed)
+    const paymentUrl = environment === 'production'
+      ? `https://payments.cashfree.com/forms/${sessionId}`
+      : `https://sandbox.cashfree.com/pg/view/sessions/${sessionId}`;
     
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+    // Redirect directly to Cashfree hosted page
+    res.redirect(paymentUrl);
   });
 
   // Create Cashfree order for subscription
