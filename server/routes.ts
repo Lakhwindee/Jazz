@@ -4091,18 +4091,58 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page - Direct redirect to Cashfree payment page
+  // Payment redirect page - Uses Cashfree V2 SDK (simpler redirect method)
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
     
-    // Direct Cashfree payment URL (no SDK needed)
-    const paymentUrl = environment === 'production'
-      ? `https://payments.cashfree.com/forms/${sessionId}`
-      : `https://sandbox.cashfree.com/pg/view/sessions/${sessionId}`;
+    // V2 SDK URL
+    const sdkUrl = environment === 'production'
+      ? 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js'
+      : 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.sandbox.js';
     
-    // Redirect directly to Cashfree hosted page
-    res.redirect(paymentUrl);
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment</title>
+<style>
+body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#667eea;color:#fff;text-align:center}
+.box{padding:30px}
+.spin{width:40px;height:40px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;margin:0 auto 15px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="box">
+<div class="spin"></div>
+<h2>Opening Payment...</h2>
+<p>Please wait</p>
+</div>
+<script src="${sdkUrl}"></script>
+<script>
+(function(){
+  var t=0,max=20;
+  function go(){
+    t++;
+    if(window.Cashfree){
+      try{new window.Cashfree("${sessionId}").redirect();}
+      catch(e){document.body.innerHTML='<div class="box"><h2>Error</h2><p>'+e.message+'</p></div>';}
+    }else if(t<max){
+      setTimeout(go,300);
+    }else{
+      document.body.innerHTML='<div class="box"><h2>Loading...</h2><p>SDK taking time. <a href="javascript:location.reload()" style="color:#fff">Refresh</a></p></div>';
+    }
+  }
+  setTimeout(go,500);
+})();
+</script>
+</body>
+</html>`;
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
   });
 
   // Create Cashfree order for subscription
