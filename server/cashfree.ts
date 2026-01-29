@@ -123,6 +123,17 @@ export async function createCashfreePaymentLink(
   return response.data;
 }
 
+// Fetch Payment Link details to verify payment
+export async function fetchCashfreePaymentLink(linkId: string) {
+  const baseUrl = getBaseUrl();
+  
+  const response = await axios.get(`${baseUrl}/links/${linkId}`, {
+    headers: getHeaders(),
+  });
+  
+  return response.data;
+}
+
 export function getCashfreeAppId(): string {
   const appId = process.env.CASHFREE_APP_ID;
   if (!appId) {

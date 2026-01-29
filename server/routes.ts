@@ -9,7 +9,7 @@ import fs from "fs";
 import passport from "passport";
 import { setupAuth, hashPassword, isAuthenticated, sanitizeUser } from "./auth";
 import { MIN_FOLLOWERS, getTierByFollowers } from "@shared/tiers";
-import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured, createCashfreePaymentLink } from "./cashfree";
+import { createCashfreeOrder, fetchCashfreeOrder, getCashfreeAppId, isCashfreeConfigured, createCashfreePaymentLink, fetchCashfreePaymentLink } from "./cashfree";
 import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
 import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payouts";
 import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
@@ -4163,7 +4163,7 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      const orderId = `sub_${userId}_${Date.now()}`;
+      const linkId = `sub_${userId}_${Date.now()}`;
       
       // Get proper HTTPS return URL for Cashfree (production requires HTTPS)
       let baseUrl = 'https://mingree.com';
@@ -4172,46 +4172,43 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
       } else if (process.env.REPLIT_DEV_DOMAIN) {
         baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
       }
-      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
+      const returnUrl = `${baseUrl}/subscription?order_id=${linkId}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
       
-      // Create order for SDK-based checkout (website)
-      const order = await createCashfreeOrder(
-        orderId,
+      // Use Payment Links API - returns direct URL that works everywhere (no SDK needed!)
+      const paymentLink = await createCashfreePaymentLink(
+        linkId,
         paymentAmount,
+        "Mingree Pro Subscription",
         {
-          customerId: `user_${userId}`,
-          customerPhone: customerPhone,
           customerName: customerName,
+          customerPhone: customerPhone,
           customerEmail: customerEmail,
         },
         returnUrl
       );
 
-      // Create payment page URL for mobile apps (uses server-side redirect page)
-      const paymentPageUrl = `${baseUrl}/pay/${order.payment_session_id}`;
-      console.log(`Payment page URL: ${paymentPageUrl}`);
+      console.log(`Payment link created: ${paymentLink.link_url}`);
 
       // Store promo code with order for later verification if provided
       if (promoCode) {
-        console.log(`Order ${orderId} created with promo code: ${promoCode}`);
+        console.log(`Order ${linkId} created with promo code: ${promoCode}`);
       }
 
       res.json({ 
-        orderId: order.order_id,
-        cfOrderId: order.cf_order_id || order.order_id,  // For React Native SDK
-        sessionId: order.payment_session_id,
-        paymentSessionId: order.payment_session_id,  // For React Native SDK
-        paymentLink: paymentPageUrl,  // Payment page URL for web/mobile browser
+        orderId: linkId,
+        linkId: paymentLink.link_id,
+        cfLinkId: paymentLink.cf_link_id,
+        paymentLink: paymentLink.link_url,  // Direct URL - works everywhere!
         amount: paymentAmount,
         currency: "INR",
       });
-    } catch (error) {
-      console.error("Error creating Cashfree order:", error);
+    } catch (error: any) {
+      console.error("Error creating Cashfree payment link:", error.response?.data || error.message);
       res.status(500).json({ error: "Failed to create payment order" });
     }
   });
@@ -4225,10 +4222,31 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
         return res.status(400).json({ error: "Missing order ID" });
       }
       
-      const orderDetails = await fetchCashfreeOrder(orderId);
+      // Check if this is a Payment Link (starts with sub_) or a regular order
+      let isPaid = false;
       
-      if (orderDetails.order_status !== 'PAID') {
-        return res.status(400).json({ error: "Payment not completed", status: orderDetails.order_status });
+      if (orderId.startsWith('sub_')) {
+        // This is a Payment Link - use Payment Links API
+        try {
+          const linkDetails = await fetchCashfreePaymentLink(orderId);
+          console.log('Payment link status:', linkDetails.link_status, 'Amount paid:', linkDetails.link_amount_paid);
+          
+          // Payment Link is considered paid if amount_paid >= link_amount
+          isPaid = linkDetails.link_amount_paid >= linkDetails.link_amount;
+        } catch (linkError: any) {
+          console.error("Error fetching payment link:", linkError.response?.data || linkError.message);
+          // Fall back to order API
+          const orderDetails = await fetchCashfreeOrder(orderId);
+          isPaid = orderDetails.order_status === 'PAID';
+        }
+      } else {
+        // Regular order
+        const orderDetails = await fetchCashfreeOrder(orderId);
+        isPaid = orderDetails.order_status === 'PAID';
+      }
+      
+      if (!isPaid) {
+        return res.status(400).json({ error: "Payment not completed" });
       }
       
       const user = await storage.getUser(userId);

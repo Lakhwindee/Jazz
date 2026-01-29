@@ -249,6 +249,7 @@ export default function Subscription() {
     setIsProcessing(true);
     
     try {
+      // Save billing details first
       const response = await fetch("/api/users/billing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -267,41 +268,12 @@ export default function Subscription() {
         billingDetails,
       });
       
-      // Try to load Cashfree SDK
-      const scriptLoaded = await loadCashfreeScript();
-      
-      if (scriptLoaded && window.Cashfree) {
-        // Use SDK-based checkout (for desktop browsers)
-        try {
-          const config = await api.getCashfreeConfig();
-          
-          const cashfree = window.Cashfree({
-            mode: config.environment === 'production' ? 'production' : 'sandbox',
-          });
-          
-          const checkoutOptions = {
-            paymentSessionId: orderData.sessionId,
-            redirectTarget: "_self",
-          };
-          
-          cashfree.checkout(checkoutOptions);
-        } catch (sdkError) {
-          console.error("SDK checkout failed, using redirect:", sdkError);
-          // Fallback to redirect if SDK fails
-          if (orderData.paymentLink) {
-            window.location.href = orderData.paymentLink;
-          } else {
-            throw new Error("Payment gateway unavailable");
-          }
-        }
+      // Direct redirect to Cashfree payment page (no SDK needed!)
+      if (orderData.paymentLink) {
+        console.log("Redirecting to payment:", orderData.paymentLink);
+        window.location.href = orderData.paymentLink;
       } else {
-        // Use redirect-based checkout (for mobile/webview)
-        console.log("Using redirect-based payment flow");
-        if (orderData.paymentLink) {
-          window.location.href = orderData.paymentLink;
-        } else {
-          throw new Error("Payment gateway unavailable");
-        }
+        throw new Error("Payment gateway unavailable");
       }
       
     } catch (error: any) {
