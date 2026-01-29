@@ -14,7 +14,7 @@ import { initiateUpiPayout, isPayoutsConfigured } from "./cashfree-payouts";
 import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payouts";
 import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
-import { isPayUConfigured, createPayUPayment, handlePayUCallback } from "./payu";
+import { isPayUConfigured, createPayUPayment, handlePayUCallback, createPayUSubscriptionPayment, handlePayUSubscriptionCallback } from "./payu";
 import { sendEmail, sendNewSignupNotification } from "./email";
 import axios from "axios";
 
@@ -4165,7 +4165,7 @@ p{margin:0;opacity:.9}
     res.send(html);
   });
 
-  // Create Cashfree order for subscription
+  // Create payment order for subscription (tries PayU first, then Cashfree)
   app.post("/api/subscription/create-order", async (req, res) => {
     try {
       const { userId, amount, promoCode, billingDetails } = req.body;
@@ -4183,23 +4183,57 @@ p{margin:0;opacity:.9}
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      const orderId = `sub_${userId}_${Date.now()}`;
-      
-      // Get proper HTTPS return URL for Cashfree (production requires HTTPS)
+      // Get base URL
       let baseUrl = 'https://mingree.com';
       if (process.env.REPLIT_DOMAINS) {
         baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
       } else if (process.env.REPLIT_DEV_DOMAIN) {
         baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
       }
-      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
+
+      // Try PayU first (works reliably on mobile - form based)
+      const payuConfigured = await isPayUConfigured();
+      if (payuConfigured) {
+        try {
+          const successUrl = `${baseUrl}/api/subscription/payu-callback`;
+          const failureUrl = `${baseUrl}/api/subscription/payu-callback`;
+          
+          const payuData = await createPayUSubscriptionPayment(
+            userId,
+            paymentAmount,
+            customerName,
+            customerEmail,
+            customerPhone,
+            successUrl,
+            failureUrl
+          );
+
+          if (payuData) {
+            console.log(`PayU subscription order created: ${payuData.txnid}`);
+            
+            res.json({ 
+              gateway: 'payu',
+              orderId: payuData.txnid,
+              payuData: payuData,  // Form data for PayU redirect
+              amount: paymentAmount,
+              currency: "INR",
+            });
+            return;
+          }
+        } catch (payuError: any) {
+          console.error("PayU error, falling back to Cashfree:", payuError.message);
+        }
+      }
+
+      // Fallback to Cashfree
+      const orderId = `sub_${userId}_${Date.now()}`;
+      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
-      // Create order using Orders API
       const order = await createCashfreeOrder(
         orderId,
         paymentAmount,
@@ -4212,27 +4246,56 @@ p{margin:0;opacity:.9}
         returnUrl
       );
 
-      // Create payment page URL for redirect flow
       const paymentPageUrl = `${baseUrl}/pay/${order.payment_session_id}`;
-      console.log(`Order created: ${orderId}, Session: ${order.payment_session_id}`);
+      console.log(`Cashfree order created: ${orderId}, Session: ${order.payment_session_id}`);
 
-      // Store promo code with order for later verification if provided
       if (promoCode) {
         console.log(`Order ${orderId} created with promo code: ${promoCode}`);
       }
 
       res.json({ 
+        gateway: 'cashfree',
         orderId: order.order_id,
         cfOrderId: order.cf_order_id || order.order_id,
         sessionId: order.payment_session_id,
         paymentSessionId: order.payment_session_id,
-        paymentLink: paymentPageUrl,  // Our custom payment page
+        paymentLink: paymentPageUrl,
         amount: paymentAmount,
         currency: "INR",
       });
     } catch (error: any) {
-      console.error("Error creating Cashfree order:", error.response?.data || error.message);
+      console.error("Error creating payment order:", error.response?.data || error.message);
       res.status(500).json({ error: "Failed to create payment order" });
+    }
+  });
+
+  // PayU subscription callback handler
+  app.post("/api/subscription/payu-callback", async (req, res) => {
+    try {
+      const { txnid, status, mihpayid, hash, email, firstname, productinfo, amount } = req.body;
+      
+      console.log('PayU subscription callback:', { txnid, status, mihpayid });
+      
+      const result = await handlePayUSubscriptionCallback(
+        txnid,
+        status,
+        mihpayid || '',
+        hash,
+        email,
+        firstname,
+        productinfo,
+        amount
+      );
+      
+      // Redirect to subscription page with result
+      if (result.success) {
+        res.redirect(`/subscription?status=success&gateway=payu`);
+      } else {
+        res.redirect(`/subscription?status=failed&message=${encodeURIComponent(result.message)}`);
+      }
+    } catch (error: any) {
+      console.error('PayU callback error:', error);
+      res.redirect('/subscription?status=failed&message=Payment+processing+error');
     }
   });
 

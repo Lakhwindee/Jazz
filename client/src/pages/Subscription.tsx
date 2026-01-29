@@ -268,9 +268,45 @@ export default function Subscription() {
         billingDetails,
       });
       
-      // Direct redirect to Cashfree payment page (no SDK needed!)
+      // Handle PayU form-based payment (works on mobile!)
+      if (orderData.gateway === 'payu' && orderData.payuData) {
+        console.log("Using PayU payment gateway");
+        const payuData = orderData.payuData;
+        
+        // Create and submit PayU form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = payuData.payuBaseUrl;
+        
+        const fields = {
+          key: payuData.key,
+          txnid: payuData.txnid,
+          amount: payuData.amount,
+          productinfo: payuData.productinfo,
+          firstname: payuData.firstname,
+          email: payuData.email,
+          phone: payuData.phone,
+          surl: payuData.surl,
+          furl: payuData.furl,
+          hash: payuData.hash,
+        };
+        
+        Object.entries(fields).forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      }
+      
+      // Fallback to Cashfree redirect
       if (orderData.paymentLink) {
-        console.log("Redirecting to payment:", orderData.paymentLink);
+        console.log("Using Cashfree payment gateway");
         window.location.href = orderData.paymentLink;
       } else {
         throw new Error("Payment gateway unavailable");

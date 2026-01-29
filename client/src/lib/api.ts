@@ -475,7 +475,27 @@ export const api = {
     return res.json();
   },
 
-  async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ orderId: string; sessionId: string; paymentLink?: string; amount: number; currency: string }> {
+  async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ 
+    gateway?: string;
+    orderId: string; 
+    sessionId?: string; 
+    paymentLink?: string; 
+    payuData?: {
+      key: string;
+      txnid: string;
+      amount: string;
+      productinfo: string;
+      firstname: string;
+      email: string;
+      phone: string;
+      surl: string;
+      furl: string;
+      hash: string;
+      payuBaseUrl: string;
+    };
+    amount: number; 
+    currency: string;
+  }> {
     const res = await fetch(`${API_BASE}/subscription/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

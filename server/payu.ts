@@ -150,6 +150,131 @@ export async function createPayUPayment(
   };
 }
 
+// Create PayU payment for subscription
+export async function createPayUSubscriptionPayment(
+  userId: number,
+  amount: number,
+  firstname: string,
+  email: string,
+  phone: string,
+  successUrl: string,
+  failureUrl: string
+): Promise<PayUPaymentData | null> {
+  const config = await getPayUConfig();
+  if (!config) {
+    throw new Error('PayU not configured');
+  }
+  
+  const txnid = `SUB_${userId}_${Date.now()}`;
+  const amountStr = amount.toFixed(2);
+  const productinfo = `Mingree Pro Subscription`;
+  
+  const hash = generatePayUHash(
+    config.merchantKey,
+    txnid,
+    amountStr,
+    productinfo,
+    firstname,
+    email,
+    config.merchantSalt
+  );
+  
+  return {
+    key: config.merchantKey,
+    txnid,
+    amount: amountStr,
+    productinfo,
+    firstname,
+    email,
+    phone,
+    surl: successUrl,
+    furl: failureUrl,
+    hash,
+    payuBaseUrl: getPayUBaseUrl(config.isProduction)
+  };
+}
+
+// Handle PayU subscription callback
+export async function handlePayUSubscriptionCallback(
+  txnid: string,
+  status: string,
+  mihpayid: string,
+  hash: string,
+  email: string,
+  firstname: string,
+  productinfo: string,
+  amount: string
+): Promise<{ success: boolean; message: string; userId?: number }> {
+  const config = await getPayUConfig();
+  if (!config) {
+    return { success: false, message: 'PayU not configured' };
+  }
+  
+  const isValidHash = verifyPayUHash(
+    config.merchantSalt,
+    status,
+    email,
+    firstname,
+    productinfo,
+    amount,
+    txnid,
+    config.merchantKey,
+    hash
+  );
+  
+  if (!isValidHash) {
+    console.error('PayU subscription hash verification failed');
+    return { success: false, message: 'Hash verification failed' };
+  }
+  
+  const userIdMatch = txnid.match(/SUB_(\d+)_/);
+  if (!userIdMatch) {
+    return { success: false, message: 'Invalid transaction ID format' };
+  }
+  
+  const userId = parseInt(userIdMatch[1], 10);
+  const user = await storage.getUser(userId);
+  
+  if (!user) {
+    return { success: false, message: 'User not found' };
+  }
+  
+  if (status.toLowerCase() === 'success') {
+    // Activate subscription
+    let expiresAt = new Date();
+    if (user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > new Date()) {
+      expiresAt = new Date(user.subscriptionExpiresAt);
+    }
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    
+    await storage.updateUserSubscription(userId, "pro", expiresAt);
+    
+    // Create notification
+    await storage.createNotification({
+      userId,
+      type: "subscription_upgraded",
+      title: "Pro Subscription Activated!",
+      message: "Welcome to Pro! You can now reserve unlimited campaigns.",
+      isRead: false,
+    });
+    
+    // Record in admin wallet
+    await storage.updateAdminWalletBalance(parseFloat(amount), 'add');
+    
+    await storage.createAdminWalletTransaction({
+      type: 'deposit',
+      category: 'subscription',
+      amount: amount,
+      description: `Pro subscription via PayU (PayU ID: ${mihpayid})`,
+      relatedUserId: userId
+    });
+    
+    return { success: true, message: 'Subscription activated', userId };
+  } else {
+    return { success: false, message: 'Payment failed', userId };
+  }
+}
+
 export async function handlePayUCallback(
   txnid: string,
   status: string,
