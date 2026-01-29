@@ -4091,77 +4091,145 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page - Uses Cashfree V3 SDK
+  // Payment redirect page - Uses Cashfree V3 SDK with dynamic loading
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
     const mode = environment === 'production' ? 'production' : 'sandbox';
     
+    // Get base URL for return
+    let baseUrl = 'https://mingree.com';
+    if (process.env.REPLIT_DOMAINS) {
+      baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+    }
+    
     const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mingree - Payment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Mingree - Secure Payment</title>
 <style>
-*{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-align:center}
-.box{padding:40px;max-width:400px}
-.spin{width:50px;height:50px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;margin:0 auto 20px}
-@keyframes s{to{transform:rotate(360deg)}}
-h2{margin:0 0 10px;font-weight:600}
-p{margin:0;opacity:.9}
-.btn{display:inline-block;margin-top:20px;padding:12px 30px;background:#fff;color:#667eea;border-radius:8px;text-decoration:none;font-weight:600}
-.error{background:rgba(255,0,0,.2);padding:20px;border-radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#0f0f1a;color:#fff;text-align:center;padding:20px}
+.container{width:100%;max-width:360px}
+.spin{width:48px;height:48px;border:3px solid rgba(139,92,246,.3);border-top-color:#8b5cf6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 24px}
+@keyframes spin{to{transform:rotate(360deg)}}
+h2{font-size:20px;font-weight:600;margin-bottom:8px}
+p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:24px}
+.btn{display:inline-block;padding:14px 32px;background:#8b5cf6;color:#fff;border-radius:12px;text-decoration:none;font-weight:600;font-size:16px;border:none;cursor:pointer;width:100%;max-width:280px}
+.btn:active{background:#7c3aed;transform:scale(0.98)}
+.btn-secondary{background:transparent;border:2px solid rgba(255,255,255,.3);margin-top:12px}
+.error-box{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:20px;border-radius:12px;margin-bottom:20px}
+.error-box h2{color:#ef4444}
+.hidden{display:none}
+.logo{font-size:28px;font-weight:700;margin-bottom:32px;background:linear-gradient(135deg,#8b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 </style>
 </head>
 <body>
-<div class="box" id="content">
+<div class="container">
+<div class="logo">Mingree</div>
+<div id="loading">
 <div class="spin"></div>
-<h2>Opening Payment...</h2>
-<p>Redirecting to secure checkout</p>
+<h2>Opening Payment Gateway</h2>
+<p>Please wait while we connect you to the secure payment page...</p>
 </div>
-<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+<div id="error" class="hidden">
+<div class="error-box">
+<h2>Connection Issue</h2>
+<p id="errorMsg">Unable to load payment gateway. This can happen due to network issues or ad blockers.</p>
+</div>
+<button class="btn" onclick="retryPayment()">Try Again</button>
+<a href="${baseUrl}/subscription" class="btn btn-secondary">Go Back</a>
+</div>
+</div>
+
 <script>
-(function(){
-  var tries=0, maxTries=30;
+var SESSION_ID = '${sessionId}';
+var MODE = '${mode}';
+var attempts = 0;
+var maxAttempts = 3;
+var sdkLoaded = false;
+
+function loadSDK(callback) {
+  if (typeof Cashfree !== 'undefined') {
+    sdkLoaded = true;
+    callback();
+    return;
+  }
   
-  function initPayment(){
-    tries++;
-    
-    if(typeof Cashfree !== 'undefined'){
-      try{
-        var cashfree = Cashfree({mode:'${mode}'});
-        cashfree.checkout({
-          paymentSessionId: '${sessionId}',
-          redirectTarget: '_self'
-        });
-      }catch(e){
-        showError('Payment Error: ' + e.message);
-      }
-    }else if(tries < maxTries){
-      setTimeout(initPayment, 200);
-    }else{
-      showRetry();
+  var script = document.createElement('script');
+  script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+  script.async = true;
+  
+  script.onload = function() {
+    sdkLoaded = true;
+    callback();
+  };
+  
+  script.onerror = function() {
+    showError('Failed to load payment script. Please check your internet connection.');
+  };
+  
+  document.head.appendChild(script);
+}
+
+function initPayment() {
+  attempts++;
+  
+  loadSDK(function() {
+    waitForSDK(0);
+  });
+}
+
+function waitForSDK(tries) {
+  if (typeof Cashfree !== 'undefined') {
+    try {
+      var cashfree = Cashfree({ mode: MODE });
+      cashfree.checkout({
+        paymentSessionId: SESSION_ID,
+        redirectTarget: '_self'
+      });
+    } catch(e) {
+      showError('Payment initialization failed: ' + e.message);
     }
+  } else if (tries < 50) {
+    setTimeout(function() { waitForSDK(tries + 1); }, 100);
+  } else {
+    showError('Payment gateway is taking too long to load.');
   }
-  
-  function showError(msg){
-    document.getElementById('content').innerHTML = '<div class="error"><h2>Error</h2><p>' + msg + '</p><a href="javascript:location.reload()" class="btn">Try Again</a></div>';
+}
+
+function showError(msg) {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('error').classList.remove('hidden');
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+function retryPayment() {
+  if (attempts >= maxAttempts) {
+    document.getElementById('errorMsg').textContent = 'Multiple attempts failed. Please try again later or use a different browser.';
+    return;
   }
-  
-  function showRetry(){
-    document.getElementById('content').innerHTML = '<h2>Taking longer than usual...</h2><p>Please tap retry</p><a href="javascript:location.reload()" class="btn">Retry</a>';
-  }
-  
-  // Start after small delay
-  setTimeout(initPayment, 300);
-})();
+  document.getElementById('error').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+  initPayment();
+}
+
+// Start payment initialization
+setTimeout(initPayment, 100);
 </script>
 </body>
 </html>`;
     
     res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(html);
   });
 

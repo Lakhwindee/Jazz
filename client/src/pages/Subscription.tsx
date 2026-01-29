@@ -261,14 +261,6 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
-      // Load Cashfree SDK
-      const scriptLoaded = await loadCashfreeScript();
-      if (!scriptLoaded) {
-        toast.error("Failed to load payment gateway. Please try again.");
-        setIsProcessing(false);
-        return;
-      }
-      
       const finalAmount = calculateFinalAmount();
       const orderData = await api.createPaymentOrder(user.id, {
         amount: finalAmount,
@@ -276,19 +268,8 @@ export default function Subscription() {
         billingDetails,
       });
       
-      // Get Cashfree config and open checkout
-      const config = await api.getCashfreeConfig();
-      
-      const cashfree = window.Cashfree({
-        mode: config.environment === 'production' ? 'production' : 'sandbox',
-      });
-      
-      const checkoutOptions = {
-        paymentSessionId: orderData.sessionId,
-        redirectTarget: "_self",
-      };
-      
-      cashfree.checkout(checkoutOptions);
+      // Redirect to dedicated payment page (works better on mobile)
+      window.location.href = `/pay/${orderData.sessionId}`;
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
