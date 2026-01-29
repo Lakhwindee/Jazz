@@ -4091,16 +4091,12 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page for mobile apps (uses Cashfree V2 SDK - simpler redirect)
+  // Payment redirect page for mobile apps (uses Cashfree V3 SDK)
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
     
-    // V2 SDK URLs (simpler .redirect() method)
-    const sdkUrl = environment === 'production' 
-      ? 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js' 
-      : 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.sandbox.js';
-    
+    // Serve a simple HTML page that redirects to Cashfree payment
     const html = `
 <!DOCTYPE html>
 <html>
@@ -4108,8 +4104,8 @@ export async function registerRoutes(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redirecting to Payment...</title>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <style>
-        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
@@ -4117,7 +4113,7 @@ export async function registerRoutes(
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #FF3399 0%, #FF6B6B 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-align: center;
         }
@@ -4130,87 +4126,32 @@ export async function registerRoutes(
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .container { padding: 20px; max-width: 400px; }
-        h2 { margin-bottom: 10px; font-size: 22px; }
-        p { opacity: 0.9; font-size: 15px; margin: 10px 0; }
-        .retry-btn {
-            background: white;
-            color: #FF3399;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 20px;
-            cursor: pointer;
-            display: none;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-        .retry-btn:active { transform: scale(0.98); }
-        .error { color: #ffcccc; font-size: 13px; margin-top: 15px; display: none; }
+        .container { padding: 20px; }
+        h2 { margin-bottom: 10px; }
+        p { opacity: 0.8; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="loader" id="loader"></div>
-        <h2 id="title">Opening Payment</h2>
-        <p id="message">Please wait while we connect to payment gateway...</p>
-        <p class="error" id="errorMsg"></p>
-        <button class="retry-btn" id="retryBtn" onclick="startPayment()">Try Again</button>
+        <div class="loader"></div>
+        <h2>Redirecting to Payment</h2>
+        <p>Please wait...</p>
     </div>
-    
-    <script src="${sdkUrl}"></script>
     <script>
-        var sessionId = "${sessionId}";
-        var attempts = 0;
-        var maxAttempts = 3;
-        
-        function showError(msg) {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('title').textContent = 'Connection Issue';
-            document.getElementById('message').textContent = 'Could not connect to payment gateway.';
-            document.getElementById('errorMsg').style.display = 'block';
-            document.getElementById('errorMsg').textContent = msg;
-            document.getElementById('retryBtn').style.display = 'inline-block';
-        }
-        
-        function startPayment() {
-            attempts++;
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('title').textContent = 'Opening Payment';
-            document.getElementById('message').textContent = 'Please wait...';
-            document.getElementById('errorMsg').style.display = 'none';
-            document.getElementById('retryBtn').style.display = 'none';
-            
-            // Check if Cashfree SDK loaded
-            if (typeof Cashfree === 'undefined' && typeof window.Cashfree === 'undefined') {
-                if (attempts < maxAttempts) {
-                    setTimeout(startPayment, 1500);
-                } else {
-                    showError('Payment SDK could not load. Please open this link in Chrome or Safari browser.');
-                }
-                return;
-            }
-            
+        (function() {
             try {
-                // V2 SDK simple redirect method
-                if (typeof Cashfree === 'function') {
-                    new Cashfree(sessionId).redirect();
-                } else if (window.Cashfree) {
-                    new window.Cashfree(sessionId).redirect();
-                } else {
-                    showError('Payment SDK initialization failed.');
-                }
-            } catch (err) {
-                console.error('Cashfree error:', err);
-                showError('Error: ' + (err.message || 'Unknown error'));
+                const cashfree = Cashfree({ mode: "${environment}" });
+                cashfree.checkout({
+                    paymentSessionId: "${sessionId}",
+                    redirectTarget: "_self"
+                });
+            } catch (error) {
+                document.body.innerHTML = '<div class="container"><h2>Error</h2><p>Failed to load payment. Please try again.</p></div>';
             }
-        }
-        
-        // Wait for DOM and SDK to load
-        window.onload = function() {
-            setTimeout(startPayment, 800);
-        };
+        })();
     </script>
 </body>
 </html>`;
