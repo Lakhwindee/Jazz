@@ -476,23 +476,8 @@ export const api = {
   },
 
   async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ 
-    gateway?: string;
     orderId: string; 
-    sessionId?: string; 
-    paymentLink?: string; 
-    payuData?: {
-      key: string;
-      txnid: string;
-      amount: string;
-      productinfo: string;
-      firstname: string;
-      email: string;
-      phone: string;
-      surl: string;
-      furl: string;
-      hash: string;
-      payuBaseUrl: string;
-    };
+    sessionId: string; 
     amount: number; 
     currency: string;
   }> {

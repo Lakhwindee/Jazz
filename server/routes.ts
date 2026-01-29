@@ -4165,7 +4165,7 @@ p{margin:0;opacity:.9}
     res.send(html);
   });
 
-  // Create payment order for subscription (tries PayU first, then Cashfree)
+  // Create Cashfree order for subscription
   app.post("/api/subscription/create-order", async (req, res) => {
     try {
       const { userId, amount, promoCode, billingDetails } = req.body;
@@ -4183,56 +4183,19 @@ p{margin:0;opacity:.9}
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      // Get base URL
-      let baseUrl = 'https://mingree.com';
+      const orderId = `sub_${userId}_${Date.now()}`;
+      
+      // Get HTTPS return URL (required for Cashfree production)
+      let baseUrl = `${req.protocol}://${req.get('host')}`;
       if (process.env.REPLIT_DOMAINS) {
         baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
-      } else if (process.env.REPLIT_DEV_DOMAIN) {
-        baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
       }
+      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
-
-      // Try PayU first (works reliably on mobile - form based)
-      const payuConfigured = await isPayUConfigured();
-      if (payuConfigured) {
-        try {
-          const successUrl = `${baseUrl}/api/subscription/payu-callback`;
-          const failureUrl = `${baseUrl}/api/subscription/payu-callback`;
-          
-          const payuData = await createPayUSubscriptionPayment(
-            userId,
-            paymentAmount,
-            customerName,
-            customerEmail,
-            customerPhone,
-            successUrl,
-            failureUrl
-          );
-
-          if (payuData) {
-            console.log(`PayU subscription order created: ${payuData.txnid}`);
-            
-            res.json({ 
-              gateway: 'payu',
-              orderId: payuData.txnid,
-              payuData: payuData,  // Form data for PayU redirect
-              amount: paymentAmount,
-              currency: "INR",
-            });
-            return;
-          }
-        } catch (payuError: any) {
-          console.error("PayU error, falling back to Cashfree:", payuError.message);
-        }
-      }
-
-      // Fallback to Cashfree
-      const orderId = `sub_${userId}_${Date.now()}`;
-      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
       const order = await createCashfreeOrder(
         orderId,
@@ -4246,30 +4209,24 @@ p{margin:0;opacity:.9}
         returnUrl
       );
 
-      const paymentPageUrl = `${baseUrl}/pay/${order.payment_session_id}`;
-      console.log(`Cashfree order created: ${orderId}, Session: ${order.payment_session_id}`);
-
+      // Store promo code with order for later verification if provided
       if (promoCode) {
         console.log(`Order ${orderId} created with promo code: ${promoCode}`);
       }
 
       res.json({ 
-        gateway: 'cashfree',
         orderId: order.order_id,
-        cfOrderId: order.cf_order_id || order.order_id,
         sessionId: order.payment_session_id,
-        paymentSessionId: order.payment_session_id,
-        paymentLink: paymentPageUrl,
         amount: paymentAmount,
         currency: "INR",
       });
     } catch (error: any) {
-      console.error("Error creating payment order:", error.response?.data || error.message);
+      console.error("Error creating Cashfree order:", error.response?.data || error.message);
       res.status(500).json({ error: "Failed to create payment order" });
     }
   });
 
-  // PayU subscription callback handler
+  // PayU subscription callback handler (kept for future use)
   app.post("/api/subscription/payu-callback", async (req, res) => {
     try {
       const { txnid, status, mihpayid, hash, email, firstname, productinfo, amount } = req.body;

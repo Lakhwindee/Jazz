@@ -261,6 +261,14 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
+      // Load Cashfree SDK
+      const scriptLoaded = await loadCashfreeScript();
+      if (!scriptLoaded) {
+        toast.error("Failed to load payment gateway. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+      
       const finalAmount = calculateFinalAmount();
       const orderData = await api.createPaymentOrder(user.id, {
         amount: finalAmount,
@@ -268,49 +276,19 @@ export default function Subscription() {
         billingDetails,
       });
       
-      // Handle PayU form-based payment (works on mobile!)
-      if (orderData.gateway === 'payu' && orderData.payuData) {
-        console.log("Using PayU payment gateway");
-        const payuData = orderData.payuData;
-        
-        // Create and submit PayU form
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = payuData.payuBaseUrl;
-        
-        const fields = {
-          key: payuData.key,
-          txnid: payuData.txnid,
-          amount: payuData.amount,
-          productinfo: payuData.productinfo,
-          firstname: payuData.firstname,
-          email: payuData.email,
-          phone: payuData.phone,
-          surl: payuData.surl,
-          furl: payuData.furl,
-          hash: payuData.hash,
-        };
-        
-        Object.entries(fields).forEach(([name, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = name;
-          input.value = value;
-          form.appendChild(input);
-        });
-        
-        document.body.appendChild(form);
-        form.submit();
-        return;
-      }
+      // Get Cashfree config and open checkout
+      const config = await api.getCashfreeConfig();
       
-      // Fallback to Cashfree redirect
-      if (orderData.paymentLink) {
-        console.log("Using Cashfree payment gateway");
-        window.location.href = orderData.paymentLink;
-      } else {
-        throw new Error("Payment gateway unavailable");
-      }
+      const cashfree = window.Cashfree({
+        mode: config.environment === 'production' ? 'production' : 'sandbox',
+      });
+      
+      const checkoutOptions = {
+        paymentSessionId: orderData.sessionId,
+        redirectTarget: "_self",
+      };
+      
+      cashfree.checkout(checkoutOptions);
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
