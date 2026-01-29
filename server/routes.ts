@@ -4091,51 +4091,71 @@ export async function registerRoutes(
     }
   });
 
-  // Payment redirect page - Uses Cashfree V2 SDK (simpler redirect method)
+  // Payment redirect page - Uses Cashfree V3 SDK
   app.get("/pay/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
     const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
-    
-    // V2 SDK URL
-    const sdkUrl = environment === 'production'
-      ? 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js'
-      : 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.sandbox.js';
+    const mode = environment === 'production' ? 'production' : 'sandbox';
     
     const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Payment</title>
+<title>Mingree - Payment</title>
 <style>
-body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#667eea;color:#fff;text-align:center}
-.box{padding:30px}
-.spin{width:40px;height:40px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;margin:0 auto 15px}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-align:center}
+.box{padding:40px;max-width:400px}
+.spin{width:50px;height:50px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;margin:0 auto 20px}
 @keyframes s{to{transform:rotate(360deg)}}
+h2{margin:0 0 10px;font-weight:600}
+p{margin:0;opacity:.9}
+.btn{display:inline-block;margin-top:20px;padding:12px 30px;background:#fff;color:#667eea;border-radius:8px;text-decoration:none;font-weight:600}
+.error{background:rgba(255,0,0,.2);padding:20px;border-radius:10px}
 </style>
 </head>
 <body>
-<div class="box">
+<div class="box" id="content">
 <div class="spin"></div>
 <h2>Opening Payment...</h2>
-<p>Please wait</p>
+<p>Redirecting to secure checkout</p>
 </div>
-<script src="${sdkUrl}"></script>
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <script>
 (function(){
-  var t=0,max=20;
-  function go(){
-    t++;
-    if(window.Cashfree){
-      try{new window.Cashfree("${sessionId}").redirect();}
-      catch(e){document.body.innerHTML='<div class="box"><h2>Error</h2><p>'+e.message+'</p></div>';}
-    }else if(t<max){
-      setTimeout(go,300);
+  var tries=0, maxTries=30;
+  
+  function initPayment(){
+    tries++;
+    
+    if(typeof Cashfree !== 'undefined'){
+      try{
+        var cashfree = Cashfree({mode:'${mode}'});
+        cashfree.checkout({
+          paymentSessionId: '${sessionId}',
+          redirectTarget: '_self'
+        });
+      }catch(e){
+        showError('Payment Error: ' + e.message);
+      }
+    }else if(tries < maxTries){
+      setTimeout(initPayment, 200);
     }else{
-      document.body.innerHTML='<div class="box"><h2>Loading...</h2><p>SDK taking time. <a href="javascript:location.reload()" style="color:#fff">Refresh</a></p></div>';
+      showRetry();
     }
   }
-  setTimeout(go,500);
+  
+  function showError(msg){
+    document.getElementById('content').innerHTML = '<div class="error"><h2>Error</h2><p>' + msg + '</p><a href="javascript:location.reload()" class="btn">Try Again</a></div>';
+  }
+  
+  function showRetry(){
+    document.getElementById('content').innerHTML = '<h2>Taking longer than usual...</h2><p>Please tap retry</p><a href="javascript:location.reload()" class="btn">Retry</a>';
+  }
+  
+  // Start after small delay
+  setTimeout(initPayment, 300);
 })();
 </script>
 </body>
@@ -4163,7 +4183,7 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      const linkId = `sub_${userId}_${Date.now()}`;
+      const orderId = `sub_${userId}_${Date.now()}`;
       
       // Get proper HTTPS return URL for Cashfree (production requires HTTPS)
       let baseUrl = 'https://mingree.com';
@@ -4172,43 +4192,46 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
       } else if (process.env.REPLIT_DEV_DOMAIN) {
         baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
       }
-      const returnUrl = `${baseUrl}/subscription?order_id=${linkId}&status=success`;
+      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
       
-      // Use Payment Links API - returns direct URL that works everywhere (no SDK needed!)
-      const paymentLink = await createCashfreePaymentLink(
-        linkId,
+      // Create order using Orders API
+      const order = await createCashfreeOrder(
+        orderId,
         paymentAmount,
-        "Mingree Pro Subscription",
         {
-          customerName: customerName,
+          customerId: `user_${userId}`,
           customerPhone: customerPhone,
+          customerName: customerName,
           customerEmail: customerEmail,
         },
         returnUrl
       );
 
-      console.log(`Payment link created: ${paymentLink.link_url}`);
+      // Create payment page URL for redirect flow
+      const paymentPageUrl = `${baseUrl}/pay/${order.payment_session_id}`;
+      console.log(`Order created: ${orderId}, Session: ${order.payment_session_id}`);
 
       // Store promo code with order for later verification if provided
       if (promoCode) {
-        console.log(`Order ${linkId} created with promo code: ${promoCode}`);
+        console.log(`Order ${orderId} created with promo code: ${promoCode}`);
       }
 
       res.json({ 
-        orderId: linkId,
-        linkId: paymentLink.link_id,
-        cfLinkId: paymentLink.cf_link_id,
-        paymentLink: paymentLink.link_url,  // Direct URL - works everywhere!
+        orderId: order.order_id,
+        cfOrderId: order.cf_order_id || order.order_id,
+        sessionId: order.payment_session_id,
+        paymentSessionId: order.payment_session_id,
+        paymentLink: paymentPageUrl,  // Our custom payment page
         amount: paymentAmount,
         currency: "INR",
       });
     } catch (error: any) {
-      console.error("Error creating Cashfree payment link:", error.response?.data || error.message);
+      console.error("Error creating Cashfree order:", error.response?.data || error.message);
       res.status(500).json({ error: "Failed to create payment order" });
     }
   });
@@ -4222,28 +4245,11 @@ body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-
         return res.status(400).json({ error: "Missing order ID" });
       }
       
-      // Check if this is a Payment Link (starts with sub_) or a regular order
-      let isPaid = false;
+      // Fetch order status from Cashfree
+      const orderDetails = await fetchCashfreeOrder(orderId);
+      console.log('Order status:', orderId, orderDetails.order_status);
       
-      if (orderId.startsWith('sub_')) {
-        // This is a Payment Link - use Payment Links API
-        try {
-          const linkDetails = await fetchCashfreePaymentLink(orderId);
-          console.log('Payment link status:', linkDetails.link_status, 'Amount paid:', linkDetails.link_amount_paid);
-          
-          // Payment Link is considered paid if amount_paid >= link_amount
-          isPaid = linkDetails.link_amount_paid >= linkDetails.link_amount;
-        } catch (linkError: any) {
-          console.error("Error fetching payment link:", linkError.response?.data || linkError.message);
-          // Fall back to order API
-          const orderDetails = await fetchCashfreeOrder(orderId);
-          isPaid = orderDetails.order_status === 'PAID';
-        }
-      } else {
-        // Regular order
-        const orderDetails = await fetchCashfreeOrder(orderId);
-        isPaid = orderDetails.order_status === 'PAID';
-      }
+      const isPaid = orderDetails.order_status === 'PAID';
       
       if (!isPaid) {
         return res.status(400).json({ error: "Payment not completed" });
