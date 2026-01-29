@@ -478,6 +478,7 @@ export const api = {
   async createPaymentOrder(userId: number, options?: { amount?: number; promoCode?: string; billingDetails?: any }): Promise<{ 
     orderId: string; 
     sessionId: string; 
+    paymentUrl: string;
     amount: number; 
     currency: string;
   }> {

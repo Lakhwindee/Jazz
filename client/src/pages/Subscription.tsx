@@ -268,8 +268,9 @@ export default function Subscription() {
         billingDetails,
       });
       
-      // Redirect to dedicated payment page (works better on mobile)
-      window.location.href = `/pay/${orderData.sessionId}`;
+      // Direct redirect to Cashfree hosted checkout (no SDK needed - works on mobile!)
+      const cashfreeUrl = orderData.paymentUrl;
+      window.location.href = cashfreeUrl;
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
