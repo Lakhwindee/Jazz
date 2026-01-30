@@ -4282,13 +4282,10 @@ setTimeout(initPayment, 100);
         console.log(`Order ${orderId} created with promo code: ${promoCode}`);
       }
 
-      // Build direct Cashfree hosted checkout URL (no SDK needed - works on mobile!)
-      const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
-      const paymentUrl = environment === 'production'
-        ? `https://payments.cashfree.com/order/#/${order.payment_session_id}`
-        : `https://sandbox.cashfree.com/order/#/${order.payment_session_id}`;
+      // Build payment URL using our /pay page which handles SDK loading
+      const paymentUrl = `${baseUrl}/pay/${order.payment_session_id}`;
 
-      console.log(`Cashfree order created: ${orderId}, Redirect URL: ${paymentUrl}`);
+      console.log(`Cashfree order created: ${orderId}, Payment page: ${paymentUrl}`);
 
       res.json({ 
         orderId: order.order_id,
