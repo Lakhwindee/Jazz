@@ -4233,7 +4233,7 @@ setTimeout(initPayment, 100);
     res.send(html);
   });
 
-  // Create Cashfree order for subscription
+  // Create Cashfree Payment Link for subscription (works on mobile!)
   app.post("/api/subscription/create-order", async (req, res) => {
     try {
       const { userId, amount, promoCode, billingDetails } = req.body;
@@ -4251,52 +4251,71 @@ setTimeout(initPayment, 100);
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      const orderId = `sub_${userId}_${Date.now()}`;
+      const linkId = `sub_${userId}_${Date.now()}`;
       
-      // Get HTTPS return URL (required for Cashfree production)
-      let baseUrl = `${req.protocol}://${req.get('host')}`;
+      // Get HTTPS return URL
+      let baseUrl = 'https://mingree.com';
       if (process.env.REPLIT_DOMAINS) {
         baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
       }
-      const returnUrl = `${baseUrl}/subscription?order_id={order_id}&status=success`;
+      const returnUrl = `${baseUrl}/subscription?order_id=${linkId}&status=success`;
       
       // Get customer details from billing info or user
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
       const customerPhone = billingDetails?.phone || "9999999999";
       
-      const order = await createCashfreeOrder(
-        orderId,
-        paymentAmount,
-        {
-          customerId: `user_${userId}`,
-          customerPhone: customerPhone,
-          customerName: customerName,
-          customerEmail: customerEmail,
+      // Use Cashfree Payment Links API (works on mobile!)
+      const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+      const apiUrl = environment === 'production' 
+        ? 'https://api.cashfree.com/pg/links'
+        : 'https://sandbox.cashfree.com/pg/links';
+      
+      const linkResponse = await axios.post(apiUrl, {
+        link_id: linkId,
+        link_amount: paymentAmount,
+        link_currency: "INR",
+        link_purpose: "Mingree Pro Subscription - 30 Days",
+        customer_details: {
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_email: customerEmail,
         },
-        returnUrl
-      );
+        link_notify: {
+          send_sms: false,
+          send_email: false,
+        },
+        link_meta: {
+          return_url: returnUrl,
+        },
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-version': '2023-08-01',
+          'x-client-id': process.env.CASHFREE_APP_ID,
+          'x-client-secret': process.env.CASHFREE_SECRET_KEY,
+        },
+      });
 
+      const paymentLink = linkResponse.data;
+      
       // Store promo code with order for later verification if provided
       if (promoCode) {
-        console.log(`Order ${orderId} created with promo code: ${promoCode}`);
+        console.log(`Payment Link ${linkId} created with promo code: ${promoCode}`);
       }
 
-      // Build payment URL using our /pay page which handles SDK loading
-      const paymentUrl = `${baseUrl}/pay/${order.payment_session_id}`;
-
-      console.log(`Cashfree order created: ${orderId}, Payment page: ${paymentUrl}`);
+      console.log(`Cashfree Payment Link created: ${linkId}, URL: ${paymentLink.link_url}`);
 
       res.json({ 
-        orderId: order.order_id,
-        sessionId: order.payment_session_id,
-        paymentUrl: paymentUrl,
+        orderId: linkId,
+        sessionId: paymentLink.cf_link_id,
+        paymentUrl: paymentLink.link_url,
         amount: paymentAmount,
         currency: "INR",
       });
     } catch (error: any) {
-      console.error("Error creating Cashfree order:", error.response?.data || error.message);
-      res.status(500).json({ error: "Failed to create payment order" });
+      console.error("Error creating Payment Link:", error.response?.data || error.message);
+      res.status(500).json({ error: "Failed to create payment link" });
     }
   });
 
@@ -4339,11 +4358,25 @@ setTimeout(initPayment, 100);
         return res.status(400).json({ error: "Missing order ID" });
       }
       
-      // Fetch order status from Cashfree
-      const orderDetails = await fetchCashfreeOrder(orderId);
-      console.log('Order status:', orderId, orderDetails.order_status);
+      // Fetch Payment Link status from Cashfree
+      const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+      const apiUrl = environment === 'production' 
+        ? `https://api.cashfree.com/pg/links/${orderId}`
+        : `https://sandbox.cashfree.com/pg/links/${orderId}`;
       
-      const isPaid = orderDetails.order_status === 'PAID';
+      const linkResponse = await axios.get(apiUrl, {
+        headers: {
+          'x-api-version': '2023-08-01',
+          'x-client-id': process.env.CASHFREE_APP_ID,
+          'x-client-secret': process.env.CASHFREE_SECRET_KEY,
+        },
+      });
+      
+      const linkDetails = linkResponse.data;
+      console.log('Payment Link status:', orderId, linkDetails.link_status);
+      
+      // PAID status means payment was successful
+      const isPaid = linkDetails.link_status === 'PAID';
       
       if (!isPaid) {
         return res.status(400).json({ error: "Payment not completed" });
