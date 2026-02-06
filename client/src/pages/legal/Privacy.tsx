@@ -14,9 +14,16 @@ export default function Privacy() {
         </Link>
 
         <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
-        <p className="text-muted-foreground mb-8">Last updated: January 4, 2026</p>
+        <p className="text-muted-foreground mb-8">Last updated: February 6, 2026</p>
 
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">About Us</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              This Privacy Policy is published by <strong>Mingree</strong> ("we", "us", "our") and applies to mingree.com and all related services.
+            </p>
+          </section>
+
           <section>
             <h2 className="text-2xl font-semibold mb-4">1. Information We Collect</h2>
             <p className="text-muted-foreground leading-relaxed">

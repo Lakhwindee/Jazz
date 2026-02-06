@@ -60,7 +60,7 @@ export default function Contact() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Mingree Technologies<br />
+                <strong>Mingree</strong><br />
                 India
               </p>
             </CardContent>

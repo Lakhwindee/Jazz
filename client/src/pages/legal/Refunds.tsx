@@ -14,9 +14,15 @@ export default function Refunds() {
         </Link>
 
         <h1 className="text-4xl font-bold mb-8">Refund and Cancellation Policy</h1>
-        <p className="text-muted-foreground mb-8">Last updated: January 4, 2026</p>
+        <p className="text-muted-foreground mb-8">Last updated: February 6, 2026</p>
 
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
+          <section>
+            <p className="text-muted-foreground leading-relaxed">
+              This Refund and Cancellation Policy is published by <strong>Mingree</strong> and applies to all transactions made on mingree.com.
+            </p>
+          </section>
+
           <section>
             <h2 className="text-2xl font-semibold mb-4">1. Wallet Deposits</h2>
             <p className="text-muted-foreground leading-relaxed">

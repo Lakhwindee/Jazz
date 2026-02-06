@@ -414,7 +414,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="text-center text-gray-400 text-sm">
-              © 2025 Mingree. All rights reserved.
+              © 2026 Mingree. All rights reserved.
             </div>
           </div>
         </div>

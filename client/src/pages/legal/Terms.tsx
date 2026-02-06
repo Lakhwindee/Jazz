@@ -14,18 +14,28 @@ export default function Terms() {
         </Link>
 
         <h1 className="text-4xl font-bold mb-8">Terms and Conditions</h1>
-        <p className="text-muted-foreground mb-8">Last updated: January 4, 2026</p>
+        <p className="text-muted-foreground mb-8">Last updated: February 6, 2026</p>
 
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
           <section>
-            <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
+            <h2 className="text-2xl font-semibold mb-4">1. Business Information</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              This website is owned and operated by <strong>Mingree</strong>. By using this platform, you are entering into an agreement with Mingree. All references to "we", "us", "our", or "the Company" refer to Mingree.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mt-2">
+              Website: <a href="https://mingree.com" className="text-primary hover:underline">https://mingree.com</a>
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">2. Acceptance of Terms</h2>
             <p className="text-muted-foreground leading-relaxed">
               By accessing and using Mingree ("the Platform"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to these terms, please do not use our services.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4">2. Description of Service</h2>
+            <h2 className="text-2xl font-semibold mb-4">3. Description of Service</h2>
             <p className="text-muted-foreground leading-relaxed">
               Mingree is an influencer marketing platform that connects Instagram creators with brands and sponsors for promotional campaigns. Our services include campaign discovery, content submission, payment processing, and wallet management.
             </p>
