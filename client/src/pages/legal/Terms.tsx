@@ -20,7 +20,7 @@ export default function Terms() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">1. Business Information</h2>
             <p className="text-muted-foreground leading-relaxed">
-              This website is owned and operated by <strong>Mingree</strong>. By using this platform, you are entering into an agreement with Mingree. All references to "we", "us", "our", or "the Company" refer to Mingree.
+              This website is owned and operated by <strong>LAKHWINDER Singh / MusicLand Studios</strong>, operating under the brand name <strong>Mingree</strong>. By using this platform, you are entering into an agreement with the company. All references to "we", "us", "our", or "the Company" refer to LAKHWINDER Singh / MusicLand Studios (Mingree).
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Website: <a href="https://mingree.com" className="text-primary hover:underline">https://mingree.com</a>

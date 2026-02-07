@@ -20,7 +20,7 @@ export default function Privacy() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">About Us</h2>
             <p className="text-muted-foreground leading-relaxed">
-              This Privacy Policy is published by <strong>Mingree</strong> ("we", "us", "our") and applies to mingree.com and all related services.
+              This Privacy Policy is published by <strong>LAKHWINDER Singh / MusicLand Studios</strong>, operating under the brand name <strong>Mingree</strong> ("we", "us", "our"), and applies to mingree.com and all related services.
             </p>
           </section>
 

@@ -19,7 +19,7 @@ export default function Refunds() {
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
           <section>
             <p className="text-muted-foreground leading-relaxed">
-              This Refund and Cancellation Policy is published by <strong>Mingree</strong> and applies to all transactions made on mingree.com.
+              This Refund and Cancellation Policy is published by <strong>LAKHWINDER Singh / MusicLand Studios</strong> (Brand: <strong>Mingree</strong>) and applies to all transactions made on mingree.com.
             </p>
           </section>
 

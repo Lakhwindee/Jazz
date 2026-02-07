@@ -60,7 +60,8 @@ export default function Contact() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                <strong>Mingree</strong><br />
+                <strong>LAKHWINDER Singh / MusicLand Studios</strong><br />
+                (Brand: Mingree)<br />
                 India
               </p>
             </CardContent>
