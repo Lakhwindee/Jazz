@@ -15,7 +15,7 @@ import { initiateRazorpayXPayout, isRazorpayXConfigured } from "./razorpayx-payo
 import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback, createPayUSubscriptionPayment, handlePayUSubscriptionCallback } from "./payu";
-import { sendEmail, sendNewSignupNotification } from "./email";
+import { sendEmail, sendNewSignupNotification, sendWelcomeEmail } from "./email";
 import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -139,8 +139,11 @@ export async function registerRoutes(
           isRead: false,
         });
         
-        // Email notification disabled - in-app notification is sufficient
       }
+      
+      // Send welcome email to the new user
+      sendWelcomeEmail(user.email, user.name, role)
+        .catch(err => console.error("Failed to send welcome email:", err));
       
       // Regenerate session to prevent fixation attacks, then login
       req.session.regenerate((regenErr) => {
