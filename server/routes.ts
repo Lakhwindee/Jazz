@@ -139,17 +139,7 @@ export async function registerRoutes(
           isRead: false,
         });
         
-        // Send email notification to admin
-        if (admin.email) {
-          sendNewSignupNotification(admin.email, {
-            name: user.name,
-            email: user.email,
-            role: role,
-            handle: user.handle || undefined,
-            companyName: user.companyName || undefined,
-            country: user.country || "IN",
-          }).catch(err => console.error("Failed to send signup email notification:", err));
-        }
+        // Email notification disabled - in-app notification is sufficient
       }
       
       // Regenerate session to prevent fixation attacks, then login
