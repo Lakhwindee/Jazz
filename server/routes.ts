@@ -1536,41 +1536,32 @@ export async function registerRoutes(
       } | null = null;
       
       let lastError = '';
-      for (const fields of fieldSets) {
-        const profileUrl = `https://graph.instagram.com/v21.0/me?fields=${fields}&access_token=${accessToken}`;
-        console.log("[Instagram OAuth] Trying fields:", fields);
-        const profileResponse = await fetch(profileUrl);
-        
-        if (profileResponse.ok) {
-          profileData = await profileResponse.json() as any;
-          console.log("[Instagram OAuth] Step 3 SUCCESS with fields:", fields);
-          break;
-        } else {
-          const errText = await profileResponse.text();
-          lastError = `v21:${profileResponse.status}:${errText.substring(0, 200)}`;
-          console.warn("[Instagram OAuth] Fields failed:", fields, "Status:", profileResponse.status, "Error:", errText);
-        }
-      }
       
-      if (!profileData) {
-        // Try unversioned endpoints
-        const unversionedSets = [
-          'id,username,account_type,followers_count',
-          'id,username',
-        ];
-        for (const fields of unversionedSets) {
-          console.log("[Instagram OAuth] Trying unversioned with fields:", fields);
-          const resp = await fetch(`https://graph.instagram.com/me?fields=${fields}&access_token=${accessToken}`);
-          if (resp.ok) {
-            profileData = await resp.json() as any;
-            console.log("[Instagram OAuth] Unversioned SUCCESS:", JSON.stringify(profileData));
+      // Try fetching profile using user ID (Instagram Business API requires this)
+      const endpoints = [
+        `https://graph.instagram.com/v21.0/${instagramUserId}`,
+        `https://graph.instagram.com/v21.0/me`,
+        `https://graph.instagram.com/${instagramUserId}`,
+        `https://graph.instagram.com/me`,
+      ];
+      
+      for (const endpoint of endpoints) {
+        for (const fields of fieldSets) {
+          const profileUrl = `${endpoint}?fields=${fields}&access_token=${accessToken}`;
+          console.log("[Instagram OAuth] Trying:", endpoint, "fields:", fields);
+          const profileResponse = await fetch(profileUrl);
+          
+          if (profileResponse.ok) {
+            profileData = await profileResponse.json() as any;
+            console.log("[Instagram OAuth] Step 3 SUCCESS:", endpoint, fields);
             break;
           } else {
-            const errText = await resp.text();
-            lastError = `unv:${resp.status}:${errText.substring(0, 200)}`;
-            console.warn("[Instagram OAuth] Unversioned failed:", fields, resp.status, errText);
+            const errText = await profileResponse.text();
+            lastError = `${endpoint}:${profileResponse.status}:${errText.substring(0, 150)}`;
+            console.warn("[Instagram OAuth] Failed:", endpoint, fields, profileResponse.status, errText);
           }
         }
+        if (profileData) break;
       }
       
       if (!profileData) {
