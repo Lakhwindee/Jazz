@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw } from "lucide-react";
-import { useState, useEffect } from "react";
+import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw, Camera } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { MIN_FOLLOWERS } from "@shared/tiers";
 import { useLocation } from "wouter";
@@ -18,6 +18,7 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { data: user, isLoading } = useQuery({
     queryKey: ["currentUser"],
@@ -82,6 +83,31 @@ export default function Profile() {
       toast.error(error.message || "Failed to refresh Instagram data");
     },
   });
+
+  const avatarMutation = useMutation({
+    mutationFn: (file: File) => api.uploadAvatar(user!.id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Profile picture updated!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update profile picture");
+    },
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    avatarMutation.mutate(file);
+  };
 
 
   const updateInstagramMutation = useMutation({
@@ -190,10 +216,33 @@ export default function Profile() {
             <Card>
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-8">
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-white shadow-lg ring-2 ring-indigo-100">
-                    <AvatarImage src={user.avatar || undefined} />
-                    <AvatarFallback className="text-xl sm:text-2xl">{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-white shadow-lg ring-2 ring-indigo-100">
+                      <AvatarImage src={user.avatar || undefined} />
+                      <AvatarFallback className="text-xl sm:text-2xl">{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      disabled={avatarMutation.isPending}
+                      data-testid="button-change-avatar"
+                    >
+                      {avatarMutation.isPending ? (
+                        <Loader2 className="h-5 w-5 text-white animate-spin" />
+                      ) : (
+                        <Camera className="h-5 w-5 text-white" />
+                      )}
+                    </button>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                      data-testid="input-avatar-upload"
+                    />
+                  </div>
                   <div className="flex-1 text-center sm:text-left">
                     <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                       <h2 className="text-xl sm:text-2xl font-bold">{user.name}</h2>

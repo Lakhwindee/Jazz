@@ -603,6 +603,20 @@ export const api = {
     return res.json();
   },
 
+  async uploadAvatar(userId: number, file: File): Promise<ApiUser> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const res = await fetch(`${API_BASE}/users/${userId}/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to upload avatar");
+    }
+    return res.json();
+  },
+
   // Categories
   async getCategories(): Promise<ApiCategory[]> {
     const res = await fetch(`${API_BASE}/categories`);

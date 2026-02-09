@@ -471,6 +471,26 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/users/:userId/avatar", upload.single("avatar"), async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const avatarUrl = `/uploads/${req.file.filename}`;
+      await storage.updateUserAvatar(userId, avatarUrl);
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      res.status(500).json({ error: "Failed to upload avatar" });
+    }
+  });
+
   // Get all campaigns
   app.get("/api/campaigns", async (req, res) => {
     try {
@@ -1494,7 +1514,7 @@ export async function registerRoutes(
       
       // Fetch user profile from Instagram
       const profileResponse = await fetch(
-        `https://graph.instagram.com/me?fields=id,username,account_type,media_count,followers_count&access_token=${accessToken}`
+        `https://graph.instagram.com/me?fields=id,username,account_type,media_count,followers_count,profile_picture_url&access_token=${accessToken}`
       );
       
       if (!profileResponse.ok) {
@@ -1508,6 +1528,7 @@ export async function registerRoutes(
         account_type: string;
         media_count?: number;
         followers_count?: number;
+        profile_picture_url?: string;
       };
       
       const username = profileData.username;
@@ -1521,6 +1542,10 @@ export async function registerRoutes(
       // Update user with Instagram OAuth data
       await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
       await storage.updateUserInstagramProfile(userId, username, `https://instagram.com/${username}`, followersCount);
+      
+      if (profileData.profile_picture_url) {
+        await storage.updateUserAvatar(userId, profileData.profile_picture_url);
+      }
       
       // Update tier based on followers
       const tier = getTierByFollowers(followersCount);
