@@ -38,6 +38,7 @@ import {
 declare global {
   interface Window {
     Cashfree: any;
+    Razorpay: any;
   }
 }
 
@@ -234,11 +235,11 @@ export default function SponsorWallet() {
   // Check if user is from India (use Cashfree) or international (use Stripe)
   const isIndianUser = sponsor?.country === "IN";
 
-  // Load Cashfree script for Indian users
+  // Load Razorpay script for Indian users
   useEffect(() => {
     if (isIndianUser) {
       const script = document.createElement("script");
-      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
       document.body.appendChild(script);
       return () => {
@@ -247,67 +248,12 @@ export default function SponsorWallet() {
     }
   }, [isIndianUser]);
   
-  // Handle Cashfree payment callback
+  // Clean up any old Cashfree URL params (legacy)
   useEffect(() => {
     if (!sponsor) return;
-    
     const params = new URLSearchParams(searchString);
-    const orderId = params.get("order_id");
-    const orderStatus = params.get("status");
-    
-    if (orderId) {
-      // Always try to verify payment when we have an order_id
-      if (orderStatus === "PAID" || orderStatus === "PENDING_VERIFICATION" || !orderStatus) {
-        // Verify payment and credit wallet
-        const storedBaseAmount = sessionStorage.getItem(`cashfree_base_${orderId}`);
-        const storedTaxExempt = sessionStorage.getItem(`cashfree_taxexempt_${orderId}`);
-        const storedPromoCode = sessionStorage.getItem(`cashfree_promo_${orderId}`);
-        
-        fetch(`/api/sponsors/${sponsor.id}/wallet/verify-payment`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            orderId, 
-            baseAmount: storedBaseAmount || "0",
-            isTaxExempt: storedTaxExempt === "true",
-            promoCode: storedPromoCode || undefined,
-          }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) {
-              let message = `Payment successful! ₹${data.walletCredit} added to wallet.`;
-              if (data.promoCredits) {
-                message += ` Plus ₹${data.promoCredits} bonus credits!`;
-              }
-              toast.success(message);
-              queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
-              queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
-              // Clean up session storage
-              sessionStorage.removeItem(`cashfree_base_${orderId}`);
-              sessionStorage.removeItem(`cashfree_taxexempt_${orderId}`);
-              sessionStorage.removeItem(`cashfree_promo_${orderId}`);
-            } else {
-              // Payment not yet completed or failed
-              if (data.status === "ACTIVE") {
-                toast.info("Payment not completed yet. Please try again.");
-              } else {
-                toast.error(data.error || "Payment verification failed");
-              }
-            }
-            setLocation("/sponsor/wallet");
-          })
-          .catch(() => {
-            toast.error("Failed to verify payment");
-            setLocation("/sponsor/wallet");
-          });
-      } else if (orderStatus === "ACTIVE" || orderStatus === "USER_DROPPED") {
-        toast.info("Payment was cancelled or not completed");
-        setLocation("/sponsor/wallet");
-      } else if (orderStatus === "FAILED") {
-        toast.error("Payment failed. Please try again.");
-        setLocation("/sponsor/wallet");
-      }
+    if (params.get("order_id")) {
+      setLocation("/sponsor/wallet");
     }
   }, [sponsor, searchString, setLocation]);
 
@@ -362,7 +308,7 @@ export default function SponsorWallet() {
     }
   }, [sponsor, searchString, stripeSessionProcessed, setLocation]);
 
-  const handleCashfreePayment = async () => {
+  const handleRazorpayPayment = async () => {
     const baseAmount = parseFloat(depositAmount);
     if (isNaN(baseAmount) || baseAmount <= 0) {
       toast.error("Please enter a valid amount");
@@ -377,12 +323,11 @@ export default function SponsorWallet() {
     setIsProcessing(true);
 
     try {
-      // Check if Cashfree SDK is loaded
-      if (typeof window.Cashfree === 'undefined') {
+      if (typeof window.Razorpay === 'undefined') {
         throw new Error("Payment gateway is loading. Please try again in a moment.");
       }
 
-      const orderRes = await fetch(`/api/sponsors/${sponsor.id}/wallet/create-order`, {
+      const orderRes = await fetch(`/api/sponsors/${sponsor.id}/razorpay/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -398,26 +343,67 @@ export default function SponsorWallet() {
       }
 
       const orderData = await orderRes.json();
-      
-      // Store base amount and promo code in session storage for verification after redirect
-      sessionStorage.setItem(`cashfree_base_${orderData.orderId}`, baseAmount.toString());
-      sessionStorage.setItem(`cashfree_taxexempt_${orderData.orderId}`, isTaxExempt.toString());
-      if (promoCodeStatus?.valid && promoCode) {
-        sessionStorage.setItem(`cashfree_promo_${orderData.orderId}`, promoCode);
-      }
 
-      // Initialize Cashfree checkout
-      const cashfree = window.Cashfree({
-        mode: orderData.environment === 'production' ? 'production' : 'sandbox',
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Mingree",
+        description: "Wallet Deposit",
+        order_id: orderData.orderId,
+        prefill: {
+          name: orderData.sponsorName || sponsor.name,
+          email: orderData.sponsorEmail || sponsor.email,
+        },
+        theme: {
+          color: "#667eea",
+        },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`/api/sponsors/${sponsor.id}/razorpay/verify-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                baseAmount: baseAmount.toString(),
+                isTaxExempt,
+                promoCode: promoCodeStatus?.valid ? promoCode : undefined,
+              }),
+            });
+
+            const data = await verifyRes.json();
+            if (data.success) {
+              toast.success(`Payment successful! ₹${data.walletCredit} added to wallet.`);
+              queryClient.invalidateQueries({ queryKey: ["sponsorWallet"] });
+              queryClient.invalidateQueries({ queryKey: ["currentSponsor"] });
+              setDepositAmount("");
+            } else {
+              toast.error(data.error || "Payment verification failed");
+            }
+          } catch {
+            toast.error("Failed to verify payment");
+          }
+          setIsProcessing(false);
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        toast.error(response.error?.description || "Payment failed. Please try again.");
+        setIsProcessing(false);
       });
-      
-      await cashfree.checkout({
-        paymentSessionId: orderData.paymentSessionId,
-        redirectTarget: "_self",
-      });
+      rzp.open();
       
     } catch (error: any) {
-      console.error("Cashfree payment error:", error);
+      console.error("Razorpay payment error:", error);
       toast.error(error.message || "Failed to initiate payment");
       setIsProcessing(false);
     }
@@ -812,8 +798,8 @@ export default function SponsorWallet() {
                           </div>
                           
                           <Button
-                            className="w-full bg-blue-600 hover:bg-blue-700"
-                            onClick={handleCashfreePayment}
+                            className="w-full bg-blue-600"
+                            onClick={handleRazorpayPayment}
                             disabled={isProcessing || !depositAmount}
                             data-testid="button-confirm-deposit"
                           >
@@ -821,7 +807,7 @@ export default function SponsorWallet() {
                             {isProcessing ? "Processing..." : depositAmount ? `Pay ${formatINR(isTaxExempt ? parseFloat(depositAmount) : calculateDepositWithGST(parseFloat(depositAmount) || 0).totalPayable)}` : "Pay Now"}
                           </Button>
                           <p className="text-xs text-center text-muted-foreground">
-                            UPI, Cards, Net Banking - Powered by Cashfree
+                            UPI, Cards, Net Banking - Powered by Razorpay
                           </p>
                           
                           <div className="flex items-center gap-2 justify-center text-xs text-muted-foreground">

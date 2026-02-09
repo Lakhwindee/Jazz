@@ -16,6 +16,7 @@ import { initiateBulkpePayout, isBulkpeConfigured } from "./bulkpe-payouts";
 import { isStripeConfigured, getStripePublishableKey, createStripeCheckoutSession, verifyStripeSession, getCurrencyForCountry } from "./stripe";
 import { isPayUConfigured, createPayUPayment, handlePayUCallback, createPayUSubscriptionPayment, handlePayUSubscriptionCallback } from "./payu";
 import { sendEmail, sendNewSignupNotification, sendWelcomeEmail } from "./email";
+import { isRazorpayPaymentConfigured, getRazorpayKeyId, createRazorpayOrder, verifyRazorpayPayment, fetchRazorpayOrder } from "./razorpay";
 import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -2192,6 +2193,269 @@ export async function registerRoutes(
       console.error("Error fetching Cashfree order status:", error);
       // Redirect without status, frontend will handle verification
       res.redirect(`/sponsor/wallet?order_id=${order_id}&status=PENDING_VERIFICATION`);
+    }
+  });
+
+  // ==================== RAZORPAY PAYMENT (Indian Users) ====================
+  
+  app.get("/api/razorpay/config", (req, res) => {
+    res.json({
+      configured: isRazorpayPaymentConfigured(),
+      keyId: getRazorpayKeyId(),
+    });
+  });
+
+  app.post("/api/sponsors/:sponsorId/razorpay/create-order", async (req, res) => {
+    try {
+      const sponsorId = parseInt(req.params.sponsorId);
+      const { amount, isTaxExempt, promoCode } = req.body;
+      
+      if (!amount || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+      
+      const sponsor = await storage.getUser(sponsorId);
+      if (!sponsor) {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
+      
+      const baseAmount = parseFloat(amount);
+      const gstAmount = isTaxExempt ? 0 : Math.round(baseAmount * DEPOSIT_GST_RATE / 100);
+      const totalPayable = baseAmount + gstAmount;
+      
+      const receipt = `wallet_${sponsorId}_${Date.now()}`;
+      
+      const order = await createRazorpayOrder(
+        totalPayable,
+        "INR",
+        receipt,
+        {
+          sponsorId: sponsorId.toString(),
+          baseAmount: baseAmount.toString(),
+          gstAmount: gstAmount.toString(),
+          isTaxExempt: isTaxExempt ? "true" : "false",
+          promoCode: promoCode || "",
+        }
+      );
+      
+      res.json({
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: getRazorpayKeyId(),
+        baseAmount,
+        gstAmount,
+        totalPayable,
+        sponsorName: sponsor.name,
+        sponsorEmail: sponsor.email,
+      });
+    } catch (error: any) {
+      console.error("Error creating Razorpay order:", error);
+      res.status(500).json({ error: error.message || "Failed to create payment order" });
+    }
+  });
+
+  app.post("/api/sponsors/:sponsorId/razorpay/verify-payment", async (req, res) => {
+    try {
+      const sponsorId = parseInt(req.params.sponsorId);
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+      
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: "Missing payment details" });
+      }
+      
+      const isValid = verifyRazorpayPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+      
+      if (!isValid) {
+        return res.status(400).json({ error: "Payment verification failed - invalid signature" });
+      }
+      
+      // Fetch order from Razorpay to get authoritative amounts from notes
+      const rzpOrder = await fetchRazorpayOrder(razorpay_order_id);
+      
+      if (rzpOrder.status !== "paid") {
+        return res.status(400).json({ error: "Order not paid", status: rzpOrder.status });
+      }
+      
+      // Verify sponsorId matches order notes
+      if (rzpOrder.notes?.sponsorId !== sponsorId.toString()) {
+        return res.status(400).json({ error: "Order does not belong to this sponsor" });
+      }
+      
+      const sponsor = await storage.getUser(sponsorId);
+      if (!sponsor) {
+        return res.status(404).json({ error: "Sponsor not found" });
+      }
+      
+      // Use amounts from Razorpay order notes (server-side, tamper-proof)
+      const walletCredit = parseFloat(rzpOrder.notes.baseAmount);
+      const gstAmount = parseFloat(rzpOrder.notes.gstAmount);
+      const totalPaid = rzpOrder.amount / 100; // Razorpay stores in paise
+      const isTaxExempt = rzpOrder.notes.isTaxExempt === "true";
+      const promoCode = rzpOrder.notes.promoCode || undefined;
+      
+      let finalBalance = parseFloat(sponsor.balance) + walletCredit;
+      
+      await storage.updateUserBalance(sponsorId, finalBalance.toFixed(2));
+      
+      await storage.createTransaction({
+        userId: sponsorId,
+        type: "credit",
+        category: "deposit",
+        amount: totalPaid.toFixed(2),
+        tax: gstAmount.toFixed(2),
+        net: walletCredit.toFixed(2),
+        description: `Wallet deposit via Razorpay (Paid: ₹${totalPaid}, GST 18%: ₹${gstAmount}, Credited: ₹${walletCredit})`,
+        status: "completed",
+        paymentId: razorpay_payment_id,
+      });
+      
+      if (promoCode) {
+        const promoCodeRecord = await storage.getPromoCodeByCode(promoCode);
+        if (promoCodeRecord && promoCodeRecord.isActive && promoCodeRecord.type === "tax_exempt") {
+          const hasUsed = await storage.hasUserUsedPromoCode(promoCodeRecord.id, sponsorId);
+          if (!hasUsed) {
+            await storage.recordPromoCodeUsage(promoCodeRecord.id, sponsorId);
+            await storage.incrementPromoCodeUsage(promoCodeRecord.id);
+          }
+        }
+      }
+      
+      // Credit admin wallet
+      const adminWalletSetting = await storage.getSetting("admin_wallet_balance");
+      const currentAdminBalance = parseFloat(adminWalletSetting?.value || "0");
+      const newAdminBalance = currentAdminBalance + totalPaid;
+      await storage.upsertSetting("admin_wallet_balance", newAdminBalance.toFixed(2));
+      
+      await storage.createTransaction({
+        userId: sponsorId,
+        type: "credit",
+        category: "admin_receipt",
+        amount: totalPaid.toFixed(2),
+        tax: gstAmount.toFixed(2),
+        net: walletCredit.toFixed(2),
+        description: `Admin wallet: Received ₹${totalPaid} from ${sponsor.name} (Razorpay deposit)`,
+        status: "completed",
+        paymentId: razorpay_payment_id,
+      });
+      
+      res.json({ 
+        success: true, 
+        newBalance: finalBalance.toFixed(2),
+        walletCredit: walletCredit.toFixed(2),
+        gstPaid: gstAmount.toFixed(2),
+      });
+    } catch (error: any) {
+      console.error("Error verifying Razorpay payment:", error);
+      res.status(500).json({ error: error.message || "Failed to verify payment" });
+    }
+  });
+
+  // Razorpay order for subscription payment
+  app.post("/api/subscription/razorpay/create-order", async (req, res) => {
+    try {
+      const { userId, amount, promoCode, billingDetails } = req.body;
+      
+      if (!userId || !amount) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const receipt = `sub_${userId}_${Date.now()}`;
+      
+      const order = await createRazorpayOrder(
+        amount,
+        "INR",
+        receipt,
+        {
+          userId: userId.toString(),
+          type: "subscription",
+          promoCode: promoCode || "",
+        }
+      );
+      
+      res.json({
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: getRazorpayKeyId(),
+        userName: user.name,
+        userEmail: user.email,
+      });
+    } catch (error: any) {
+      console.error("Error creating Razorpay subscription order:", error);
+      res.status(500).json({ error: error.message || "Failed to create subscription order" });
+    }
+  });
+
+  app.post("/api/subscription/razorpay/verify-payment", async (req, res) => {
+    try {
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+      
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: "Missing payment details" });
+      }
+      
+      const isValid = verifyRazorpayPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+      
+      if (!isValid) {
+        return res.status(400).json({ error: "Payment verification failed" });
+      }
+      
+      // Fetch order from Razorpay to get authoritative data
+      const rzpOrder = await fetchRazorpayOrder(razorpay_order_id);
+      
+      if (rzpOrder.status !== "paid") {
+        return res.status(400).json({ error: "Order not paid", status: rzpOrder.status });
+      }
+      
+      const userId = parseInt(rzpOrder.notes.userId);
+      const promoCode = rzpOrder.notes.promoCode || undefined;
+      const paidAmount = rzpOrder.amount / 100; // paise to rupees
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Activate subscription
+      const now = new Date();
+      const expiresAt = new Date(now);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      
+      await storage.updateUserSubscription(userId, "pro", expiresAt, false, true);
+      
+      await storage.createTransaction({
+        userId,
+        type: "debit",
+        category: "subscription",
+        amount: paidAmount.toFixed(2),
+        tax: "0.00",
+        net: paidAmount.toFixed(2),
+        description: `Pro subscription payment via Razorpay`,
+        status: "completed",
+        paymentId: razorpay_payment_id,
+      });
+      
+      if (promoCode) {
+        const promoCodeRecord = await storage.getPromoCodeByCode(promoCode);
+        if (promoCodeRecord && promoCodeRecord.isActive && promoCodeRecord.type === "discount") {
+          const hasUsed = await storage.hasUserUsedPromoCode(promoCodeRecord.id, userId);
+          if (!hasUsed) {
+            await storage.recordPromoCodeUsage(promoCodeRecord.id, userId);
+            await storage.incrementPromoCodeUsage(promoCodeRecord.id);
+          }
+        }
+      }
+      
+      res.json({ success: true, message: "Subscription activated successfully" });
+    } catch (error: any) {
+      console.error("Error verifying Razorpay subscription payment:", error);
+      res.status(500).json({ error: error.message || "Failed to verify subscription payment" });
     }
   });
 

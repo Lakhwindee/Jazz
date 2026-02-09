@@ -18,6 +18,7 @@ import { useState, useCallback, useEffect } from "react";
 declare global {
   interface Window {
     Cashfree: any;
+    Razorpay: any;
   }
 }
 
@@ -238,6 +239,17 @@ export default function Subscription() {
     return panRegex.test(pan.toUpperCase());
   };
 
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
   const handleFinalPayment = async () => {
     if (!user) return;
     
@@ -261,16 +273,90 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error("Payment gateway is loading. Please try again in a moment.");
+      }
+      
       const finalAmount = calculateFinalAmount();
-      const orderData = await api.createPaymentOrder(user.id, {
-        amount: finalAmount,
-        promoCode: promoValidation ? promoCode.trim().toUpperCase() : undefined,
-        billingDetails,
+      const appliedPromo = promoValidation ? promoCode.trim().toUpperCase() : undefined;
+      
+      const orderRes = await fetch("/api/subscription/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          userId: user.id,
+          amount: finalAmount,
+          promoCode: appliedPromo,
+          billingDetails,
+        }),
       });
       
-      // Direct redirect to Cashfree hosted checkout (no SDK needed - works on mobile!)
-      const cashfreeUrl = orderData.paymentUrl;
-      window.location.href = cashfreeUrl;
+      if (!orderRes.ok) {
+        const err = await orderRes.json();
+        throw new Error(err.error || "Failed to create order");
+      }
+      
+      const orderData = await orderRes.json();
+      
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Mingree",
+        description: "Pro Creator Subscription",
+        order_id: orderData.orderId,
+        prefill: {
+          name: orderData.userName || user.name,
+          email: orderData.userEmail || user.email,
+        },
+        theme: {
+          color: "#667eea",
+        },
+        handler: async (rzpResponse: any) => {
+          try {
+            const verifyRes = await fetch("/api/subscription/razorpay/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                userId: user.id,
+                razorpay_order_id: rzpResponse.razorpay_order_id,
+                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                razorpay_signature: rzpResponse.razorpay_signature,
+                amount: finalAmount,
+                promoCode: appliedPromo,
+              }),
+            });
+
+            const data = await verifyRes.json();
+            if (data.success) {
+              toast.success("Subscription activated successfully!");
+              queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/users/current"] });
+              setShowCheckout(false);
+            } else {
+              toast.error(data.error || "Payment verification failed");
+            }
+          } catch {
+            toast.error("Failed to verify payment");
+          }
+          setIsProcessing(false);
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp: any) => {
+        toast.error(resp.error?.description || "Payment failed. Please try again.");
+        setIsProcessing(false);
+      });
+      rzp.open();
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
