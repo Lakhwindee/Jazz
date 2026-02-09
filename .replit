@@ -51,5 +51,6 @@ expertMode = true
 
 [userenv.shared]
 CASHFREE_ENVIRONMENT = "production"
+INSTAGRAM_REDIRECT_URI = "https://mingree.com/api/instagram/oauth-callback"
 
 [userenv.development]
