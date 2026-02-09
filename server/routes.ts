@@ -1415,12 +1415,14 @@ export async function registerRoutes(
     }
     
     const state = Buffer.from(JSON.stringify({ userId })).toString('base64');
-    const authUrl = `https://api.instagram.com/oauth/authorize?` +
+    const authUrl = `https://www.instagram.com/oauth/authorize?` +
       `client_id=${INSTAGRAM_APP_ID}` +
       `&redirect_uri=${encodeURIComponent(INSTAGRAM_REDIRECT_URI)}` +
       `&scope=instagram_business_basic` +
       `&response_type=code` +
-      `&state=${state}`;
+      `&state=${state}` +
+      `&enable_fb_login=0` +
+      `&force_authentication=1`;
     
     res.json({ authUrl });
   });
