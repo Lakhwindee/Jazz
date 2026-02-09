@@ -1535,6 +1535,7 @@ export async function registerRoutes(
         media_count?: number; followers_count?: number; profile_picture_url?: string;
       } | null = null;
       
+      let lastError = '';
       for (const fields of fieldSets) {
         const profileUrl = `https://graph.instagram.com/v21.0/me?fields=${fields}&access_token=${accessToken}`;
         console.log("[Instagram OAuth] Trying fields:", fields);
@@ -1546,22 +1547,35 @@ export async function registerRoutes(
           break;
         } else {
           const errText = await profileResponse.text();
+          lastError = `v21:${profileResponse.status}:${errText.substring(0, 200)}`;
           console.warn("[Instagram OAuth] Fields failed:", fields, "Status:", profileResponse.status, "Error:", errText);
         }
       }
       
       if (!profileData) {
-        // Last resort: try unversioned endpoint
-        console.log("[Instagram OAuth] Trying unversioned endpoint as last resort...");
-        const lastResort = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${accessToken}`);
-        if (lastResort.ok) {
-          profileData = await lastResort.json() as any;
-          console.log("[Instagram OAuth] Last resort SUCCESS:", JSON.stringify(profileData));
-        } else {
-          const lrErr = await lastResort.text();
-          console.error("[Instagram OAuth] All profile fetch attempts failed. Last error:", lrErr);
-          return res.redirect('/profile?error=profile_fetch_failed');
+        // Try unversioned endpoints
+        const unversionedSets = [
+          'id,username,account_type,followers_count',
+          'id,username',
+        ];
+        for (const fields of unversionedSets) {
+          console.log("[Instagram OAuth] Trying unversioned with fields:", fields);
+          const resp = await fetch(`https://graph.instagram.com/me?fields=${fields}&access_token=${accessToken}`);
+          if (resp.ok) {
+            profileData = await resp.json() as any;
+            console.log("[Instagram OAuth] Unversioned SUCCESS:", JSON.stringify(profileData));
+            break;
+          } else {
+            const errText = await resp.text();
+            lastError = `unv:${resp.status}:${errText.substring(0, 200)}`;
+            console.warn("[Instagram OAuth] Unversioned failed:", fields, resp.status, errText);
+          }
         }
+      }
+      
+      if (!profileData) {
+        console.error("[Instagram OAuth] All profile fetch attempts failed. Last error:", lastError);
+        return res.redirect(`/profile?error=profile_fetch_failed&detail=${encodeURIComponent(lastError)}`);
       }
       
       console.log("[Instagram OAuth] Profile data:", JSON.stringify({ username: profileData!.username, followers: profileData!.followers_count, hasAvatar: !!profileData!.profile_picture_url }));

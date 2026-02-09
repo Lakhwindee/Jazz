@@ -50,6 +50,9 @@ export default function Profile() {
         const required = params.get('required');
         const actual = params.get('actual');
         toast.error(`Minimum ${required} followers required. You have ${actual} followers.`);
+      } else if (error === 'profile_fetch_failed') {
+        const detail = params.get('detail');
+        toast.error(`Instagram connection failed: profile fetch failed${detail ? ` (${detail})` : ''}`);
       } else {
         toast.error(`Instagram connection failed: ${error.replace(/_/g, ' ')}`);
       }
