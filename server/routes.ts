@@ -1473,6 +1473,9 @@ export async function registerRoutes(
       }
       
       // Exchange code for access token
+      console.log("[Instagram OAuth] Step 1: Exchanging code for token...");
+      console.log("[Instagram OAuth] Redirect URI:", INSTAGRAM_REDIRECT_URI);
+      
       const tokenResponse = await fetch('https://api.instagram.com/oauth/access_token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1487,15 +1490,17 @@ export async function registerRoutes(
       
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.text();
-        console.error("Token exchange failed:", errorData);
+        console.error("[Instagram OAuth] Token exchange failed:", tokenResponse.status, errorData);
         return res.redirect('/profile?error=token_exchange_failed');
       }
       
       const tokenData = await tokenResponse.json() as { access_token: string; user_id: number };
       const shortLivedToken = tokenData.access_token;
       const instagramUserId = tokenData.user_id.toString();
+      console.log("[Instagram OAuth] Step 1 SUCCESS: Got short-lived token for user:", instagramUserId);
       
       // Exchange for long-lived token (60 days)
+      console.log("[Instagram OAuth] Step 2: Exchanging for long-lived token...");
       const longLivedResponse = await fetch(
         `https://graph.instagram.com/access_token?` +
         `grant_type=ig_exchange_token&` +
@@ -1504,53 +1509,65 @@ export async function registerRoutes(
       );
       
       let accessToken = shortLivedToken;
-      let expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour for short-lived
+      let expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       
       if (longLivedResponse.ok) {
         const longLivedData = await longLivedResponse.json() as { access_token: string; expires_in: number };
         accessToken = longLivedData.access_token;
         expiresAt = new Date(Date.now() + longLivedData.expires_in * 1000);
+        console.log("[Instagram OAuth] Step 2 SUCCESS: Got long-lived token, expires in", longLivedData.expires_in, "seconds");
+      } else {
+        const llError = await longLivedResponse.text();
+        console.warn("[Instagram OAuth] Step 2 WARN: Long-lived token failed, using short-lived:", llError);
       }
       
-      // Fetch user profile from Instagram
-      const profileResponse = await fetch(
-        `https://graph.instagram.com/me?fields=id,username,account_type,media_count,followers_count,profile_picture_url&access_token=${accessToken}`
-      );
+      // Fetch user profile from Instagram - try multiple field combinations
+      console.log("[Instagram OAuth] Step 3: Fetching profile data...");
       
-      if (!profileResponse.ok) {
-        const profileError = await profileResponse.text();
-        console.error("Profile fetch failed:", profileResponse.status, profileError);
+      const fieldSets = [
+        'id,username,account_type,media_count,followers_count,profile_picture_url',
+        'id,username,account_type,media_count,followers_count',
+        'id,username,account_type',
+      ];
+      
+      let profileData: { 
+        id: string; username: string; account_type: string;
+        media_count?: number; followers_count?: number; profile_picture_url?: string;
+      } | null = null;
+      
+      for (const fields of fieldSets) {
+        const profileUrl = `https://graph.instagram.com/v21.0/me?fields=${fields}&access_token=${accessToken}`;
+        console.log("[Instagram OAuth] Trying fields:", fields);
+        const profileResponse = await fetch(profileUrl);
         
-        // Try again without profile_picture_url in case that field is not available
-        const retryResponse = await fetch(
-          `https://graph.instagram.com/me?fields=id,username,account_type,media_count,followers_count&access_token=${accessToken}`
-        );
-        if (!retryResponse.ok) {
-          const retryError = await retryResponse.text();
-          console.error("Profile retry also failed:", retryResponse.status, retryError);
+        if (profileResponse.ok) {
+          profileData = await profileResponse.json() as any;
+          console.log("[Instagram OAuth] Step 3 SUCCESS with fields:", fields);
+          break;
+        } else {
+          const errText = await profileResponse.text();
+          console.warn("[Instagram OAuth] Fields failed:", fields, "Status:", profileResponse.status, "Error:", errText);
+        }
+      }
+      
+      if (!profileData) {
+        // Last resort: try unversioned endpoint
+        console.log("[Instagram OAuth] Trying unversioned endpoint as last resort...");
+        const lastResort = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${accessToken}`);
+        if (lastResort.ok) {
+          profileData = await lastResort.json() as any;
+          console.log("[Instagram OAuth] Last resort SUCCESS:", JSON.stringify(profileData));
+        } else {
+          const lrErr = await lastResort.text();
+          console.error("[Instagram OAuth] All profile fetch attempts failed. Last error:", lrErr);
           return res.redirect('/profile?error=profile_fetch_failed');
         }
-        const retryData = await retryResponse.json();
-        Object.assign(retryData, { profile_picture_url: undefined });
-        var profileData = retryData as { 
-          id: string; username: string; account_type: string;
-          media_count?: number; followers_count?: number; profile_picture_url?: string;
-        };
-      } else {
-        var profileData = await profileResponse.json() as { 
-          id: string; 
-          username: string; 
-          account_type: string;
-          media_count?: number;
-          followers_count?: number;
-          profile_picture_url?: string;
-        };
       }
       
-      console.log("Instagram profile data:", JSON.stringify({ username: profileData.username, followers: profileData.followers_count, hasAvatar: !!profileData.profile_picture_url }));
+      console.log("[Instagram OAuth] Profile data:", JSON.stringify({ username: profileData!.username, followers: profileData!.followers_count, hasAvatar: !!profileData!.profile_picture_url }));
       
-      const username = profileData.username;
-      const followersCount = profileData.followers_count || 0;
+      const username = profileData!.username;
+      const followersCount = profileData!.followers_count || 0;
       
       // Check minimum followers requirement
       if (followersCount < MIN_FOLLOWERS) {
@@ -1561,8 +1578,8 @@ export async function registerRoutes(
       await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
       await storage.updateUserInstagramProfile(userId, username, `https://instagram.com/${username}`, followersCount);
       
-      if (profileData.profile_picture_url) {
-        await storage.updateUserAvatar(userId, profileData.profile_picture_url);
+      if (profileData!.profile_picture_url) {
+        await storage.updateUserAvatar(userId, profileData!.profile_picture_url);
       }
       
       // Update tier based on followers
