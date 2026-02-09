@@ -1494,78 +1494,124 @@ export async function registerRoutes(
         return res.redirect('/profile?error=token_exchange_failed');
       }
       
-      const tokenData = await tokenResponse.json() as { access_token: string; user_id: number };
+      const tokenText = await tokenResponse.text();
+      console.log("[Instagram OAuth] Step 1 raw response:", tokenText);
+      
+      let tokenData: any;
+      try {
+        tokenData = JSON.parse(tokenText);
+      } catch (e) {
+        console.error("[Instagram OAuth] Failed to parse token response");
+        return res.redirect('/profile?error=token_parse_failed');
+      }
+      
       const shortLivedToken = tokenData.access_token;
-      const instagramUserId = tokenData.user_id.toString();
-      console.log("[Instagram OAuth] Step 1 SUCCESS: Got short-lived token for user:", instagramUserId);
+      const instagramUserId = String(tokenData.user_id);
+      console.log("[Instagram OAuth] Step 1 SUCCESS: user_id:", instagramUserId, "token_length:", shortLivedToken?.length);
       
       // Exchange for long-lived token (60 days)
       console.log("[Instagram OAuth] Step 2: Exchanging for long-lived token...");
-      const longLivedResponse = await fetch(
-        `https://graph.instagram.com/access_token?` +
-        `grant_type=ig_exchange_token&` +
-        `client_secret=${INSTAGRAM_APP_SECRET}&` +
-        `access_token=${shortLivedToken}`
-      );
+      const longLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${INSTAGRAM_APP_SECRET}&access_token=${shortLivedToken}`;
+      const longLivedResponse = await fetch(longLivedUrl);
+      const longLivedText = await longLivedResponse.text();
+      console.log("[Instagram OAuth] Step 2 response status:", longLivedResponse.status, "body:", longLivedText.substring(0, 300));
       
       let accessToken = shortLivedToken;
       let expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      let usingLongLived = false;
       
       if (longLivedResponse.ok) {
-        const longLivedData = await longLivedResponse.json() as { access_token: string; expires_in: number };
-        accessToken = longLivedData.access_token;
-        expiresAt = new Date(Date.now() + longLivedData.expires_in * 1000);
-        console.log("[Instagram OAuth] Step 2 SUCCESS: Got long-lived token, expires in", longLivedData.expires_in, "seconds");
+        try {
+          const longLivedData = JSON.parse(longLivedText);
+          accessToken = longLivedData.access_token;
+          expiresAt = new Date(Date.now() + longLivedData.expires_in * 1000);
+          usingLongLived = true;
+          console.log("[Instagram OAuth] Step 2 SUCCESS: long-lived token, expires_in:", longLivedData.expires_in);
+        } catch (e) {
+          console.warn("[Instagram OAuth] Step 2: Failed to parse long-lived response, using short-lived");
+        }
       } else {
-        const llError = await longLivedResponse.text();
-        console.warn("[Instagram OAuth] Step 2 WARN: Long-lived token failed, using short-lived:", llError);
+        console.warn("[Instagram OAuth] Step 2 FAILED: Using short-lived token");
       }
       
-      // Fetch user profile from Instagram - try multiple field combinations
-      console.log("[Instagram OAuth] Step 3: Fetching profile data...");
-      
-      const fieldSets = [
-        'id,username,account_type,media_count,followers_count,profile_picture_url',
-        'id,username,account_type,media_count,followers_count',
-        'id,username,account_type',
-      ];
+      // Fetch user profile - try with both tokens if needed
+      console.log("[Instagram OAuth] Step 3: Fetching profile. Using", usingLongLived ? "long-lived" : "short-lived", "token");
       
       let profileData: { 
-        id: string; username: string; account_type: string;
+        id: string; username: string; account_type?: string; name?: string;
         media_count?: number; followers_count?: number; profile_picture_url?: string;
       } | null = null;
       
       let lastError = '';
       
-      // Try fetching profile using user ID (Instagram Business API requires this)
-      const endpoints = [
-        `https://graph.instagram.com/v21.0/${instagramUserId}`,
-        `https://graph.instagram.com/v21.0/me`,
-        `https://graph.instagram.com/${instagramUserId}`,
-        `https://graph.instagram.com/me`,
+      // Build list of tokens to try (long-lived first, then short-lived as fallback)
+      const tokensToTry = usingLongLived 
+        ? [{ token: accessToken, label: 'long-lived' }, { token: shortLivedToken, label: 'short-lived' }]
+        : [{ token: shortLivedToken, label: 'short-lived' }];
+      
+      const fieldSets = [
+        'user_id,username,name,account_type,profile_picture_url,followers_count,media_count',
+        'user_id,username,name,profile_picture_url,followers_count',
+        'id,username,name,account_type,profile_picture_url,followers_count,media_count',
+        'id,username,account_type,followers_count,profile_picture_url',
+        'id,username,account_type,followers_count',
+        'id,username,account_type',
+        'id,username',
       ];
       
-      for (const endpoint of endpoints) {
+      for (const { token, label } of tokensToTry) {
+        if (profileData) break;
+        
+        // Try /me endpoint first (recommended by Instagram docs)
         for (const fields of fieldSets) {
-          const profileUrl = `${endpoint}?fields=${fields}&access_token=${accessToken}`;
-          console.log("[Instagram OAuth] Trying:", endpoint, "fields:", fields);
-          const profileResponse = await fetch(profileUrl);
-          
-          if (profileResponse.ok) {
-            profileData = await profileResponse.json() as any;
-            console.log("[Instagram OAuth] Step 3 SUCCESS:", endpoint, fields);
-            break;
-          } else {
-            const errText = await profileResponse.text();
-            lastError = `${endpoint}:${profileResponse.status}:${errText.substring(0, 150)}`;
-            console.warn("[Instagram OAuth] Failed:", endpoint, fields, profileResponse.status, errText);
+          const profileUrl = `https://graph.instagram.com/me?fields=${fields}&access_token=${token}`;
+          console.log(`[Instagram OAuth] Trying /me with ${label} token, fields: ${fields}`);
+          try {
+            const profileResponse = await fetch(profileUrl);
+            const respText = await profileResponse.text();
+            
+            if (profileResponse.ok) {
+              profileData = JSON.parse(respText);
+              console.log("[Instagram OAuth] SUCCESS with /me:", JSON.stringify(profileData));
+              if (!profileData!.id && (profileData as any).user_id) {
+                profileData!.id = (profileData as any).user_id;
+              }
+              break;
+            } else {
+              lastError = `/me:${label}:${fields}:${profileResponse.status}:${respText.substring(0, 100)}`;
+              console.warn(`[Instagram OAuth] /me failed:`, profileResponse.status, respText.substring(0, 200));
+            }
+          } catch (e: any) {
+            console.error(`[Instagram OAuth] /me fetch error:`, e.message);
           }
         }
+        
         if (profileData) break;
+        
+        // Try user ID endpoint
+        for (const fields of fieldSets) {
+          const profileUrl = `https://graph.instagram.com/${instagramUserId}?fields=${fields}&access_token=${token}`;
+          console.log(`[Instagram OAuth] Trying /${instagramUserId} with ${label} token, fields: ${fields}`);
+          try {
+            const profileResponse = await fetch(profileUrl);
+            const respText = await profileResponse.text();
+            
+            if (profileResponse.ok) {
+              profileData = JSON.parse(respText);
+              console.log("[Instagram OAuth] SUCCESS with user ID:", JSON.stringify(profileData));
+              break;
+            } else {
+              lastError = `/${instagramUserId}:${label}:${fields}:${profileResponse.status}:${respText.substring(0, 100)}`;
+              console.warn(`[Instagram OAuth] /${instagramUserId} failed:`, profileResponse.status, respText.substring(0, 200));
+            }
+          } catch (e: any) {
+            console.error(`[Instagram OAuth] /${instagramUserId} fetch error:`, e.message);
+          }
+        }
       }
       
       if (!profileData) {
-        console.error("[Instagram OAuth] All profile fetch attempts failed. Last error:", lastError);
+        console.error("[Instagram OAuth] ALL profile fetch attempts failed. Last error:", lastError);
         return res.redirect(`/profile?error=profile_fetch_failed&detail=${encodeURIComponent(lastError)}`);
       }
       
