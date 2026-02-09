@@ -1613,7 +1613,11 @@ export async function registerRoutes(
       if (!profileData) {
         console.error("[Instagram OAuth] ALL profile fetch attempts failed.");
         console.error("[Instagram OAuth] All errors:", JSON.stringify(allErrors));
-        return res.redirect(`/profile?error=profile_fetch_failed&detail=${encodeURIComponent(lastError)}`);
+        
+        // GRACEFUL FALLBACK: OAuth succeeded (user proved identity), save token and ask for manual username entry
+        console.log("[Instagram OAuth] Using graceful fallback - saving OAuth data, requesting manual username entry");
+        await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
+        return res.redirect(`/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}`);
       }
       
       console.log("[Instagram OAuth] Profile data:", JSON.stringify({ username: profileData!.username, followers: profileData!.followers_count, hasAvatar: !!profileData!.profile_picture_url }));

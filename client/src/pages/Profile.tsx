@@ -44,6 +44,12 @@ export default function Profile() {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       window.history.replaceState({}, '', '/profile');
     }
+    if (params.get('instagram_oauth_partial') === 'true') {
+      toast.success("Instagram account verified! Please enter your username and follower count below to complete setup.");
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      setShowManualEntry(true);
+      window.history.replaceState({}, '', '/profile');
+    }
     const error = params.get('error');
     if (error) {
       if (error === 'min_followers') {
