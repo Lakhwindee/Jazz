@@ -1518,18 +1518,36 @@ export async function registerRoutes(
       );
       
       if (!profileResponse.ok) {
-        console.error("Profile fetch failed");
-        return res.redirect('/profile?error=profile_fetch_failed');
+        const profileError = await profileResponse.text();
+        console.error("Profile fetch failed:", profileResponse.status, profileError);
+        
+        // Try again without profile_picture_url in case that field is not available
+        const retryResponse = await fetch(
+          `https://graph.instagram.com/me?fields=id,username,account_type,media_count,followers_count&access_token=${accessToken}`
+        );
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.text();
+          console.error("Profile retry also failed:", retryResponse.status, retryError);
+          return res.redirect('/profile?error=profile_fetch_failed');
+        }
+        const retryData = await retryResponse.json();
+        Object.assign(retryData, { profile_picture_url: undefined });
+        var profileData = retryData as { 
+          id: string; username: string; account_type: string;
+          media_count?: number; followers_count?: number; profile_picture_url?: string;
+        };
+      } else {
+        var profileData = await profileResponse.json() as { 
+          id: string; 
+          username: string; 
+          account_type: string;
+          media_count?: number;
+          followers_count?: number;
+          profile_picture_url?: string;
+        };
       }
       
-      const profileData = await profileResponse.json() as { 
-        id: string; 
-        username: string; 
-        account_type: string;
-        media_count?: number;
-        followers_count?: number;
-        profile_picture_url?: string;
-      };
+      console.log("Instagram profile data:", JSON.stringify({ username: profileData.username, followers: profileData.followers_count, hasAvatar: !!profileData.profile_picture_url }));
       
       const username = profileData.username;
       const followersCount = profileData.followers_count || 0;
