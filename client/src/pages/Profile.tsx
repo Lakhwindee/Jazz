@@ -496,6 +496,68 @@ export default function Profile() {
                       </div>
                     )}
                   </div>
+                ) : user.instagramAccessToken && !user.instagramUsername ? (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-green-500 p-2">
+                          <CheckCircle2 className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-green-800 dark:text-green-200">Instagram Account Verified</h3>
+                          <p className="text-sm text-green-700 dark:text-green-300">Your account is authenticated. Complete your profile below.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-username">Instagram Username *</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                          <Input
+                            id="instagram-username"
+                            placeholder="your_username"
+                            value={instagramUsername.replace("@", "")}
+                            onChange={(e) => setInstagramUsername(e.target.value.replace("@", ""))}
+                            className="pl-8"
+                            data-testid="input-instagram-username"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-followers">Your Follower Count *</Label>
+                        <div className="relative">
+                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="instagram-followers"
+                            type="number"
+                            placeholder="e.g. 10000"
+                            value={instagramFollowers}
+                            onChange={(e) => setInstagramFollowers(e.target.value)}
+                            className="pl-10"
+                            min={MIN_FOLLOWERS}
+                            data-testid="input-instagram-followers"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
+                        </p>
+                      </div>
+
+                      <Button 
+                        onClick={handleLinkInstagram}
+                        disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+                        data-testid="button-link-instagram"
+                      >
+                        {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Instagram className="mr-2 h-4 w-4" />
+                        Complete Setup
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 p-4 sm:p-6 text-center">
@@ -529,7 +591,7 @@ export default function Profile() {
                       <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
                         <li>Click "Connect with Instagram" below</li>
                         <li>Login to your Instagram account and authorize</li>
-                        <li>Your username, followers, and tier are set automatically</li>
+                        <li>Enter your username and follower count</li>
                         <li>Start earning from campaigns right away</li>
                       </ol>
                     </div>
@@ -548,68 +610,6 @@ export default function Profile() {
                     <p className="text-xs text-muted-foreground text-center">
                       Your Instagram account must be a Professional (Business or Creator) account
                     </p>
-
-                    <div className="border-t pt-4">
-                      <button
-                        type="button"
-                        onClick={() => setShowManualEntry(!showManualEntry)}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-center"
-                        data-testid="button-toggle-manual-entry"
-                      >
-                        {showManualEntry ? "Hide manual entry" : "Having trouble? Enter details manually"}
-                      </button>
-
-                      {showManualEntry && (
-                        <div className="space-y-4 mt-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="instagram-username">Instagram Username *</Label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
-                              <Input
-                                id="instagram-username"
-                                placeholder="your_username"
-                                value={instagramUsername.replace("@", "")}
-                                onChange={(e) => setInstagramUsername(e.target.value.replace("@", ""))}
-                                className="pl-8"
-                                data-testid="input-instagram-username"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="instagram-followers">Your Follower Count *</Label>
-                            <div className="relative">
-                              <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                id="instagram-followers"
-                                type="number"
-                                placeholder="e.g. 10000"
-                                value={instagramFollowers}
-                                onChange={(e) => setInstagramFollowers(e.target.value)}
-                                className="pl-10"
-                                min={MIN_FOLLOWERS}
-                                data-testid="input-instagram-followers"
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
-                            </p>
-                          </div>
-
-                          <Button 
-                            onClick={handleLinkInstagram}
-                            disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
-                            variant="outline"
-                            className="w-full"
-                            data-testid="button-link-instagram"
-                          >
-                            {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            <Instagram className="mr-2 h-4 w-4" />
-                            Connect Manually
-                          </Button>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </CardContent>
