@@ -1731,8 +1731,7 @@ export async function registerRoutes(
     }
   });
 
-  // Fetch followers using RapidAPI
-  app.post("/api/instagram/fetch-followers", async (req, res) => {
+  app.post("/api/instagram/fetch-followers", isAuthenticated, async (req, res) => {
     try {
       const { username } = req.body;
       
@@ -1741,100 +1740,110 @@ export async function registerRoutes(
       }
 
       const rapidapiKey = process.env.RAPIDAPI_KEY;
-      const rapidapiHost = process.env.RAPIDAPI_HOST;
+      const cleanUsername = username.replace("@", "").trim().toLowerCase();
 
-      console.log("🔍 RapidAPI Fetch Request:");
-      console.log(`   Username: ${username}`);
-      console.log(`   Key exists: ${!!rapidapiKey}`);
-      console.log(`   Host exists: ${!!rapidapiHost}`);
+      console.log(`[Instagram Fetch] Username: ${cleanUsername}, Key exists: ${!!rapidapiKey}`);
 
-      if (!rapidapiKey || !rapidapiHost) {
-        console.error("❌ RapidAPI credentials not configured");
+      if (!rapidapiKey) {
         return res.status(500).json({ 
-          error: "RapidAPI not configured. Please contact admin or use manual entry for now." 
+          error: "Instagram auto-fetch not configured. Please enter your details manually." 
         });
       }
 
-      // Call RapidAPI Instagram Scraper - try multiple endpoint variations
-      let response: Response | null = null;
-      let lastError = "";
-      
-      // Try endpoint 1: /info
-      let url = new URL(`https://${rapidapiHost}/info`);
-      url.searchParams.append("username", username.replace("@", ""));
-      
-      console.log(`   Trying URL: ${url.toString()}`);
-      
-      response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key": rapidapiKey,
-          "x-rapidapi-host": rapidapiHost,
+      const apiAttempts = [
+        {
+          host: "instagram-scraper-api2.p.rapidapi.com",
+          url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${cleanUsername}`,
+          extract: (data: any) => ({
+            followers: data?.data?.follower_count || data?.data?.followers || 0,
+            fullName: data?.data?.full_name || "",
+            profilePic: data?.data?.profile_pic_url_hd || data?.data?.profile_pic_url || "",
+            bio: data?.data?.biography || "",
+            isPrivate: data?.data?.is_private || false,
+          }),
         },
-      });
-      
-      // If first endpoint fails with 403, try alternative endpoint
-      if (response.status === 403) {
-        console.log("   /info endpoint returned 403, trying alternative...");
-        
-        // Try endpoint 2: /user
-        url = new URL(`https://${rapidapiHost}/user`);
-        url.searchParams.append("username", username.replace("@", ""));
-        
-        console.log(`   Trying alternative URL: ${url.toString()}`);
-        
-        response = await fetch(url.toString(), {
-          method: "GET",
-          headers: {
-            "x-rapidapi-key": rapidapiKey,
-            "x-rapidapi-host": rapidapiHost,
-          },
-        });
-      }
+        {
+          host: "instagram-profile1.p.rapidapi.com",
+          url: `https://instagram-profile1.p.rapidapi.com/getprofile/${cleanUsername}`,
+          extract: (data: any) => ({
+            followers: data?.follower_count || data?.followers || 0,
+            fullName: data?.full_name || "",
+            profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
+            bio: data?.biography || "",
+            isPrivate: data?.is_private || false,
+          }),
+        },
+        {
+          host: "instagram-scraper-stable-api.p.rapidapi.com",
+          url: `https://instagram-scraper-stable-api.p.rapidapi.com/user_info.php?username=${cleanUsername}`,
+          extract: (data: any) => ({
+            followers: data?.user?.follower_count || data?.follower_count || 0,
+            fullName: data?.user?.full_name || data?.full_name || "",
+            profilePic: data?.user?.profile_pic_url_hd || data?.user?.profile_pic_url || "",
+            bio: data?.user?.biography || data?.biography || "",
+            isPrivate: data?.user?.is_private || data?.is_private || false,
+          }),
+        },
+      ];
 
-      const responseText = await response.text();
-      console.log(`   Response Status: ${response.status}`);
-      console.log(`   Response: ${responseText.substring(0, 200)}`);
-
-      if (!response.ok) {
-        console.error("❌ RapidAPI Error - Status:", response.status);
-        if (responseText.includes("not subscribed")) {
-          return res.status(400).json({ 
-            error: "Auto-fetch setup pending. Please enter your follower count manually - it only takes 10 seconds!" 
+      for (const attempt of apiAttempts) {
+        try {
+          console.log(`[Instagram Fetch] Trying: ${attempt.host}`);
+          
+          const response = await fetch(attempt.url, {
+            method: "GET",
+            headers: {
+              "x-rapidapi-key": rapidapiKey,
+              "x-rapidapi-host": attempt.host,
+            },
           });
+
+          const responseText = await response.text();
+          console.log(`[Instagram Fetch] ${attempt.host} - Status: ${response.status}, Body: ${responseText.substring(0, 300)}`);
+
+          if (!response.ok) {
+            if (responseText.includes("not subscribed") || responseText.includes("not allowed")) {
+              console.log(`[Instagram Fetch] Not subscribed to ${attempt.host}, trying next...`);
+              continue;
+            }
+            if (response.status === 429) {
+              console.log(`[Instagram Fetch] Rate limited on ${attempt.host}, trying next...`);
+              continue;
+            }
+            continue;
+          }
+
+          const data = JSON.parse(responseText);
+          const profileInfo = attempt.extract(data);
+
+          if (profileInfo.followers > 0) {
+            console.log(`[Instagram Fetch] Success via ${attempt.host}: ${profileInfo.followers} followers`);
+            
+            return res.json({
+              success: true,
+              username: cleanUsername,
+              followers: profileInfo.followers,
+              fullName: profileInfo.fullName,
+              profilePic: profileInfo.profilePic,
+              bio: profileInfo.bio,
+              isPrivate: profileInfo.isPrivate,
+              source: attempt.host,
+              message: `@${cleanUsername} has ${profileInfo.followers.toLocaleString()} followers`,
+            });
+          }
+        } catch (attemptError: any) {
+          console.log(`[Instagram Fetch] ${attempt.host} error: ${attemptError.message}`);
+          continue;
         }
-        return res.status(400).json({ 
-          error: "Auto-fetch temporarily unavailable. Please enter your follower count manually." 
-        });
       }
 
-      const data = JSON.parse(responseText) as {
-        follower_count?: number;
-        followers?: number;
-        user?: {
-          follower_count?: number;
-        };
-      };
-
-      // Extract followers from different possible response formats
-      let followers = data.follower_count || data.followers || data.user?.follower_count || 0;
-
-      console.log(`   ✅ Followers found: ${followers}`);
-
-      if (!followers || followers < MIN_FOLLOWERS) {
-        return res.status(400).json({ 
-          error: `Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required. This account has ${followers?.toLocaleString() || 0} followers.` 
-        });
-      }
-
-      res.json({ 
-        followers, 
-        username: username.replace("@", ""),
-        message: "Followers fetched successfully from Instagram"
+      return res.status(404).json({
+        error: `Could not fetch data for @${cleanUsername}. Make sure the username is correct and the account is public.`,
+        suggestion: "manual",
       });
-    } catch (error) {
-      console.error("❌ Error fetching followers:", error);
-      res.status(500).json({ error: "Failed to fetch followers. Please use manual entry instead." });
+    } catch (error: any) {
+      console.error("[Instagram Fetch] Error:", error.message);
+      res.status(500).json({ error: "Failed to fetch Instagram data. Please try again." });
     }
   });
 
@@ -4811,105 +4820,6 @@ setTimeout(initPayment, 100);
   });
 
   // ==================== MOCK INSTAGRAM VERIFICATION ====================
-
-  // Fetch Instagram followers count (REAL DATA - Direct from Instagram)
-  app.post("/api/instagram/fetch-followers", isAuthenticated, async (req, res) => {
-    try {
-      const { username } = req.body;
-
-      if (!username || !username.trim()) {
-        return res.status(400).json({ error: "Instagram username is required" });
-      }
-
-      const cleanUsername = username.replace("@", "").trim();
-
-      // Method 1: Try Instagram's public profile page
-      try {
-        const profileUrl = `https://www.instagram.com/${cleanUsername}/`;
-        
-        const response = await axios.get(profileUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          },
-          timeout: 10000,
-        });
-
-        // Parse HTML for followers count - Instagram embeds it in the HTML
-        const html = response.data;
-        
-        // Look for follower count in different formats
-        const patterns = [
-          /"follower_count":(\d+)/,                    // JSON format 1
-          /"edge_followed_by":\{"count":(\d+)\}/,      // JSON format 2
-          />([0-9,]+)\s*Followers</,                   // HTML format
-          /"followers_count":(\d+)/,                   // Another JSON format
-        ];
-
-        for (const pattern of patterns) {
-          const match = html.match(pattern);
-          if (match && match[1]) {
-            const followersStr = match[1].replace(/,/g, ""); // Remove commas
-            const followers = parseInt(followersStr, 10);
-            
-            if (!isNaN(followers) && followers > 0) {
-              return res.json({
-                success: true,
-                username: cleanUsername,
-                followers: followers,
-                source: "instagram_html",
-                message: `Real data: @${cleanUsername} has ${followers.toLocaleString()} followers`,
-              });
-            }
-          }
-        }
-      } catch (error1: any) {
-        console.log("Method 1 failed:", error1.message?.substring(0, 50));
-      }
-
-      // Method 2: Use Instagrapi-like endpoint (backup)
-      try {
-        const apiUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`;
-        const apiResponse = await axios.get(apiUrl, {
-          headers: {
-            "User-Agent": "Instagram 270.0.0.0.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X; en_US; en-US)",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          timeout: 10000,
-        });
-
-        if (apiResponse.data?.data?.user?.follower_count !== undefined) {
-          const followers = apiResponse.data.data.user.follower_count;
-          
-          if (followers > 0) {
-            return res.json({
-              success: true,
-              username: cleanUsername,
-              followers: followers,
-              source: "instagram_api",
-              message: `Real data: @${cleanUsername} has ${followers.toLocaleString()} followers`,
-            });
-          }
-        }
-      } catch (error2: any) {
-        console.log("Method 2 failed:", error2.message?.substring(0, 50));
-      }
-
-      // Method 3: Use a simple RapidAPI endpoint if available (fallback)
-      // For now, return user-friendly error
-      return res.status(400).json({
-        error: "Instagram API temporarily unavailable",
-        message: `Unable to fetch @${cleanUsername}'s follower count automatically`,
-        suggestion: "Please manually enter your Instagram follower count. This helps verify your reach and find campaigns suitable for you.",
-        note: "Instagram requires you to be public and accessible. If your profile is private, please make it public first.",
-      });
-    } catch (error) {
-      console.error("Followers fetch error:", (error as Error).message?.substring(0, 100));
-      res.status(500).json({ 
-        error: "Failed to fetch followers count", 
-        suggestion: "Please enter your follower count manually. You can verify this on your Instagram profile.",
-      });
-    }
-  });
 
   // Submit Instagram username for verification (MOCK)
   app.post("/api/instagram/submit", isAuthenticated, async (req, res) => {
