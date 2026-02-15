@@ -1744,96 +1744,112 @@ export async function registerRoutes(
 
       console.log(`[Instagram Fetch] Username: ${cleanUsername}, Key exists: ${!!rapidapiKey}`);
 
-      if (!rapidapiKey) {
-        return res.status(500).json({ 
-          error: "Instagram auto-fetch not configured. Please enter your details manually." 
-        });
-      }
-
-      const apiAttempts = [
-        {
-          host: "instagram-scraper-stable-api.p.rapidapi.com",
-          url: `https://instagram-scraper-stable-api.p.rapidapi.com/account_data?username_or_url=${cleanUsername}`,
-          extract: (data: any) => ({
-            followers: data?.follower_count || data?.followers || data?.edge_followed_by?.count || 0,
-            fullName: data?.full_name || "",
-            profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
-            bio: data?.biography || "",
-            isPrivate: data?.is_private || false,
-          }),
-        },
-        {
-          host: "instagram-scraper-api2.p.rapidapi.com",
-          url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${cleanUsername}`,
-          extract: (data: any) => ({
-            followers: data?.data?.follower_count || data?.data?.followers || 0,
-            fullName: data?.data?.full_name || "",
-            profilePic: data?.data?.profile_pic_url_hd || data?.data?.profile_pic_url || "",
-            bio: data?.data?.biography || "",
-            isPrivate: data?.data?.is_private || false,
-          }),
-        },
-        {
-          host: "instagram-profile1.p.rapidapi.com",
-          url: `https://instagram-profile1.p.rapidapi.com/getprofile/${cleanUsername}`,
-          extract: (data: any) => ({
-            followers: data?.follower_count || data?.followers || 0,
-            fullName: data?.full_name || "",
-            profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
-            bio: data?.biography || "",
-            isPrivate: data?.is_private || false,
-          }),
-        },
-      ];
-
-      for (const attempt of apiAttempts) {
-        try {
-          console.log(`[Instagram Fetch] Trying: ${attempt.host}`);
-          
-          const response = await fetch(attempt.url, {
-            method: "GET",
+      // Method 1: Instagram's direct web API (no third-party needed)
+      try {
+        console.log(`[Instagram Fetch] Trying Instagram direct API...`);
+        const igResponse = await fetch(
+          `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
+          {
             headers: {
-              "x-rapidapi-key": rapidapiKey,
-              "x-rapidapi-host": attempt.host,
+              "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+              "X-IG-App-ID": "936619743392459",
+              "X-Requested-With": "XMLHttpRequest",
             },
-          });
-
-          const responseText = await response.text();
-          console.log(`[Instagram Fetch] ${attempt.host} - Status: ${response.status}, Body: ${responseText.substring(0, 300)}`);
-
-          if (!response.ok) {
-            if (responseText.includes("not subscribed") || responseText.includes("not allowed")) {
-              console.log(`[Instagram Fetch] Not subscribed to ${attempt.host}, trying next...`);
-              continue;
-            }
-            if (response.status === 429) {
-              console.log(`[Instagram Fetch] Rate limited on ${attempt.host}, trying next...`);
-              continue;
-            }
-            continue;
           }
+        );
 
-          const data = JSON.parse(responseText);
-          const profileInfo = attempt.extract(data);
+        if (igResponse.ok) {
+          const igData = await igResponse.json() as any;
+          const user = igData?.data?.user;
+          if (user) {
+            const followers = user.edge_followed_by?.count || user.follower_count || 0;
+            const fullName = user.full_name || "";
+            const profilePic = user.profile_pic_url_hd || user.profile_pic_url || "";
+            const bio = user.biography || "";
+            const isPrivate = user.is_private || false;
 
-          if (profileInfo.followers > 0) {
-            console.log(`[Instagram Fetch] Success via ${attempt.host}: ${profileInfo.followers} followers`);
-            
+            console.log(`[Instagram Fetch] Direct API success: ${followers} followers`);
+
             return res.json({
               success: true,
               username: cleanUsername,
-              followers: profileInfo.followers,
-              fullName: profileInfo.fullName,
-              profilePic: profileInfo.profilePic,
-              bio: profileInfo.bio,
-              isPrivate: profileInfo.isPrivate,
-              source: attempt.host,
-              message: `@${cleanUsername} has ${profileInfo.followers.toLocaleString()} followers`,
+              followers,
+              fullName,
+              profilePic,
+              bio,
+              isPrivate,
+              source: "instagram_direct",
+              message: `@${cleanUsername} has ${followers.toLocaleString()} followers`,
             });
           }
-        } catch (attemptError: any) {
-          console.log(`[Instagram Fetch] ${attempt.host} error: ${attemptError.message}`);
-          continue;
+        } else {
+          console.log(`[Instagram Fetch] Direct API status: ${igResponse.status}`);
+        }
+      } catch (directError: any) {
+        console.log(`[Instagram Fetch] Direct API error: ${directError.message}`);
+      }
+
+      // Method 2: RapidAPI fallback (if subscribed)
+      if (rapidapiKey) {
+        const apiAttempts = [
+          {
+            host: "instagram-scraper-api2.p.rapidapi.com",
+            url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${cleanUsername}`,
+            extract: (data: any) => ({
+              followers: data?.data?.follower_count || data?.data?.followers || 0,
+              fullName: data?.data?.full_name || "",
+              profilePic: data?.data?.profile_pic_url_hd || data?.data?.profile_pic_url || "",
+              bio: data?.data?.biography || "",
+              isPrivate: data?.data?.is_private || false,
+            }),
+          },
+          {
+            host: "instagram-profile1.p.rapidapi.com",
+            url: `https://instagram-profile1.p.rapidapi.com/getprofile/${cleanUsername}`,
+            extract: (data: any) => ({
+              followers: data?.follower_count || data?.followers || 0,
+              fullName: data?.full_name || "",
+              profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
+              bio: data?.biography || "",
+              isPrivate: data?.is_private || false,
+            }),
+          },
+        ];
+
+        for (const attempt of apiAttempts) {
+          try {
+            console.log(`[Instagram Fetch] Trying RapidAPI: ${attempt.host}`);
+            const response = await fetch(attempt.url, {
+              method: "GET",
+              headers: {
+                "x-rapidapi-key": rapidapiKey,
+                "x-rapidapi-host": attempt.host,
+              },
+            });
+
+            if (!response.ok) continue;
+
+            const data = JSON.parse(await response.text());
+            const profileInfo = attempt.extract(data);
+
+            if (profileInfo.followers > 0) {
+              console.log(`[Instagram Fetch] RapidAPI success via ${attempt.host}: ${profileInfo.followers} followers`);
+              return res.json({
+                success: true,
+                username: cleanUsername,
+                followers: profileInfo.followers,
+                fullName: profileInfo.fullName,
+                profilePic: profileInfo.profilePic,
+                bio: profileInfo.bio,
+                isPrivate: profileInfo.isPrivate,
+                source: attempt.host,
+                message: `@${cleanUsername} has ${profileInfo.followers.toLocaleString()} followers`,
+              });
+            }
+          } catch (attemptError: any) {
+            console.log(`[Instagram Fetch] ${attempt.host} error: ${attemptError.message}`);
+            continue;
+          }
         }
       }
 
