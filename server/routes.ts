@@ -1752,6 +1752,17 @@ export async function registerRoutes(
 
       const apiAttempts = [
         {
+          host: "instagram-scraper-stable-api.p.rapidapi.com",
+          url: `https://instagram-scraper-stable-api.p.rapidapi.com/account_data?username_or_url=${cleanUsername}`,
+          extract: (data: any) => ({
+            followers: data?.follower_count || data?.followers || data?.edge_followed_by?.count || 0,
+            fullName: data?.full_name || "",
+            profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
+            bio: data?.biography || "",
+            isPrivate: data?.is_private || false,
+          }),
+        },
+        {
           host: "instagram-scraper-api2.p.rapidapi.com",
           url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${cleanUsername}`,
           extract: (data: any) => ({
@@ -1771,17 +1782,6 @@ export async function registerRoutes(
             profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
             bio: data?.biography || "",
             isPrivate: data?.is_private || false,
-          }),
-        },
-        {
-          host: "instagram-scraper-stable-api.p.rapidapi.com",
-          url: `https://instagram-scraper-stable-api.p.rapidapi.com/user_info.php?username=${cleanUsername}`,
-          extract: (data: any) => ({
-            followers: data?.user?.follower_count || data?.follower_count || 0,
-            fullName: data?.user?.full_name || data?.full_name || "",
-            profilePic: data?.user?.profile_pic_url_hd || data?.user?.profile_pic_url || "",
-            bio: data?.user?.biography || data?.biography || "",
-            isPrivate: data?.user?.is_private || data?.is_private || false,
           }),
         },
       ];
