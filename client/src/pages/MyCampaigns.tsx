@@ -256,14 +256,15 @@ export default function MyCampaigns() {
         transition={{ delay: index * 0.05 }}
       >
         <Card className={`flex h-full flex-col overflow-hidden transition-all hover:shadow-lg border-primary/20 ${isInFolder ? 'ml-2 sm:ml-4 border-l-4 border-l-primary/30' : ''}`} data-testid={`card-reservation-${reservation.id}`}>
-          <div className="h-24 sm:h-32 w-full bg-gradient-to-br from-gray-100 to-gray-200 p-4 sm:p-6 flex items-center justify-center relative">
+          <div className="h-36 sm:h-44 w-full relative overflow-hidden">
             {campaign.brandLogo ? (
-              <img src={campaign.brandLogo} alt={campaign.brand} className="max-h-12 sm:max-h-16 max-w-[120px] sm:max-w-[150px] object-contain mix-blend-multiply" />
+              <img src={campaign.brandLogo} alt={campaign.brand} className="h-full w-full object-cover" />
             ) : (
-              <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg">
-                {campaign.brand.charAt(0).toUpperCase()}
+              <div className="h-full w-full bg-gradient-to-br from-purple-500 via-pink-500 to-rose-400 flex items-center justify-center">
+                <span className="text-4xl sm:text-5xl font-bold text-white/90">{campaign.brand.charAt(0).toUpperCase()}</span>
               </div>
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             <div className="absolute top-2 right-2">
               {getStatusBadge(reservation.status)}
             </div>
@@ -451,11 +452,13 @@ export default function MyCampaigns() {
                       <CardContent className="p-3 sm:p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
+                            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg overflow-hidden flex-shrink-0">
                               {group.brandLogo ? (
-                                <img src={group.brandLogo} alt={group.brand} className="max-h-8 sm:max-h-10 max-w-[32px] sm:max-w-[40px] object-contain mix-blend-multiply" />
+                                <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
                               ) : (
-                                <FolderOpen className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                                <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                  <span className="text-xl font-bold text-white">{group.brand.charAt(0).toUpperCase()}</span>
+                                </div>
                               )}
                             </div>
                             

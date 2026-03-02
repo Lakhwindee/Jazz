@@ -429,45 +429,46 @@ export default function Campaigns() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="relative group cursor-not-allowed" data-testid={`card-campaign-locked-${group.title}`}>
-                                  <Card className="transition-all">
-                                    <CardContent className="p-5">
-                                      <div className="flex items-start gap-4">
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                          {group.brandLogo ? (
-                                            <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
-                                          ) : (
-                                            <Building2 className="h-7 w-7" />
-                                          )}
+                                  <Card className="transition-all overflow-hidden">
+                                    <div className="h-36 sm:h-44 w-full relative overflow-hidden">
+                                      {group.brandLogo ? (
+                                        <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
+                                      ) : (
+                                        <div className="h-full w-full bg-gradient-to-br from-purple-500 via-pink-500 to-rose-400 flex items-center justify-center">
+                                          <span className="text-4xl sm:text-5xl font-bold text-white/90">{group.brand.charAt(0).toUpperCase()}</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <h3 className="font-bold text-lg truncate">{group.title}</h3>
-                                          <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
-                                          <div className="flex flex-wrap gap-2 mt-2">
-                                            {group.campaignType === "product" ? (
-                                              <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
-                                                <Gift className="h-3 w-3" />
-                                                Free Product
-                                              </Badge>
-                                            ) : allPromotional ? (
-                                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
-                                                <Star className="h-3 w-3" />
-                                                {starDisplay}
-                                              </Badge>
-                                            ) : (
-                                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                                {paymentDisplay}
-                                              </Badge>
-                                            )}
-                                            <Badge variant="outline" className="text-xs">
-                                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
-                                            </Badge>
-                                          </div>
-                                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{new Date(group.deadline).toLocaleDateString()}</span>
-                                            <span className="ml-2">{group.totalSpots} spots left</span>
-                                          </div>
-                                        </div>
+                                      )}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                      <div className="absolute bottom-3 left-3 right-3">
+                                        <h3 className="font-bold text-lg text-white truncate drop-shadow-lg">{group.title}</h3>
+                                        <p className="text-sm text-white/80 truncate">{group.brand}</p>
+                                      </div>
+                                    </div>
+                                    <CardContent className="p-4">
+                                      <div className="flex flex-wrap gap-2">
+                                        {group.campaignType === "product" ? (
+                                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
+                                            <Gift className="h-3 w-3" />
+                                            Free Product
+                                          </Badge>
+                                        ) : allPromotional ? (
+                                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                            <Star className="h-3 w-3" />
+                                            {starDisplay}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                            {paymentDisplay}
+                                          </Badge>
+                                        )}
+                                        <Badge variant="outline" className="text-xs">
+                                          {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                        <span className="ml-2">{group.totalSpots} spots left</span>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -486,45 +487,46 @@ export default function Campaigns() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="relative group cursor-not-allowed" data-testid={`card-campaign-reserved-${group.title}`}>
-                                  <Card className="transition-all border-green-300">
-                                    <CardContent className="p-5">
-                                      <div className="flex items-start gap-4">
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                          {group.brandLogo ? (
-                                            <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
-                                          ) : (
-                                            <Building2 className="h-7 w-7" />
-                                          )}
+                                  <Card className="transition-all border-green-300 overflow-hidden">
+                                    <div className="h-36 sm:h-44 w-full relative overflow-hidden">
+                                      {group.brandLogo ? (
+                                        <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
+                                      ) : (
+                                        <div className="h-full w-full bg-gradient-to-br from-purple-500 via-pink-500 to-rose-400 flex items-center justify-center">
+                                          <span className="text-4xl sm:text-5xl font-bold text-white/90">{group.brand.charAt(0).toUpperCase()}</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <h3 className="font-bold text-lg truncate">{group.title}</h3>
-                                          <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
-                                          <div className="flex flex-wrap gap-2 mt-2">
-                                            {group.campaignType === "product" ? (
-                                              <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
-                                                <Gift className="h-3 w-3" />
-                                                Free Product
-                                              </Badge>
-                                            ) : allPromotional ? (
-                                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
-                                                <Star className="h-3 w-3" />
-                                                {starDisplay}
-                                              </Badge>
-                                            ) : (
-                                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                                {paymentDisplay}
-                                              </Badge>
-                                            )}
-                                            <Badge variant="outline" className="text-xs">
-                                              {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
-                                            </Badge>
-                                          </div>
-                                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{new Date(group.deadline).toLocaleDateString()}</span>
-                                            <span className="ml-2">{group.totalSpots} spots left</span>
-                                          </div>
-                                        </div>
+                                      )}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                      <div className="absolute bottom-3 left-3 right-3">
+                                        <h3 className="font-bold text-lg text-white truncate drop-shadow-lg">{group.title}</h3>
+                                        <p className="text-sm text-white/80 truncate">{group.brand}</p>
+                                      </div>
+                                    </div>
+                                    <CardContent className="p-4">
+                                      <div className="flex flex-wrap gap-2">
+                                        {group.campaignType === "product" ? (
+                                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
+                                            <Gift className="h-3 w-3" />
+                                            Free Product
+                                          </Badge>
+                                        ) : allPromotional ? (
+                                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                            <Star className="h-3 w-3" />
+                                            {starDisplay}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                            {paymentDisplay}
+                                          </Badge>
+                                        )}
+                                        <Badge variant="outline" className="text-xs">
+                                          {group.campaigns.length} {group.campaigns.length === 1 ? 'tier' : 'tiers'}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                        <span className="ml-2">{group.totalSpots} spots left</span>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -544,71 +546,72 @@ export default function Campaigns() {
                             </Tooltip>
                           ) : (
                             <Card 
-                              className="cursor-pointer transition-all hover:shadow-lg hover:border-purple-300 hover:scale-[1.02]"
+                              className="cursor-pointer transition-all hover:shadow-lg hover:border-purple-300 hover:scale-[1.02] overflow-hidden"
                               data-testid={`card-campaign-${group.title}`}
                               onClick={() => bestCampaign && navigate(`/campaigns/${bestCampaign.id}`)}
                             >
-                              <CardContent className="p-5">
-                                <div className="flex items-start gap-4">
-                                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg shrink-0 overflow-hidden">
-                                    {group.brandLogo ? (
-                                      <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <Building2 className="h-7 w-7" />
-                                    )}
+                              <div className="h-36 sm:h-44 w-full relative overflow-hidden">
+                                {group.brandLogo ? (
+                                  <img src={group.brandLogo} alt={group.brand} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-purple-500 via-pink-500 to-rose-400 flex items-center justify-center">
+                                    <span className="text-4xl sm:text-5xl font-bold text-white/90">{group.brand.charAt(0).toUpperCase()}</span>
                                   </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-lg truncate">{group.title}</h3>
-                                    <p className="text-sm text-muted-foreground truncate">{group.brand}</p>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                      {group.campaignType === "product" ? (
-                                        <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
-                                          <Gift className="h-3 w-3" />
-                                          Free Product
-                                        </Badge>
-                                      ) : bestCampaign?.isPromotional ? (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
-                                          <Star className="h-3 w-3" />
-                                          {bestCampaign.starReward || 1} Star{(bestCampaign.starReward || 1) > 1 ? 's' : ''}
-                                        </Badge>
-                                      ) : allPromotional ? (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
-                                          <Star className="h-3 w-3" />
-                                          {starDisplay}
-                                        </Badge>
-                                      ) : (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                          {bestCampaign ? formatINR(bestCampaign.payAmount) : paymentDisplay}
-                                        </Badge>
-                                      )}
-                                      {group.campaigns.length > 1 && (
-                                        <Badge variant="outline" className="text-xs">
-                                          {accessibleCampaigns.length} of {group.campaigns.length} tiers available
-                                        </Badge>
-                                      )}
-                                      {bestCampaign && (
-                                        <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30">
-                                          {bestCampaign.tier}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
-                                      <span>{new Date(group.deadline).toLocaleDateString()}</span>
-                                      <span className="ml-2">{group.totalSpots} spots left</span>
-                                    </div>
-                                    {group.mentions && group.mentions.length > 0 && (
-                                      <div className="flex flex-wrap items-center gap-1 mt-2">
-                                        <AtSign className="h-3 w-3 text-primary" />
-                                        {group.mentions.map((mention, idx) => (
-                                          <Badge key={idx} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                                            @{mention}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                <div className="absolute bottom-3 left-3 right-3">
+                                  <h3 className="font-bold text-lg text-white truncate drop-shadow-lg">{group.title}</h3>
+                                  <p className="text-sm text-white/80 truncate">{group.brand}</p>
                                 </div>
+                              </div>
+                              <CardContent className="p-4">
+                                <div className="flex flex-wrap gap-2">
+                                  {group.campaignType === "product" ? (
+                                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs gap-1">
+                                      <Gift className="h-3 w-3" />
+                                      Free Product
+                                    </Badge>
+                                  ) : bestCampaign?.isPromotional ? (
+                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                      <Star className="h-3 w-3" />
+                                      {bestCampaign.starReward || 1} Star{(bestCampaign.starReward || 1) > 1 ? 's' : ''}
+                                    </Badge>
+                                  ) : allPromotional ? (
+                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs gap-1">
+                                      <Star className="h-3 w-3" />
+                                      {starDisplay}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                      {bestCampaign ? formatINR(bestCampaign.payAmount) : paymentDisplay}
+                                    </Badge>
+                                  )}
+                                  {group.campaigns.length > 1 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {accessibleCampaigns.length} of {group.campaigns.length} tiers available
+                                    </Badge>
+                                  )}
+                                  {bestCampaign && (
+                                    <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30">
+                                      {bestCampaign.tier}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{new Date(group.deadline).toLocaleDateString()}</span>
+                                  <span className="ml-2">{group.totalSpots} spots left</span>
+                                </div>
+                                {group.mentions && group.mentions.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1 mt-2">
+                                    <AtSign className="h-3 w-3 text-primary" />
+                                    {group.mentions.map((mention, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                                        @{mention}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </CardContent>
                             </Card>
                           )}
