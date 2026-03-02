@@ -549,8 +549,8 @@ export default function Profile() {
                       <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">How It Works:</h4>
                       <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
                         <li>Enter your Instagram username below</li>
-                        <li>Click "Verify Account" to auto-fetch your followers</li>
-                        <li>Confirm and connect your account</li>
+                        <li>Enter your follower count</li>
+                        <li>Click "Connect" to link your account</li>
                         <li>Start earning from campaigns right away</li>
                       </ol>
                     </div>
@@ -566,135 +566,51 @@ export default function Profile() {
 
                     <div className="space-y-2">
                       <Label htmlFor="instagram-username">Instagram Username</Label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
-                          <Input
-                            id="instagram-username"
-                            placeholder="your_username"
-                            value={instagramUsername.replace("@", "")}
-                            onChange={(e) => {
-                              setInstagramUsername(e.target.value.replace("@", ""));
-                              setFetchedProfile(null);
-                              setFetchError("");
-                            }}
-                            className="pl-8"
-                            data-testid="input-instagram-username"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleFetchInstagramProfile();
-                            }}
-                          />
-                        </div>
-                        <Button
-                          onClick={handleFetchInstagramProfile}
-                          disabled={isFetchingProfile || !instagramUsername.trim()}
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-                          data-testid="button-verify-instagram"
-                        >
-                          {isFetchingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
-                        </Button>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                        <Input
+                          id="instagram-username"
+                          placeholder="your_username"
+                          value={instagramUsername.replace("@", "")}
+                          onChange={(e) => {
+                            setInstagramUsername(e.target.value.replace("@", ""));
+                          }}
+                          className="pl-8"
+                          data-testid="input-instagram-username"
+                        />
                       </div>
                     </div>
 
-                    {fetchedProfile && (
-                      <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 p-4 space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-full bg-green-500 p-1.5">
-                            <CheckCircle2 className="h-4 w-4 text-white" />
-                          </div>
-                          <h4 className="font-semibold text-green-800 dark:text-green-200">Account Found!</h4>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {fetchedProfile.profilePic && (
-                            <img 
-                              src={fetchedProfile.profilePic} 
-                              alt="Profile" 
-                              className="h-12 w-12 rounded-full object-cover border-2 border-green-300"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          )}
-                          <div>
-                            <p className="font-medium" data-testid="text-fetched-username">@{instagramUsername.replace("@", "")}</p>
-                            {fetchedProfile.fullName && <p className="text-sm text-muted-foreground">{fetchedProfile.fullName}</p>}
-                            <p className="text-sm font-semibold text-green-700 dark:text-green-300" data-testid="text-fetched-followers">
-                              {fetchedProfile.followers.toLocaleString()} followers
-                            </p>
-                          </div>
-                        </div>
-                        {fetchedProfile.followers < MIN_FOLLOWERS ? (
-                          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3">
-                            <p className="text-sm text-red-700 dark:text-red-300">
-                              Minimum {MIN_FOLLOWERS.toLocaleString()} followers required. You have {fetchedProfile.followers.toLocaleString()} followers.
-                            </p>
-                          </div>
-                        ) : (
-                          <Button 
-                            onClick={handleLinkInstagram}
-                            disabled={updateInstagramMutation.isPending}
-                            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-                            data-testid="button-link-instagram"
-                          >
-                            {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            <Instagram className="mr-2 h-4 w-4" />
-                            Connect @{instagramUsername.replace("@", "")}
-                          </Button>
-                        )}
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram-followers">Follower Count</Label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="instagram-followers"
+                          type="number"
+                          placeholder="e.g. 10000"
+                          value={instagramFollowers}
+                          onChange={(e) => setInstagramFollowers(e.target.value)}
+                          className="pl-10"
+                          min={MIN_FOLLOWERS}
+                          data-testid="input-instagram-followers"
+                        />
                       </div>
-                    )}
+                      <p className="text-xs text-muted-foreground">
+                        Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
+                      </p>
+                    </div>
 
-                    {showManualEntry && !fetchedProfile && (
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
-                        <div className="flex items-start gap-2">
-                          <Users className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
-                            Enter your follower count to connect your Instagram account.
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="instagram-followers">Follower Count</Label>
-                          <div className="relative">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="instagram-followers"
-                              type="number"
-                              placeholder="e.g. 10000"
-                              value={instagramFollowers}
-                              onChange={(e) => setInstagramFollowers(e.target.value)}
-                              className="pl-10"
-                              min={MIN_FOLLOWERS}
-                              autoFocus
-                              data-testid="input-instagram-followers"
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
-                          </p>
-                        </div>
-                        <Button 
-                          onClick={handleLinkInstagram}
-                          disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
-                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-                          data-testid="button-link-instagram-manual"
-                        >
-                          {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          <Instagram className="mr-2 h-4 w-4" />
-                          Connect @{instagramUsername.replace("@", "")}
-                        </Button>
-                      </div>
-                    )}
-
-                    {!showManualEntry && !fetchedProfile && !isFetchingProfile && instagramUsername.trim() && (
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          onClick={() => setShowManualEntry(true)}
-                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          data-testid="button-toggle-manual-entry"
-                        >
-                          Can't verify? Enter follower count manually
-                        </button>
-                      </div>
-                    )}
+                    <Button 
+                      onClick={handleLinkInstagram}
+                      disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+                      data-testid="button-link-instagram-manual"
+                    >
+                      {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Instagram className="mr-2 h-4 w-4" />
+                      Connect Instagram
+                    </Button>
                   </div>
                 )}
               </CardContent>
