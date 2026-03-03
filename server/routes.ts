@@ -4662,14 +4662,14 @@ setTimeout(initPayment, 100);
         return res.status(400).json({ error: "Invalid amount. Use promo code apply for free trials." });
       }
 
-      const linkId = `sub_${userId}_${Date.now()}`;
+      const orderId = `sub_${userId}_${Date.now()}`;
       
       let baseUrl = 'https://mingree.com';
       if (process.env.REPLIT_DOMAINS) {
         baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
       }
       const promoParam = promoCode ? `&promo=${encodeURIComponent(promoCode)}` : '';
-      const returnUrl = `${baseUrl}/subscription?order_id=${linkId}&status=success&user_id=${userId}${promoParam}`;
+      const returnUrl = `${baseUrl}/subscription?order_id=${orderId}&status=success&user_id=${userId}${promoParam}`;
       
       const customerName = billingDetails?.name || user.name || "Customer";
       const customerEmail = billingDetails?.email || user.email;
@@ -4677,25 +4677,22 @@ setTimeout(initPayment, 100);
       
       const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
       const apiUrl = environment === 'production' 
-        ? 'https://api.cashfree.com/pg/links'
-        : 'https://sandbox.cashfree.com/pg/links';
+        ? 'https://api.cashfree.com/pg/orders'
+        : 'https://sandbox.cashfree.com/pg/orders';
       
-      const linkResponse = await axios.post(apiUrl, {
-        link_id: linkId,
-        link_amount: paymentAmount,
-        link_currency: "INR",
-        link_purpose: "Mingree Pro Subscription - 30 Days",
+      const orderResponse = await axios.post(apiUrl, {
+        order_id: orderId,
+        order_amount: paymentAmount,
+        order_currency: "INR",
+        order_note: "Mingree Pro Subscription - 30 Days",
         customer_details: {
+          customer_id: `cust_${userId}`,
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_email: customerEmail,
         },
-        link_notify: {
-          send_sms: false,
-          send_email: false,
-        },
-        link_meta: {
-          return_url: returnUrl,
+        order_meta: {
+          return_url: returnUrl + "&cf_order_id={order_id}",
         },
       }, {
         headers: {
@@ -4706,23 +4703,29 @@ setTimeout(initPayment, 100);
         },
       });
 
-      const paymentLink = linkResponse.data;
+      const orderData = orderResponse.data;
       
       if (promoCode) {
-        console.log(`Cashfree Payment Link ${linkId} created with promo: ${promoCode}`);
+        console.log(`Cashfree order ${orderId} created with promo: ${promoCode}`);
       }
 
-      console.log(`Cashfree Payment Link created: ${linkId}, URL: ${paymentLink.link_url}`);
+      const paymentSessionId = orderData.payment_session_id;
+      const paymentUrl = environment === 'production'
+        ? `https://payments.cashfree.com/pgbillpay/web/${paymentSessionId}`
+        : `https://sandbox.cashfree.com/pgbillpay/web/${paymentSessionId}`;
+
+      console.log(`Cashfree order created: ${orderId}`);
 
       res.json({ 
-        orderId: linkId,
-        paymentUrl: paymentLink.link_url,
+        orderId,
+        paymentUrl,
+        paymentSessionId,
         amount: paymentAmount,
         currency: "INR",
       });
     } catch (error: any) {
-      console.error("Error creating Cashfree payment:", error.response?.data || error.message);
-      res.status(500).json({ error: error.response?.data?.message || "Failed to create payment link" });
+      console.error("Error creating Cashfree order:", error.response?.data || error.message);
+      res.status(500).json({ error: error.response?.data?.message || "Failed to create payment order" });
     }
   });
 
@@ -4766,10 +4769,10 @@ setTimeout(initPayment, 100);
       
       const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
       const apiUrl = environment === 'production' 
-        ? `https://api.cashfree.com/pg/links/${orderId}`
-        : `https://sandbox.cashfree.com/pg/links/${orderId}`;
+        ? `https://api.cashfree.com/pg/orders/${orderId}`
+        : `https://sandbox.cashfree.com/pg/orders/${orderId}`;
       
-      const linkResponse = await axios.get(apiUrl, {
+      const orderResponse = await axios.get(apiUrl, {
         headers: {
           'x-api-version': '2023-08-01',
           'x-client-id': process.env.CASHFREE_APP_ID,
@@ -4777,10 +4780,10 @@ setTimeout(initPayment, 100);
         },
       });
       
-      const linkDetails = linkResponse.data;
-      console.log('Cashfree Payment Link status:', orderId, linkDetails.link_status);
+      const orderDetails = orderResponse.data;
+      console.log('Cashfree order status:', orderId, orderDetails.order_status);
       
-      if (linkDetails.link_status !== 'PAID') {
+      if (orderDetails.order_status !== 'PAID') {
         return res.status(400).json({ error: "Payment not completed" });
       }
       
@@ -4797,7 +4800,7 @@ setTimeout(initPayment, 100);
       
       await storage.updateUserSubscription(userId, "pro", expiresAt);
       
-      const paidAmount = parseFloat(linkDetails.link_amount) || 499;
+      const paidAmount = parseFloat(orderDetails.order_amount) || 499;
       await storage.createTransaction({
         userId,
         type: "debit",
