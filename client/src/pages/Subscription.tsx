@@ -239,15 +239,32 @@ export default function Subscription() {
     return panRegex.test(pan.toUpperCase());
   };
 
-  // Load Razorpay script
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
   useEffect(() => {
+    if (typeof window.Razorpay !== 'undefined') {
+      setRazorpayLoaded(true);
+      return;
+    }
+    const existing = document.querySelector('script[src*="razorpay"]');
+    if (existing) {
+      existing.addEventListener('load', () => setRazorpayLoaded(true));
+      return;
+    }
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () => {
+      setTimeout(() => {
+        const retry = document.createElement("script");
+        retry.src = "https://checkout.razorpay.com/v1/checkout.js";
+        retry.async = true;
+        retry.onload = () => setRazorpayLoaded(true);
+        document.body.appendChild(retry);
+      }, 2000);
     };
+    document.body.appendChild(script);
   }, []);
 
   const handleFinalPayment = async () => {
@@ -274,7 +291,16 @@ export default function Subscription() {
       }
       
       if (typeof window.Razorpay === 'undefined') {
-        throw new Error("Payment gateway is loading. Please try again in a moment.");
+        const waitForRazorpay = () => new Promise<void>((resolve, reject) => {
+          let attempts = 0;
+          const check = () => {
+            if (typeof window.Razorpay !== 'undefined') return resolve();
+            if (attempts++ > 20) return reject(new Error("Payment gateway could not be loaded. Please refresh the page and try again."));
+            setTimeout(check, 500);
+          };
+          check();
+        });
+        await waitForRazorpay();
       }
       
       const finalAmount = calculateFinalAmount();

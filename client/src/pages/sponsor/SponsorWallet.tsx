@@ -235,17 +235,23 @@ export default function SponsorWallet() {
   // Check if user is from India (use Cashfree) or international (use Stripe)
   const isIndianUser = sponsor?.country === "IN";
 
-  // Load Razorpay script for Indian users
   useEffect(() => {
-    if (isIndianUser) {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      document.body.appendChild(script);
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
+    if (!isIndianUser) return;
+    if (typeof window.Razorpay !== 'undefined') return;
+    const existing = document.querySelector('script[src*="razorpay"]');
+    if (existing) return;
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onerror = () => {
+      setTimeout(() => {
+        const retry = document.createElement("script");
+        retry.src = "https://checkout.razorpay.com/v1/checkout.js";
+        retry.async = true;
+        document.body.appendChild(retry);
+      }, 2000);
+    };
+    document.body.appendChild(script);
   }, [isIndianUser]);
   
   // Clean up any old Cashfree URL params (legacy)
@@ -324,7 +330,16 @@ export default function SponsorWallet() {
 
     try {
       if (typeof window.Razorpay === 'undefined') {
-        throw new Error("Payment gateway is loading. Please try again in a moment.");
+        const waitForRazorpay = () => new Promise<void>((resolve, reject) => {
+          let attempts = 0;
+          const check = () => {
+            if (typeof window.Razorpay !== 'undefined') return resolve();
+            if (attempts++ > 20) return reject(new Error("Payment gateway could not be loaded. Please refresh the page and try again."));
+            setTimeout(check, 500);
+          };
+          check();
+        });
+        await waitForRazorpay();
       }
 
       const orderRes = await fetch(`/api/sponsors/${sponsor.id}/razorpay/create-order`, {
