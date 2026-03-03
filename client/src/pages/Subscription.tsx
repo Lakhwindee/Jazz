@@ -289,10 +289,23 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
+      if (typeof window.Razorpay === 'undefined') {
+        const waitForRazorpay = () => new Promise<void>((resolve, reject) => {
+          let attempts = 0;
+          const check = () => {
+            if (typeof window.Razorpay !== 'undefined') return resolve();
+            if (attempts++ > 20) return reject(new Error("Payment gateway could not be loaded. Please refresh the page and try again."));
+            setTimeout(check, 500);
+          };
+          check();
+        });
+        await waitForRazorpay();
+      }
+      
       const finalAmount = calculateFinalAmount();
       const appliedPromo = promoValidation ? promoCode.trim().toUpperCase() : undefined;
       
-      const orderRes = await fetch("/api/subscription/create-order", {
+      const orderRes = await fetch("/api/subscription/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -306,16 +319,69 @@ export default function Subscription() {
       
       if (!orderRes.ok) {
         const err = await orderRes.json();
-        throw new Error(err.error || "Failed to create payment order");
+        throw new Error(err.error || "Failed to create order");
       }
       
       const orderData = await orderRes.json();
       
-      if (orderData.paymentUrl) {
-        window.location.href = orderData.paymentUrl;
-      } else {
-        throw new Error("Payment URL not received. Please try again.");
-      }
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Mingree",
+        description: "Pro Creator Subscription",
+        order_id: orderData.orderId,
+        prefill: {
+          name: orderData.userName || user.name,
+          email: orderData.userEmail || user.email,
+        },
+        theme: {
+          color: "#667eea",
+        },
+        handler: async (rzpResponse: any) => {
+          try {
+            const verifyRes = await fetch("/api/subscription/razorpay/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                userId: user.id,
+                razorpay_order_id: rzpResponse.razorpay_order_id,
+                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                razorpay_signature: rzpResponse.razorpay_signature,
+                amount: finalAmount,
+                promoCode: appliedPromo,
+              }),
+            });
+
+            const data = await verifyRes.json();
+            if (data.success) {
+              toast.success("Subscription activated successfully!");
+              queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+              setShowCheckout(false);
+            } else {
+              toast.error(data.error || "Payment verification failed");
+            }
+          } catch {
+            toast.error("Failed to verify payment");
+          }
+          setIsProcessing(false);
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp: any) => {
+        toast.error(resp.error?.description || "Payment failed. Please try again.");
+        setIsProcessing(false);
+      });
+      rzp.open();
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
