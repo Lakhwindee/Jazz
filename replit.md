@@ -21,7 +21,8 @@ International influencer marketing platform connecting Instagram creators with b
   - Trial: Free Pro days with configurable after-trial behavior (creators only)
   - Tax Exempt: Waives GST on sponsor wallet deposits (sponsors only)
   - Credit: Gives free wallet balance (sponsors only)
-- **Instamojo Payment Gateway**: Primary payment gateway for subscriptions (UPI, Cards, Net Banking, Wallets)
+- **Razorpay Payment Gateway**: Primary payment gateway for subscriptions (test mode until live approval)
+- **Instamojo Payment Gateway**: Configured but requires paid plan for API access
 - **Cashfree Payment Gateway**: Backup payment gateway for Indian sponsors (currently disabled)
 - **Bulkpe Payouts**: Primary automatic UPI payments (works for individuals, no business registration required)
 - **RazorpayX Payouts**: Alternative automatic payout (requires registered business)
