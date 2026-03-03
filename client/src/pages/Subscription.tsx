@@ -96,18 +96,16 @@ export default function Subscription() {
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
-    const gateway = params.get('gateway');
-    const paymentRequestId = params.get('payment_request_id');
-    const paymentId = params.get('payment_id');
-    const userId = params.get('user_id');
+    const orderId = params.get('order_id');
+    const status = params.get('status');
     const promo = params.get('promo');
     
-    if (gateway === 'instamojo' && paymentRequestId && paymentId && user?.id) {
-      verifyInstamojoPayment(paymentRequestId, paymentId, promo || undefined);
+    if (orderId && status === 'success' && user?.id) {
+      verifyCashfreePayment(orderId, promo || undefined);
     }
   }, [searchString, user?.id]);
 
-  const verifyInstamojoPayment = async (paymentRequestId: string, paymentId: string, promoCode?: string) => {
+  const verifyCashfreePayment = async (orderId: string, promoCode?: string) => {
     if (!user) return;
     
     setIsProcessing(true);
@@ -118,8 +116,7 @@ export default function Subscription() {
         credentials: "include",
         body: JSON.stringify({
           userId: user.id,
-          paymentRequestId,
-          paymentId,
+          orderId,
           promoCode,
         }),
       });
@@ -308,21 +305,10 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
-      if (typeof window.Razorpay === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        document.head.appendChild(script);
-        await new Promise<void>((resolve, reject) => {
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load payment gateway"));
-          setTimeout(() => reject(new Error("Payment gateway timed out")), 10000);
-        });
-      }
-      
       const finalAmount = calculateFinalAmount();
       const appliedPromo = promoValidation ? promoCode.trim().toUpperCase() : undefined;
       
-      const orderRes = await fetch("/api/subscription/razorpay/create-order", {
+      const orderRes = await fetch("/api/subscription/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -341,62 +327,11 @@ export default function Subscription() {
       
       const orderData = await orderRes.json();
       
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Mingree",
-        description: "Pro Creator Subscription",
-        order_id: orderData.orderId,
-        prefill: {
-          name: billingDetails.name || user.name,
-          email: billingDetails.email || user.email,
-          contact: billingDetails.phone || "",
-        },
-        theme: { color: "#667eea" },
-        handler: async (rzpResponse: any) => {
-          try {
-            const verifyRes = await fetch("/api/subscription/razorpay/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                userId: user.id,
-                razorpay_order_id: rzpResponse.razorpay_order_id,
-                razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                razorpay_signature: rzpResponse.razorpay_signature,
-                amount: finalAmount,
-                promoCode: appliedPromo,
-              }),
-            });
-            const data = await verifyRes.json();
-            if (data.success) {
-              toast.success("Subscription activated successfully!");
-              queryClient.invalidateQueries({ queryKey: ["subscription"] });
-              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-              setShowCheckout(false);
-            } else {
-              toast.error(data.error || "Payment verification failed");
-            }
-          } catch {
-            toast.error("Failed to verify payment");
-          }
-          setIsProcessing(false);
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-            toast.info("Payment cancelled");
-          },
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", (resp: any) => {
-        toast.error(resp.error?.description || "Payment failed");
-        setIsProcessing(false);
-      });
-      rzp.open();
+      if (orderData.paymentUrl) {
+        window.location.href = orderData.paymentUrl;
+      } else {
+        throw new Error("Payment URL not received. Please try again.");
+      }
       
     } catch (error: any) {
       toast.error(error.message || "Failed to start payment");
