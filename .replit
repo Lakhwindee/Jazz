@@ -10,14 +10,6 @@ deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
 run = ["node", "./dist/index.cjs"]
 
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
-
 [env]
 PORT = "5000"
 
@@ -55,3 +47,11 @@ INSTAGRAM_REDIRECT_URI = "https://mingree.com/api/instagram/oauth-callback"
 ADMIN_UPI_ID = "judgeproductionmusic@oksbi"
 
 [userenv.development]
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
