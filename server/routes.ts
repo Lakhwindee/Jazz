@@ -1434,13 +1434,15 @@ export async function registerRoutes(
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
 
-    const VERIFY_TOKEN = "mingree_instagram_webhook_2024";
+    const VERIFY_TOKEN = "mingree2024";
+
+    console.log("[Instagram Webhook] Verify attempt - mode:", mode, "token:", token, "expected:", VERIFY_TOKEN, "match:", token === VERIFY_TOKEN);
 
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("[Instagram Webhook] Verified successfully");
-      return res.status(200).send(challenge);
+      console.log("[Instagram Webhook] Verified successfully, challenge:", challenge);
+      return res.status(200).type("text/plain").send(challenge as string);
     }
-    return res.status(403).json({ error: "Verification failed" });
+    return res.status(403).type("text/plain").send("Verification failed");
   });
 
   app.post("/api/instagram/webhook", (req, res) => {
