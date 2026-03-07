@@ -1703,7 +1703,14 @@ export async function registerRoutes(
         if (!profileData) {
           console.log("[Instagram OAuth] All fallbacks failed - saving OAuth data, requesting manual username");
           await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
-          return res.redirect(`/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}`);
+          return res.send(`<!DOCTYPE html><html><head><title>Instagram Connected</title></head><body><script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'instagram_oauth', status: 'partial', userId: '${instagramUserId}' }, '*');
+              window.close();
+            } else {
+              window.location.href = '/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}';
+            }
+          </script></body></html>`);
         }
       }
       
@@ -1731,10 +1738,24 @@ export async function registerRoutes(
         await storage.updateUserTierAndFollowers(userId, tier.name, followersCount);
       }
       
-      res.redirect('/profile?instagram_connected=true');
+      res.send(`<!DOCTYPE html><html><head><title>Instagram Connected</title></head><body><script>
+        if (window.opener) {
+          window.opener.postMessage({ type: 'instagram_oauth', status: 'success', username: '${username}', followers: ${followersCount} }, '*');
+          window.close();
+        } else {
+          window.location.href = '/profile?instagram_connected=true';
+        }
+      </script></body></html>`);
     } catch (error) {
       console.error("Instagram OAuth error:", error);
-      res.redirect('/profile?error=oauth_failed');
+      res.send(`<!DOCTYPE html><html><head><title>Instagram Error</title></head><body><script>
+        if (window.opener) {
+          window.opener.postMessage({ type: 'instagram_oauth', status: 'error', message: 'OAuth failed' }, '*');
+          window.close();
+        } else {
+          window.location.href = '/profile?error=oauth_failed';
+        }
+      </script></body></html>`);
     }
   });
 
