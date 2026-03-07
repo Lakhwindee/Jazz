@@ -1688,12 +1688,8 @@ export async function registerRoutes(
         console.error("[Instagram OAuth] ALL Graph API attempts failed. Trying RapidAPI fallback...");
         console.error("[Instagram OAuth] All errors:", JSON.stringify(allErrors));
         
-        // FALLBACK 1: Try Instagram Web API with user_id
-        const webApiByIdUrls = [
-          `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`,
-          `https://i.instagram.com/api/v1/users/${instagramUserId}/info/`,
-        ];
-        
+        // FALLBACK: Use Instagram Web API with username lookup
+        // Since Graph API needs App Review, use the web API with retries
         const igWebHeaders = {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
           "X-IG-App-ID": "936619743392459",
@@ -1706,89 +1702,168 @@ export async function registerRoutes(
           "Sec-Fetch-Site": "same-origin",
         };
         
-        for (const apiUrl of webApiByIdUrls) {
-          try {
-            console.log(`[Instagram OAuth] Web API by ID: ${apiUrl}`);
-            const webResp = await fetch(apiUrl, { headers: igWebHeaders });
-            
-            if (webResp.ok) {
-              const webData = await webResp.json() as any;
-              const webUser = webData?.user;
-              if (webUser?.username) {
-                profileData = {
-                  id: instagramUserId,
-                  username: webUser.username,
-                  followers_count: webUser.follower_count || 0,
-                  profile_picture_url: webUser.hd_profile_pic_url_info?.url || webUser.profile_pic_url || "",
-                };
-                console.log(`[Instagram OAuth] Web API by ID SUCCESS: @${webUser.username}, ${profileData.followers_count} followers`);
-                break;
-              }
-            } else {
-              console.log(`[Instagram OAuth] Web API by ID status: ${webResp.status}`);
-            }
-          } catch (e: any) {
-            console.log(`[Instagram OAuth] Web API by ID error:`, e.message);
+        // Step A: Get username from user_id via multiple endpoints with retries
+        let discoveredUsername = "";
+        const userIdLookups = [
+          `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`,
+          `https://i.instagram.com/api/v1/users/${instagramUserId}/info/`,
+        ];
+        
+        for (let retry = 0; retry < 3 && !discoveredUsername; retry++) {
+          if (retry > 0) {
+            console.log(`[Instagram OAuth] Retry ${retry + 1}/3 after ${retry * 2}s delay...`);
+            await new Promise(resolve => setTimeout(resolve, retry * 2000));
           }
-        }
-
-        // FALLBACK 2: Try web_profile_info with the access token's associated account
-        if (!profileData) {
-          // We don't know the username yet, but try common lookup methods
-          const tokenUserUrl = `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`;
-          try {
-            console.log(`[Instagram OAuth] Trying token-based user info with delay...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const retryResp = await fetch(tokenUserUrl, { headers: igWebHeaders });
-            if (retryResp.ok) {
-              const retryData = await retryResp.json() as any;
-              const retryUser = retryData?.user;
-              if (retryUser?.username) {
-                // Now fetch full profile with username for follower count
-                const profileInfoUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${retryUser.username}`;
-                const profileResp = await fetch(profileInfoUrl, { headers: igWebHeaders });
-                if (profileResp.ok) {
-                  const profileJson = await profileResp.json() as any;
-                  const pUser = profileJson?.data?.user;
-                  if (pUser) {
+          for (const lookupUrl of userIdLookups) {
+            try {
+              console.log(`[Instagram OAuth] User ID lookup: ${lookupUrl}`);
+              const resp = await fetch(lookupUrl, { headers: igWebHeaders });
+              if (resp.ok) {
+                const data = await resp.json() as any;
+                if (data?.user?.username) {
+                  discoveredUsername = data.user.username;
+                  console.log(`[Instagram OAuth] Found username: @${discoveredUsername}`);
+                  // If this response also has follower_count, use it
+                  if (data.user.follower_count) {
                     profileData = {
                       id: instagramUserId,
-                      username: pUser.username || retryUser.username,
-                      followers_count: pUser.edge_followed_by?.count || pUser.follower_count || retryUser.follower_count || 0,
-                      profile_picture_url: pUser.profile_pic_url_hd || retryUser.profile_pic_url || "",
+                      username: discoveredUsername,
+                      followers_count: data.user.follower_count,
+                      profile_picture_url: data.user.hd_profile_pic_url_info?.url || data.user.profile_pic_url || "",
                     };
-                    console.log(`[Instagram OAuth] Web profile_info SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
                   }
-                } else {
-                  // At least use the basic user info
-                  profileData = {
-                    id: instagramUserId,
-                    username: retryUser.username,
-                    followers_count: retryUser.follower_count || 0,
-                    profile_picture_url: retryUser.profile_pic_url || "",
-                  };
-                  console.log(`[Instagram OAuth] Basic user info SUCCESS: @${retryUser.username}, ${profileData.followers_count} followers`);
+                  break;
                 }
+              } else {
+                console.log(`[Instagram OAuth] Lookup ${resp.status} for ${lookupUrl}`);
               }
-            } else {
-              console.log(`[Instagram OAuth] Retry status: ${retryResp.status}`);
+            } catch (e: any) {
+              console.log(`[Instagram OAuth] Lookup error:`, e.message);
             }
-          } catch (e: any) {
-            console.log(`[Instagram OAuth] Retry error:`, e.message);
           }
         }
         
-        if (!profileData) {
-          console.log("[Instagram OAuth] All fallbacks failed - saving OAuth data, requesting manual username");
-          await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
-          return res.send(`<!DOCTYPE html><html><head><title>Instagram Connected</title></head><body><script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'instagram_oauth', status: 'partial', userId: '${instagramUserId}' }, '*');
-              window.close();
-            } else {
-              window.location.href = '/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}';
+        // Step B: If we have username but not full profile, fetch via web_profile_info
+        if (discoveredUsername && !profileData) {
+          for (let retry = 0; retry < 3 && !profileData; retry++) {
+            if (retry > 0) await new Promise(resolve => setTimeout(resolve, retry * 2000));
+            try {
+              const profileInfoUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`;
+              console.log(`[Instagram OAuth] Fetching profile for @${discoveredUsername} (attempt ${retry + 1}/3)`);
+              const resp = await fetch(profileInfoUrl, { headers: igWebHeaders });
+              if (resp.ok) {
+                const data = await resp.json() as any;
+                const pUser = data?.data?.user;
+                if (pUser) {
+                  profileData = {
+                    id: instagramUserId,
+                    username: pUser.username || discoveredUsername,
+                    followers_count: pUser.edge_followed_by?.count || pUser.follower_count || 0,
+                    profile_picture_url: pUser.profile_pic_url_hd || pUser.profile_pic_url || "",
+                  };
+                  console.log(`[Instagram OAuth] Profile fetch SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
+                }
+              } else {
+                console.log(`[Instagram OAuth] Profile fetch status: ${resp.status}`);
+              }
+            } catch (e: any) {
+              console.log(`[Instagram OAuth] Profile fetch error:`, e.message);
             }
-          </script></body></html>`);
+          }
+        }
+
+        // Step C: If we still don't have profile, show username form in popup
+        if (!profileData) {
+          console.log("[Instagram OAuth] All fallbacks failed - showing username form in popup");
+          await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
+          return res.send(`<!DOCTYPE html><html><head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Complete Instagram Setup</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+              body { background: #fafafa; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+              .card { background: white; border-radius: 16px; padding: 32px 24px; max-width: 380px; width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,0.1); text-align: center; }
+              .icon { width: 48px; height: 48px; margin: 0 auto 16px; background: linear-gradient(135deg, #833AB4, #E1306C, #F77737); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+              .icon svg { width: 28px; height: 28px; fill: white; }
+              h2 { font-size: 18px; margin-bottom: 4px; color: #262626; }
+              .sub { color: #8e8e8e; font-size: 13px; margin-bottom: 20px; }
+              .check { color: #00a86b; font-size: 13px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+              .input-wrap { position: relative; margin-bottom: 16px; }
+              .at { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #8e8e8e; font-size: 15px; }
+              input { width: 100%; padding: 12px 14px 12px 32px; border: 1.5px solid #dbdbdb; border-radius: 10px; font-size: 15px; outline: none; transition: border-color 0.2s; }
+              input:focus { border-color: #E1306C; }
+              button { width: 100%; padding: 12px; background: linear-gradient(135deg, #833AB4, #E1306C); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+              button:hover { opacity: 0.9; }
+              button:disabled { opacity: 0.5; cursor: not-allowed; }
+              .error { color: #ed4956; font-size: 13px; margin-top: 8px; display: none; }
+              .loading { display: none; }
+              .loading.show { display: inline-block; }
+              .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+              @keyframes spin { to { transform: rotate(360deg); } }
+            </style>
+          </head><body>
+            <div class="card">
+              <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></div>
+              <h2>Almost Done!</h2>
+              <p class="sub">Enter your Instagram username to complete verification</p>
+              <div class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00a86b" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> Account authorized successfully</div>
+              <div class="input-wrap">
+                <span class="at">@</span>
+                <input type="text" id="username" placeholder="your_username" autocomplete="off" autocapitalize="off" />
+              </div>
+              <button id="btn" onclick="submitUsername()">
+                <span class="loading" id="loader"><span class="spinner"></span></span>
+                <span id="btnText">Verify & Connect</span>
+              </button>
+              <p class="error" id="error"></p>
+            </div>
+            <script>
+              const userId = ${userId};
+              async function submitUsername() {
+                const input = document.getElementById('username');
+                const btn = document.getElementById('btn');
+                const loader = document.getElementById('loader');
+                const btnText = document.getElementById('btnText');
+                const error = document.getElementById('error');
+                const username = input.value.replace('@','').trim().toLowerCase();
+                if (!username) { error.textContent = 'Please enter your username'; error.style.display = 'block'; return; }
+                btn.disabled = true;
+                loader.classList.add('show');
+                btnText.textContent = 'Verifying...';
+                error.style.display = 'none';
+                try {
+                  const res = await fetch('/api/instagram/complete-oauth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, username }),
+                    credentials: 'include'
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    if (window.opener) {
+                      window.opener.postMessage({ type: 'instagram_oauth', status: 'success', username: data.username, followers: data.followers }, '*');
+                      window.close();
+                    } else {
+                      window.location.href = '/profile?instagram_connected=true';
+                    }
+                  } else {
+                    error.textContent = data.error || 'Could not verify this username';
+                    error.style.display = 'block';
+                    btn.disabled = false;
+                    loader.classList.remove('show');
+                    btnText.textContent = 'Verify & Connect';
+                  }
+                } catch(e) {
+                  error.textContent = 'Something went wrong. Try again.';
+                  error.style.display = 'block';
+                  btn.disabled = false;
+                  loader.classList.remove('show');
+                  btnText.textContent = 'Verify & Connect';
+                }
+              }
+              document.getElementById('username').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitUsername(); });
+            </script>
+          </body></html>`);
         }
       }
       
@@ -1834,6 +1909,84 @@ export async function registerRoutes(
           window.location.href = '/profile?error=oauth_failed';
         }
       </script></body></html>`);
+    }
+  });
+
+  // Complete OAuth - called from popup form when Graph API couldn't get username
+  app.post("/api/instagram/complete-oauth", async (req, res) => {
+    try {
+      const { userId: reqUserId, username } = req.body;
+      if (!reqUserId || !username) {
+        return res.status(400).json({ error: "Username is required" });
+      }
+      
+      const cleanUsername = username.replace("@", "").trim().toLowerCase();
+      console.log(`[Instagram Complete] Fetching profile for @${cleanUsername}`);
+      
+      const igWebHeaders = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "X-IG-App-ID": "936619743392459",
+        "X-ASBD-ID": "129477",
+        "X-IG-WWW-Claim": "0",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+      };
+      
+      let followers = 0;
+      let profilePic = "";
+      let foundProfile = false;
+      
+      for (let retry = 0; retry < 4; retry++) {
+        if (retry > 0) await new Promise(resolve => setTimeout(resolve, 1500 * retry));
+        try {
+          const profileUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`;
+          console.log(`[Instagram Complete] Attempt ${retry + 1}/4 for @${cleanUsername}`);
+          const resp = await fetch(profileUrl, { headers: igWebHeaders });
+          if (resp.ok) {
+            const data = await resp.json() as any;
+            const pUser = data?.data?.user;
+            if (pUser) {
+              followers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
+              profilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || "";
+              foundProfile = true;
+              console.log(`[Instagram Complete] SUCCESS: @${cleanUsername}, ${followers} followers`);
+              break;
+            }
+          } else {
+            console.log(`[Instagram Complete] Attempt ${retry + 1} status: ${resp.status}`);
+          }
+        } catch (e: any) {
+          console.log(`[Instagram Complete] Attempt ${retry + 1} error:`, e.message);
+        }
+      }
+      
+      if (!foundProfile) {
+        return res.json({ success: false, error: "Could not fetch profile. Make sure the username is correct and account is public." });
+      }
+      
+      if (followers < MIN_FOLLOWERS) {
+        return res.json({ success: false, error: `Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required. You have ${followers.toLocaleString()}.` });
+      }
+      
+      const userId = parseInt(String(reqUserId));
+      await storage.updateUserInstagramProfile(userId, cleanUsername, `https://instagram.com/${cleanUsername}`, followers);
+      if (profilePic) {
+        await storage.updateUserAvatar(userId, profilePic);
+      }
+      
+      const tier = getTierByFollowers(followers);
+      if (tier) {
+        await storage.updateUserTierAndFollowers(userId, tier.name, followers);
+      }
+      
+      console.log(`[Instagram Complete] Done: @${cleanUsername}, ${followers} followers, tier: ${tier?.name}`);
+      res.json({ success: true, username: cleanUsername, followers, profilePic });
+    } catch (error) {
+      console.error("[Instagram Complete] Error:", error);
+      res.status(500).json({ success: false, error: "Something went wrong" });
     }
   });
 
