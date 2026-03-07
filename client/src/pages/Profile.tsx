@@ -80,10 +80,50 @@ export default function Profile() {
     setIsConnectingInstagram(true);
     try {
       const { authUrl } = await api.getInstagramAuthUrl(user.id);
-      window.location.href = authUrl;
+      
+      const width = 500;
+      const height = 650;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      const popup = window.open(
+        authUrl, 
+        "instagram_auth",
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      if (!popup) {
+        window.location.href = authUrl;
+        return;
+      }
+
+      const checkInterval = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(checkInterval);
+            setIsConnectingInstagram(false);
+            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+          }
+          if (popup.location.href.includes("/profile")) {
+            const url = new URL(popup.location.href);
+            const success = url.searchParams.get("instagram_connected");
+            const error = url.searchParams.get("error");
+            popup.close();
+            clearInterval(checkInterval);
+            setIsConnectingInstagram(false);
+            if (success === "true") {
+              toast.success("Instagram account verified successfully!");
+              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+            } else if (error) {
+              toast.error(decodeURIComponent(error));
+            }
+          }
+        } catch (e) {
+        }
+      }, 500);
     } catch (error: any) {
       if (error.message?.includes("not configured")) {
-        toast.error("Instagram OAuth is not configured yet. Please use manual entry below or contact admin.");
+        toast.error("Instagram verification is not available right now. Please use manual entry below.");
       } else {
         toast.error(error.message || "Failed to connect Instagram");
       }
@@ -556,11 +596,11 @@ export default function Profile() {
                       ) : (
                         <Instagram className="mr-2 h-5 w-5" />
                       )}
-                      Login with Instagram
+                      Verify Instagram Account
                     </Button>
 
                     <p className="text-xs text-muted-foreground text-center">
-                      Automatically fetches your username, followers & profile picture
+                      Automatically verifies your username & followers
                     </p>
 
                     <div className="relative flex items-center gap-2 py-2">

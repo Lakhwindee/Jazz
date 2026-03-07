@@ -20,8 +20,12 @@ import { isRazorpayPaymentConfigured, getRazorpayKeyId, createRazorpayOrder, ver
 import { isInstamojoConfigured, createInstamojoPaymentRequest, getInstamojoPaymentStatus } from "./instamojo";
 import axios from "axios";
 
-const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
-const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
+const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID === "8190f62cace3aba44df35ba857413a7e" 
+  ? process.env.INSTAGRAM_APP_SECRET 
+  : process.env.INSTAGRAM_APP_ID;
+const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET === "924186196949208" 
+  ? process.env.INSTAGRAM_APP_ID 
+  : process.env.INSTAGRAM_APP_SECRET;
 const INSTAGRAM_REDIRECT_URI = process.env.INSTAGRAM_REDIRECT_URI || "https://mingree.com/api/instagram/oauth-callback";
 
 const uploadDir = path.join(process.cwd(), "uploads");
