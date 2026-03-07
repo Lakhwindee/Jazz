@@ -1428,6 +1428,26 @@ export async function registerRoutes(
 
   // ==================== INSTAGRAM OAUTH ====================
 
+  // Instagram Webhook verification (for Meta Developer setup)
+  app.get("/api/instagram/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    const VERIFY_TOKEN = "mingree_instagram_webhook_2024";
+
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("[Instagram Webhook] Verified successfully");
+      return res.status(200).send(challenge);
+    }
+    return res.status(403).json({ error: "Verification failed" });
+  });
+
+  app.post("/api/instagram/webhook", (req, res) => {
+    console.log("[Instagram Webhook] Received:", JSON.stringify(req.body));
+    res.status(200).send("EVENT_RECEIVED");
+  });
+
   // Get Instagram OAuth authorization URL
   app.get("/api/instagram/auth-url", (req, res) => {
     const userId = req.query.userId;
