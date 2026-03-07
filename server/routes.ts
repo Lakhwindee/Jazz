@@ -1643,60 +1643,40 @@ export async function registerRoutes(
         console.error("[Instagram OAuth] ALL Graph API attempts failed. Trying RapidAPI fallback...");
         console.error("[Instagram OAuth] All errors:", JSON.stringify(allErrors));
         
-        // FALLBACK: Try RapidAPI with user_id to get username
-        const rapidapiKey = process.env.RAPIDAPI_KEY;
-        if (rapidapiKey) {
-          const rapidApiAttempts = [
-            {
-              host: "instagram-scraper-api2.p.rapidapi.com",
-              url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${instagramUserId}`,
-              extract: (data: any) => ({
-                username: data?.data?.username || "",
-                followers: data?.data?.follower_count || data?.data?.followers || 0,
-                profilePic: data?.data?.profile_pic_url_hd || data?.data?.profile_pic_url || "",
-              }),
-            },
-            {
-              host: "instagram-profile1.p.rapidapi.com",
-              url: `https://instagram-profile1.p.rapidapi.com/getprofilebyid/${instagramUserId}`,
-              extract: (data: any) => ({
-                username: data?.username || "",
-                followers: data?.follower_count || data?.followers || 0,
-                profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
-              }),
-            },
-          ];
-          
-          for (const attempt of rapidApiAttempts) {
-            try {
-              console.log(`[Instagram OAuth] RapidAPI fallback: ${attempt.host}`);
-              const rapidResp = await fetch(attempt.url, {
-                method: "GET",
-                headers: {
-                  "x-rapidapi-key": rapidapiKey,
-                  "x-rapidapi-host": attempt.host,
-                },
-              });
-              
-              if (rapidResp.ok) {
-                const rapidData = JSON.parse(await rapidResp.text());
-                const info = attempt.extract(rapidData);
-                console.log(`[Instagram OAuth] RapidAPI result:`, JSON.stringify(info));
-                
-                if (info.username) {
-                  profileData = {
-                    id: instagramUserId,
-                    username: info.username,
-                    followers_count: info.followers,
-                    profile_picture_url: info.profilePic,
-                  };
-                  console.log(`[Instagram OAuth] RapidAPI SUCCESS: @${info.username}, ${info.followers} followers`);
-                  break;
-                }
+        // FALLBACK: Try Instagram Web API with user_id
+        const webApiAttempts = [
+          `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`,
+          `https://i.instagram.com/api/v1/users/${instagramUserId}/info/`,
+        ];
+        
+        for (const apiUrl of webApiAttempts) {
+          try {
+            console.log(`[Instagram OAuth] Web API fallback: ${apiUrl}`);
+            const webResp = await fetch(apiUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "X-IG-App-ID": "936619743392459",
+              },
+            });
+            
+            if (webResp.ok) {
+              const webData = await webResp.json() as any;
+              const webUser = webData?.user;
+              if (webUser?.username) {
+                profileData = {
+                  id: instagramUserId,
+                  username: webUser.username,
+                  followers_count: webUser.follower_count || 0,
+                  profile_picture_url: webUser.hd_profile_pic_url_info?.url || webUser.profile_pic_url || "",
+                };
+                console.log(`[Instagram OAuth] Web API SUCCESS: @${webUser.username}, ${profileData.followers_count} followers`);
+                break;
               }
-            } catch (e: any) {
-              console.log(`[Instagram OAuth] RapidAPI ${attempt.host} error:`, e.message);
+            } else {
+              console.log(`[Instagram OAuth] Web API ${apiUrl} status: ${webResp.status}`);
             }
+          } catch (e: any) {
+            console.log(`[Instagram OAuth] Web API error:`, e.message);
           }
         }
         
@@ -1852,23 +1832,21 @@ export async function registerRoutes(
 
       console.log(`[Instagram Fetch] Username: ${cleanUsername}, Key exists: ${!!rapidapiKey}`);
 
-      // Instagram API endpoints to try (multiple to avoid rate limits)
       const igEndpoints = [
         {
-          name: "i.instagram.com",
-          url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
+          name: "www.instagram.com/api/v1",
+          url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
           headers: {
-            "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100)",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "X-IG-App-ID": "936619743392459",
           },
         },
         {
-          name: "www.instagram.com",
-          url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
+          name: "i.instagram.com",
+          url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
           headers: {
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "X-IG-App-ID": "936619743392459",
-            "X-Requested-With": "XMLHttpRequest",
           },
         },
       ];
