@@ -1533,7 +1533,9 @@ export async function registerRoutes(
       }
       
       const shortLivedToken = tokenData.access_token;
-      const instagramUserId = String(tokenData.user_id);
+      // Extract user_id from raw text to avoid JavaScript number precision loss
+      const userIdMatch = tokenText.match(/"user_id"\s*:\s*(\d+)/);
+      const instagramUserId = userIdMatch ? userIdMatch[1] : String(tokenData.user_id);
       console.log("[Instagram OAuth] Step 1 SUCCESS: user_id:", instagramUserId, "token_length:", shortLivedToken?.length);
       
       // Exchange for long-lived token (60 days)
@@ -1638,13 +1640,71 @@ export async function registerRoutes(
       }
       
       if (!profileData) {
-        console.error("[Instagram OAuth] ALL profile fetch attempts failed.");
+        console.error("[Instagram OAuth] ALL Graph API attempts failed. Trying RapidAPI fallback...");
         console.error("[Instagram OAuth] All errors:", JSON.stringify(allErrors));
         
-        // GRACEFUL FALLBACK: OAuth succeeded (user proved identity), save token and ask for manual username entry
-        console.log("[Instagram OAuth] Using graceful fallback - saving OAuth data, requesting manual username entry");
-        await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
-        return res.redirect(`/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}`);
+        // FALLBACK: Try RapidAPI with user_id to get username
+        const rapidapiKey = process.env.RAPIDAPI_KEY;
+        if (rapidapiKey) {
+          const rapidApiAttempts = [
+            {
+              host: "instagram-scraper-api2.p.rapidapi.com",
+              url: `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${instagramUserId}`,
+              extract: (data: any) => ({
+                username: data?.data?.username || "",
+                followers: data?.data?.follower_count || data?.data?.followers || 0,
+                profilePic: data?.data?.profile_pic_url_hd || data?.data?.profile_pic_url || "",
+              }),
+            },
+            {
+              host: "instagram-profile1.p.rapidapi.com",
+              url: `https://instagram-profile1.p.rapidapi.com/getprofilebyid/${instagramUserId}`,
+              extract: (data: any) => ({
+                username: data?.username || "",
+                followers: data?.follower_count || data?.followers || 0,
+                profilePic: data?.profile_pic_url_hd || data?.profile_pic_url || "",
+              }),
+            },
+          ];
+          
+          for (const attempt of rapidApiAttempts) {
+            try {
+              console.log(`[Instagram OAuth] RapidAPI fallback: ${attempt.host}`);
+              const rapidResp = await fetch(attempt.url, {
+                method: "GET",
+                headers: {
+                  "x-rapidapi-key": rapidapiKey,
+                  "x-rapidapi-host": attempt.host,
+                },
+              });
+              
+              if (rapidResp.ok) {
+                const rapidData = JSON.parse(await rapidResp.text());
+                const info = attempt.extract(rapidData);
+                console.log(`[Instagram OAuth] RapidAPI result:`, JSON.stringify(info));
+                
+                if (info.username) {
+                  profileData = {
+                    id: instagramUserId,
+                    username: info.username,
+                    followers_count: info.followers,
+                    profile_picture_url: info.profilePic,
+                  };
+                  console.log(`[Instagram OAuth] RapidAPI SUCCESS: @${info.username}, ${info.followers} followers`);
+                  break;
+                }
+              }
+            } catch (e: any) {
+              console.log(`[Instagram OAuth] RapidAPI ${attempt.host} error:`, e.message);
+            }
+          }
+        }
+        
+        if (!profileData) {
+          console.log("[Instagram OAuth] All fallbacks failed - saving OAuth data, requesting manual username");
+          await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
+          return res.redirect(`/profile?instagram_oauth_partial=true&ig_user_id=${instagramUserId}`);
+        }
       }
       
       console.log("[Instagram OAuth] Profile data:", JSON.stringify({ username: profileData!.username, followers: profileData!.followers_count, hasAvatar: !!profileData!.profile_picture_url }));
