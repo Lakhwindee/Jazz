@@ -1286,16 +1286,54 @@ export async function registerRoutes(
         return res.json(sanitizeUser(updatedUser));
       }
       
-      // Validate follower count >= 8000 (Tier 1 minimum)
-      const followers = parseInt(instagramFollowers);
-      if (isNaN(followers) || followers < MIN_FOLLOWERS) {
-        return res.status(400).json({ 
-          error: `Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required to link your Instagram account` 
-        });
-      }
-      
       const username = instagramUsername;
       const profileUrl = instagramProfileUrl || `https://instagram.com/${instagramUsername}`;
+      
+      let followers = parseInt(instagramFollowers);
+      
+      // If user has OAuth token but no followers provided, try to auto-fetch
+      if (isNaN(followers) || followers === 0) {
+        const existingUser = await storage.getUser(userId);
+        if (existingUser?.instagramUserId) {
+          // OAuth verified user - try to fetch followers via Instagram web API
+          try {
+            console.log(`[Instagram Link] Auto-fetching followers for @${username}`);
+            const webResp = await fetch(
+              `https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`,
+              {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "X-IG-App-ID": "936619743392459",
+                },
+              }
+            );
+            if (webResp.ok) {
+              const webData = await webResp.json() as any;
+              const webUser = webData?.data?.user;
+              if (webUser) {
+                followers = webUser.edge_followed_by?.count || webUser.follower_count || 0;
+                console.log(`[Instagram Link] Auto-fetched: ${followers} followers`);
+              }
+            } else {
+              console.log(`[Instagram Link] Web API status: ${webResp.status}`);
+            }
+          } catch (e: any) {
+            console.log(`[Instagram Link] Auto-fetch error:`, e.message);
+          }
+        }
+      }
+      
+      if (isNaN(followers) || followers < MIN_FOLLOWERS) {
+        // Last resort for OAuth users: check if user manually set followers before
+        const existingUser = await storage.getUser(userId);
+        if (existingUser?.instagramUserId && existingUser.followers >= MIN_FOLLOWERS) {
+          followers = existingUser.followers;
+        } else if (isNaN(followers) || followers < MIN_FOLLOWERS) {
+          return res.status(400).json({ 
+            error: `Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required to link your Instagram account` 
+          });
+        }
+      }
       
       await storage.updateUserInstagram(userId, username, profileUrl, followers);
       

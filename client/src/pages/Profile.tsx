@@ -239,25 +239,12 @@ export default function Profile() {
     const profileUrl = instagramProfileUrl || `https://instagram.com/${username}`;
     
     if (isOAuthPartial) {
-      try {
-        const res = await fetch(`/api/instagram/fetch-followers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username }),
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.success && data.followers >= MIN_FOLLOWERS) {
-          updateInstagramMutation.mutate({ username, profileUrl, followers: data.followers });
-          return;
-        } else if (data.followers && data.followers < MIN_FOLLOWERS) {
-          toast.error(`Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required. You have ${data.followers.toLocaleString()}.`);
-          return;
-        }
-        updateInstagramMutation.mutate({ username, profileUrl, followers: undefined });
-      } catch {
-        updateInstagramMutation.mutate({ username, profileUrl, followers: undefined });
+      const manualFollowers = parseInt(instagramFollowers);
+      if (isNaN(manualFollowers) || manualFollowers < MIN_FOLLOWERS) {
+        toast.error(`Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required`);
+        return;
       }
+      updateInstagramMutation.mutate({ username, profileUrl, followers: manualFollowers });
       return;
     }
     
@@ -619,7 +606,7 @@ export default function Profile() {
                           <div className="flex items-start gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                             <p className="text-xs text-green-700 dark:text-green-300">
-                              Instagram verified! Enter your username to complete setup.
+                              Instagram verified! Enter your details to complete setup.
                             </p>
                           </div>
                         </div>
@@ -641,9 +628,29 @@ export default function Profile() {
                           </div>
                         </div>
 
+                        <div className="space-y-2">
+                          <Label htmlFor="instagram-followers-partial">Follower Count</Label>
+                          <div className="relative">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="instagram-followers-partial"
+                              type="number"
+                              placeholder="e.g. 10000"
+                              value={instagramFollowers}
+                              onChange={(e) => setInstagramFollowers(e.target.value)}
+                              className="pl-10"
+                              min={MIN_FOLLOWERS}
+                              data-testid="input-instagram-followers-partial"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
+                          </p>
+                        </div>
+
                         <Button 
                           onClick={handleLinkInstagram}
-                          disabled={updateInstagramMutation.isPending || !instagramUsername.trim()}
+                          disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                           data-testid="button-link-instagram-partial"
                         >
