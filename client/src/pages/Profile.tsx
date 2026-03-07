@@ -545,14 +545,28 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3 sm:p-4">
-                      <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">How It Works:</h4>
-                      <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                        <li>Enter your Instagram username below</li>
-                        <li>Enter your follower count</li>
-                        <li>Click "Connect" to link your account</li>
-                        <li>Start earning from campaigns right away</li>
-                      </ol>
+                    <Button
+                      onClick={handleConnectInstagramOAuth}
+                      disabled={isConnectingInstagram}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white h-12 text-base font-medium"
+                      data-testid="button-connect-instagram-oauth"
+                    >
+                      {isConnectingInstagram ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <Instagram className="mr-2 h-5 w-5" />
+                      )}
+                      Login with Instagram
+                    </Button>
+
+                    <p className="text-xs text-muted-foreground text-center">
+                      Automatically fetches your username, followers & profile picture
+                    </p>
+
+                    <div className="relative flex items-center gap-2 py-2">
+                      <div className="flex-1 border-t border-gray-300 dark:border-gray-700" />
+                      <span className="text-xs text-muted-foreground px-2">OR enter manually</span>
+                      <div className="flex-1 border-t border-gray-300 dark:border-gray-700" />
                     </div>
 
                     <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3">

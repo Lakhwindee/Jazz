@@ -22,7 +22,7 @@ import axios from "axios";
 
 const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
-const INSTAGRAM_REDIRECT_URI = process.env.INSTAGRAM_REDIRECT_URI || "https://instacreator-hub.replit.app/api/instagram/oauth-callback";
+const INSTAGRAM_REDIRECT_URI = process.env.INSTAGRAM_REDIRECT_URI || "https://mingree.com/api/instagram/oauth-callback";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
