@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/lib/api";
 import { SUBSCRIPTION_PLANS } from "@shared/schema";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Check, Crown, Loader2, Calendar, Zap, Shield, Clock, CreditCard, Tag, Building2, MapPin, FileText, CheckCircle, X } from "lucide-react";
+import { Check, Crown, Loader2, Calendar, Zap, Shield, Clock, CreditCard, Tag, Building2, MapPin, FileText, CheckCircle, X, Smartphone, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useLocation, useSearch } from "wouter";
@@ -47,7 +47,9 @@ export default function Subscription() {
   const searchString = useSearch();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<"billing" | "payment">("billing");
+  const [checkoutStep, setCheckoutStep] = useState<"billing" | "payment" | "upi">("billing");
+  const [utrNumber, setUtrNumber] = useState("");
+  const [paymentSubmitted, setPaymentSubmitted] = useState(false);
   
   const [billingDetails, setBillingDetails] = useState({
     name: "",
@@ -222,6 +224,8 @@ export default function Subscription() {
     setCheckoutStep("billing");
     setPromoCode("");
     setPromoValidation(null);
+    setUtrNumber("");
+    setPaymentSubmitted(false);
   };
 
   const handleProceedToPayment = () => {
@@ -240,7 +244,7 @@ export default function Subscription() {
       return;
     }
     
-    setCheckoutStep("payment");
+    setCheckoutStep("upi");
   };
 
   const validateGST = (gst: string) => {
@@ -255,33 +259,14 @@ export default function Subscription() {
     return panRegex.test(pan.toUpperCase());
   };
 
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window.Razorpay !== 'undefined') {
-      setRazorpayLoaded(true);
-      return;
-    }
-    const existing = document.querySelector('script[src*="razorpay"]');
-    if (existing) {
-      existing.addEventListener('load', () => setRazorpayLoaded(true));
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => setRazorpayLoaded(true);
-    script.onerror = () => {
-      setTimeout(() => {
-        const retry = document.createElement("script");
-        retry.src = "https://checkout.razorpay.com/v1/checkout.js";
-        retry.async = true;
-        retry.onload = () => setRazorpayLoaded(true);
-        document.body.appendChild(retry);
-      }, 2000);
-    };
-    document.body.appendChild(script);
-  }, []);
+  const { data: upiConfig } = useQuery({
+    queryKey: ["upiConfig"],
+    queryFn: async () => {
+      const res = await fetch("/api/subscription/upi-config", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load UPI config");
+      return res.json();
+    },
+  });
 
   const handleFinalPayment = async () => {
     if (!user) return;
@@ -290,8 +275,6 @@ export default function Subscription() {
       applyPromoCodeMutation.mutate(promoCode.trim().toUpperCase());
       return;
     }
-    
-    setIsProcessing(true);
     
     try {
       const response = await fetch("/api/users/billing", {
@@ -305,100 +288,66 @@ export default function Subscription() {
         throw new Error("Failed to save billing details");
       }
       
-      if (typeof window.Razorpay === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        document.head.appendChild(script);
-        await new Promise<void>((resolve, reject) => {
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Failed to load payment gateway"));
-          setTimeout(() => reject(new Error("Payment gateway timed out")), 10000);
-        });
-      }
-      
+      setCheckoutStep("upi");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save billing details");
+    }
+  };
+
+  const handleUpiPaymentSubmit = async () => {
+    if (!user) return;
+    if (!utrNumber.trim()) {
+      toast.error("Please enter the UTR/Transaction Reference Number");
+      return;
+    }
+    if (utrNumber.trim().length < 6) {
+      toast.error("Please enter a valid UTR number");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
       const finalAmount = calculateFinalAmount();
-      const appliedPromo = promoValidation ? promoCode.trim().toUpperCase() : undefined;
-      
-      const orderRes = await fetch("/api/subscription/razorpay/create-order", {
+      const res = await fetch("/api/subscription/upi-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          userId: user.id,
+          utrNumber: utrNumber.trim(),
           amount: finalAmount,
-          promoCode: appliedPromo,
-          billingDetails,
+          promoCode: promoValidation ? promoCode.trim().toUpperCase() : undefined,
         }),
       });
-      
-      if (!orderRes.ok) {
-        const err = await orderRes.json();
-        throw new Error(err.error || "Failed to create order");
-      }
-      
-      const orderData = await orderRes.json();
-      
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Mingree",
-        description: "Pro Creator Subscription",
-        order_id: orderData.orderId,
-        prefill: {
-          name: billingDetails.name || user.name,
-          email: billingDetails.email || user.email,
-          contact: billingDetails.phone || "",
-        },
-        theme: { color: "#667eea" },
-        handler: async (rzpResponse: any) => {
-          try {
-            const verifyRes = await fetch("/api/subscription/razorpay/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                userId: user.id,
-                razorpay_order_id: rzpResponse.razorpay_order_id,
-                razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                razorpay_signature: rzpResponse.razorpay_signature,
-                amount: finalAmount,
-                promoCode: appliedPromo,
-              }),
-            });
-            const data = await verifyRes.json();
-            if (data.success) {
-              toast.success("Subscription activated successfully!");
-              queryClient.invalidateQueries({ queryKey: ["subscription"] });
-              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-              setShowCheckout(false);
-            } else {
-              toast.error(data.error || "Payment verification failed");
-            }
-          } catch {
-            toast.error("Failed to verify payment");
-          }
-          setIsProcessing(false);
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-            toast.info("Payment cancelled");
-          },
-        },
-      };
 
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", (resp: any) => {
-        toast.error(resp.error?.description || "Payment failed");
-        setIsProcessing(false);
-      });
-      rzp.open();
-      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit payment");
+      }
+
+      setPaymentSubmitted(true);
+      toast.success("Payment submitted! It will be verified shortly.");
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
     } catch (error: any) {
-      toast.error(error.message || "Failed to start payment");
+      toast.error(error.message || "Failed to submit payment");
+    } finally {
       setIsProcessing(false);
     }
+  };
+
+  const copyUpiId = () => {
+    if (upiConfig?.upiId) {
+      navigator.clipboard.writeText(upiConfig.upiId);
+      toast.success("UPI ID copied!");
+    }
+  };
+
+  const openUpiApp = (app: string) => {
+    const finalAmount = calculateFinalAmount();
+    const upiId = upiConfig?.upiId || "";
+    const merchantName = "Mingree";
+    const note = "Pro Subscription";
+    const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${finalAmount}&cu=INR&tn=${encodeURIComponent(note)}`;
+    window.location.href = upiLink;
   };
 
   const calculateFinalAmount = () => {
@@ -583,7 +532,7 @@ export default function Subscription() {
           </div>
 
           <div className="mt-8 text-center text-sm text-gray-500">
-            <p>Secure payment powered by Cashfree. By subscribing, you agree to our Terms of Service.</p>
+            <p>Secure UPI payment. By subscribing, you agree to our Terms of Service.</p>
           </div>
         </div>
       </main>
@@ -593,16 +542,159 @@ export default function Subscription() {
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-blue-500" />
-              {checkoutStep === "billing" ? "Billing Details" : "Review & Pay"}
+              {checkoutStep === "billing" ? "Billing Details" : checkoutStep === "upi" ? "Pay via UPI" : "Review & Pay"}
             </DialogTitle>
             <DialogDescription className="text-gray-400">
               {checkoutStep === "billing" 
                 ? "Enter your billing information for the invoice" 
+                : checkoutStep === "upi"
+                ? "Complete your payment using any UPI app"
                 : "Review your order and complete payment"}
             </DialogDescription>
           </DialogHeader>
 
-          {checkoutStep === "billing" ? (
+          {paymentSubmitted ? (
+            <div className="space-y-6 text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-green-600/20 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">Payment Submitted!</h3>
+                <p className="text-gray-400">Your payment is being verified. Your Pro subscription will be activated within a few minutes.</p>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-4 text-left">
+                <p className="text-sm text-gray-400">UTR Number: <span className="text-white font-mono">{utrNumber}</span></p>
+                <p className="text-sm text-gray-400 mt-1">Amount: <span className="text-white">₹{calculateFinalAmount()}</span></p>
+              </div>
+              <Button 
+                onClick={() => { setShowCheckout(false); setPaymentSubmitted(false); setUtrNumber(""); setCheckoutStep("billing"); }}
+                className="w-full"
+                data-testid="button-close-payment"
+              >
+                Close
+              </Button>
+            </div>
+          ) : checkoutStep === "upi" ? (
+            <div className="space-y-5">
+              <Card className="bg-gray-800/50 border-gray-700">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                        <Crown className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-white">Pro Creator Plan</h4>
+                        <p className="text-sm text-gray-400">30 days subscription</p>
+                      </div>
+                    </div>
+                    <div className="text-xl font-bold text-white">₹{calculateFinalAmount()}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-300 uppercase tracking-wider">Step 1: Pay via UPI</h4>
+                
+                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-400">Pay to UPI ID:</span>
+                    <Button variant="ghost" size="sm" onClick={copyUpiId} className="text-blue-400 hover:text-blue-300" data-testid="button-copy-upi">
+                      <Copy className="w-3 h-3 mr-1" /> Copy
+                    </Button>
+                  </div>
+                  <div className="bg-gray-900 rounded p-3 font-mono text-center text-lg text-white select-all" data-testid="text-upi-id">
+                    {upiConfig?.upiId || "Loading..."}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-center">Amount: ₹{calculateFinalAmount()}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-gray-700 hover:bg-gray-800 h-14"
+                    onClick={() => openUpiApp("gpay")}
+                    data-testid="button-pay-gpay"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <Smartphone className="w-4 h-4 text-green-400" />
+                      <span className="text-xs">Google Pay</span>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-gray-700 hover:bg-gray-800 h-14"
+                    onClick={() => openUpiApp("phonepe")}
+                    data-testid="button-pay-phonepe"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <Smartphone className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs">PhonePe</span>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-gray-700 hover:bg-gray-800 h-14"
+                    onClick={() => openUpiApp("paytm")}
+                    data-testid="button-pay-paytm"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <Smartphone className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs">Paytm</span>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-gray-700 hover:bg-gray-800 h-14"
+                    onClick={() => openUpiApp("any")}
+                    data-testid="button-pay-upi-other"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <ExternalLink className="w-4 h-4 text-yellow-400" />
+                      <span className="text-xs">Other UPI</span>
+                    </div>
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 text-center">Or copy the UPI ID above and pay from any UPI app manually</p>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-gray-700">
+                <h4 className="text-sm font-medium text-gray-300 uppercase tracking-wider">Step 2: Enter Transaction Reference</h4>
+                <p className="text-xs text-gray-500">After paying, enter the UTR/Transaction Reference Number from your payment app</p>
+                <Input
+                  value={utrNumber}
+                  onChange={(e) => setUtrNumber(e.target.value)}
+                  placeholder="Enter UTR / Transaction Reference Number"
+                  className="bg-gray-800 border-gray-700 text-white font-mono"
+                  data-testid="input-utr-number"
+                />
+              </div>
+
+              <div className="flex justify-between gap-3 pt-2">
+                <Button variant="outline" onClick={() => setCheckoutStep("billing")} data-testid="button-upi-back">
+                  Back
+                </Button>
+                <Button 
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600"
+                  onClick={handleUpiPaymentSubmit}
+                  disabled={isProcessing || !utrNumber.trim()}
+                  data-testid="button-submit-upi-payment"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Confirm Payment
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : checkoutStep === "billing" ? (
             <div className="space-y-6">
               <div className="grid gap-4">
                 <div className="grid md:grid-cols-2 gap-4">
@@ -703,93 +795,7 @@ export default function Subscription() {
                 )}
               </div>
             </div>
-          ) : (
-            <div className="space-y-6">
-              <Card className="bg-gray-800/50 border-gray-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                        <Crown className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-white">Pro Creator Plan</h4>
-                        <p className="text-sm text-gray-400">30 days subscription</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-white">₹{SUBSCRIPTION_PLANS.pro.price}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800/50 border-gray-700">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex justify-between text-gray-300">
-                    <span>Subtotal</span>
-                    <span>₹{SUBSCRIPTION_PLANS.pro.price}</span>
-                  </div>
-                  {promoValidation?.type === "discount" && promoValidation.discountPercent && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Discount ({promoValidation.discountPercent}%)</span>
-                      <span>-₹{Math.round(SUBSCRIPTION_PLANS.pro.price * promoValidation.discountPercent / 100)}</span>
-                    </div>
-                  )}
-                  {promoValidation?.type === "trial" && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Trial ({promoValidation.trialDays} days free)</span>
-                      <span>-₹{SUBSCRIPTION_PLANS.pro.price}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-700 pt-3 flex justify-between text-lg font-bold text-white">
-                    <span>Total</span>
-                    <span>₹{calculateFinalAmount()}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {billingDetails.name && (
-                <div className="text-sm text-gray-400 space-y-1">
-                  <p className="font-medium text-gray-300">Billing to:</p>
-                  <p>{billingDetails.name}</p>
-                  <p>{billingDetails.email}</p>
-                  {promoValidation?.valid && (
-                    <p className="text-green-400">Promo: {promoValidation.code}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="flex justify-between gap-3 pt-4 border-t border-gray-800">
-                <Button variant="outline" onClick={() => setCheckoutStep("billing")}>
-                  Back
-                </Button>
-                <Button 
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
-                  onClick={handleFinalPayment}
-                  disabled={isProcessing || applyPromoCodeMutation.isPending}
-                  data-testid="button-confirm-payment"
-                >
-                  {isProcessing || applyPromoCodeMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : promoValidation?.type === "trial" ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Start Free Trial
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Pay ₹{calculateFinalAmount()}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

@@ -70,6 +70,7 @@ import { useLocation } from "wouter";
 const adminMenuItems = [
   { id: "overview", label: "Overview", icon: TrendingUp },
   { id: "users", label: "Users", icon: Users },
+  { id: "upi-payments", label: "UPI Payments", icon: Wallet },
   { id: "withdrawals", label: "Withdrawals", icon: CreditCard },
   { id: "submissions", label: "Submissions", icon: FileCheck },
   { id: "campaigns", label: "Campaigns", icon: Briefcase },
@@ -1083,6 +1084,143 @@ function UsersTab() {
         open={!!selectedUser}
         onClose={() => setSelectedUser(null)}
       />
+    </div>
+  );
+}
+
+function UpiPaymentsTab() {
+  const queryClient = useQueryClient();
+
+  const { data: pendingPayments = [], isLoading } = useQuery({
+    queryKey: ["admin", "pending-upi-payments"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/pending-upi-payments", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    refetchInterval: 10000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (transactionId: number) => {
+      const res = await fetch(`/api/admin/pending-upi-payments/${transactionId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to approve");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Payment approved! Subscription activated.");
+      queryClient.invalidateQueries({ queryKey: ["admin", "pending-upi-payments"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ transactionId, reason }: { transactionId: number; reason: string }) => {
+      const res = await fetch(`/api/admin/pending-upi-payments/${transactionId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to reject");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Payment rejected.");
+      queryClient.invalidateQueries({ queryKey: ["admin", "pending-upi-payments"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Clock className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (pendingPayments.length === 0) {
+    return (
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-8 text-center">
+          <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500/50" />
+          <h3 className="text-lg font-medium text-white mb-1">No Pending Payments</h3>
+          <p className="text-gray-400">All UPI subscription payments have been processed.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Badge className="bg-yellow-600 text-white" data-testid="badge-pending-count">
+        {pendingPayments.length} Pending
+      </Badge>
+      
+      {pendingPayments.map((payment: any) => (
+        <Card key={payment.id} className="bg-gray-900 border-gray-800" data-testid={`card-upi-payment-${payment.id}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="space-y-2 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-white">{payment.user?.name || "Unknown"}</span>
+                  <Badge variant="outline" className="text-xs">{payment.user?.email}</Badge>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
+                  <span>Amount: <span className="text-white font-medium">₹{payment.amount}</span></span>
+                  <span>UTR: <span className="text-white font-mono text-xs">{payment.paymentId}</span></span>
+                </div>
+                {payment.user?.handle && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Instagram className="w-3 h-3" />
+                    @{payment.user.handle}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  {new Date(payment.createdAt).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => approveMutation.mutate(payment.id)}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  data-testid={`button-approve-upi-${payment.id}`}
+                >
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    if (confirm("Reject this payment? The user will be notified.")) {
+                      rejectMutation.mutate({ transactionId: payment.id, reason: "Payment could not be verified" });
+                    }
+                  }}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  data-testid={`button-reject-upi-${payment.id}`}
+                >
+                  <XCircle className="w-4 h-4 mr-1" />
+                  Reject
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -5250,6 +5388,7 @@ export default function AdminDashboard() {
             <h1 className="text-lg font-bold text-white truncate">
               {activeTab === "overview" && "Overview"}
               {activeTab === "users" && "Users"}
+              {activeTab === "upi-payments" && "UPI Payments"}
               {activeTab === "withdrawals" && "Withdrawals"}
               {activeTab === "submissions" && "Submissions"}
               {activeTab === "campaigns" && "Campaigns"}
@@ -5268,6 +5407,7 @@ export default function AdminDashboard() {
             <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">
               {activeTab === "overview" && "Dashboard Overview"}
               {activeTab === "users" && "User Management"}
+              {activeTab === "upi-payments" && "Pending UPI Payments"}
               {activeTab === "withdrawals" && "Withdrawal Requests"}
               {activeTab === "submissions" && "Submission Reviews"}
               {activeTab === "campaigns" && "Campaign Management"}
@@ -5293,6 +5433,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "users" && <UsersTab />}
+          {activeTab === "upi-payments" && <UpiPaymentsTab />}
           {activeTab === "withdrawals" && <WithdrawalsTab />}
           {activeTab === "submissions" && <SubmissionsTab />}
           {activeTab === "campaigns" && <CampaignsTab />}

@@ -112,6 +112,7 @@ export interface IStorage {
   updateUserStatus(id: number, isVerified: boolean): Promise<void>;
   rejectInstagramVerification(id: number): Promise<void>;
   updateTransactionStatus(id: number, status: string): Promise<void>;
+  getTransaction(id: number): Promise<Transaction | undefined>;
   getAllTransactions(): Promise<Transaction[]>;
   banUser(id: number, reason: string): Promise<void>;
   unbanUser(id: number): Promise<void>;
@@ -812,6 +813,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateTransactionStatus(id: number, status: string): Promise<void> {
     await db.update(transactions).set({ status }).where(eq(transactions.id, id));
+  }
+
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
+    return transaction;
   }
 
   async getAllTransactions(): Promise<Transaction[]> {

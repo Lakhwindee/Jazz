@@ -2616,6 +2616,88 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== UPI DIRECT PAYMENT ====================
+
+  app.get("/api/subscription/upi-config", async (req, res) => {
+    const upiId = process.env.ADMIN_UPI_ID;
+    if (!upiId) {
+      return res.status(500).json({ error: "UPI payment not configured" });
+    }
+    res.json({
+      upiId,
+      merchantName: "Mingree",
+      amount: 499,
+      currency: "INR",
+    });
+  });
+
+  app.post("/api/subscription/upi-payment", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { utrNumber, amount, promoCode } = req.body;
+
+      if (!utrNumber || !utrNumber.trim()) {
+        return res.status(400).json({ error: "UTR/Transaction reference number is required" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (user.subscriptionPlan === "pro" && user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > new Date()) {
+        return res.status(400).json({ error: "You already have an active Pro subscription" });
+      }
+
+      const existingTxns = await storage.getTransactionsByUser(userId);
+      const alreadyPending = existingTxns.find(t => 
+        t.category === "subscription" && t.status === "pending_upi" && t.paymentId === utrNumber.trim()
+      );
+      if (alreadyPending) {
+        return res.status(400).json({ error: "This UTR number has already been submitted" });
+      }
+
+      const paymentAmount = amount || 499;
+
+      const transaction = await storage.createTransaction({
+        userId,
+        type: "debit",
+        category: "subscription",
+        amount: paymentAmount.toFixed(2),
+        tax: "0.00",
+        net: paymentAmount.toFixed(2),
+        description: `Pro subscription UPI payment - Pending verification (UTR: ${utrNumber.trim()})`,
+        status: "pending_upi",
+        paymentId: utrNumber.trim(),
+      });
+
+      const allUsers = await storage.getAllUsers();
+      const admins = allUsers.filter(u => u.role === "admin");
+      for (const admin of admins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "subscription_payment",
+          title: "New Subscription Payment",
+          message: `${user.name} (${user.email}) submitted UPI payment of ₹${paymentAmount} for Pro subscription. UTR: ${utrNumber.trim()}`,
+          isRead: false,
+        });
+      }
+
+      await storage.createNotification({
+        userId,
+        type: "subscription_pending",
+        title: "Payment Submitted",
+        message: "Your payment has been submitted and is being verified. Your Pro subscription will be activated shortly.",
+        isRead: false,
+      });
+
+      res.json({ success: true, message: "Payment submitted for verification", transactionId: transaction.id });
+    } catch (error: any) {
+      console.error("Error submitting UPI payment:", error);
+      res.status(500).json({ error: "Failed to submit payment" });
+    }
+  });
+
   // ==================== STRIPE PAYMENT (International) ====================
 
   // Check if Stripe is configured and get publishable key
@@ -3220,6 +3302,101 @@ export async function registerRoutes(
     }
     next();
   };
+
+  // ==================== ADMIN UPI PAYMENT MANAGEMENT ====================
+
+  app.get("/api/admin/pending-upi-payments", isAdmin, async (req, res) => {
+    try {
+      const allTransactions = await storage.getAllTransactions();
+      const pendingUpi = allTransactions.filter(t => t.status === "pending_upi" && t.category === "subscription");
+      
+      const enriched = await Promise.all(pendingUpi.map(async (t) => {
+        const user = await storage.getUser(t.userId);
+        return {
+          ...t,
+          user: user ? { id: user.id, name: user.name, email: user.email, handle: user.handle, avatar: user.avatar } : null,
+        };
+      }));
+
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching pending UPI payments:", error);
+      res.status(500).json({ error: "Failed to fetch pending payments" });
+    }
+  });
+
+  app.post("/api/admin/pending-upi-payments/:transactionId/approve", isAdmin, async (req, res) => {
+    try {
+      const transactionId = parseInt(req.params.transactionId);
+      const transaction = await storage.getTransaction(transactionId);
+      
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      if (transaction.status !== "pending_upi") {
+        return res.status(400).json({ error: "Transaction is not pending" });
+      }
+
+      await storage.updateTransactionStatus(transactionId, "completed");
+
+      const userId = transaction.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let expiresAt = new Date();
+      if (user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > new Date()) {
+        expiresAt = new Date(user.subscriptionExpiresAt);
+      }
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      await storage.updateUserSubscription(userId, "pro", expiresAt);
+
+      await storage.createNotification({
+        userId,
+        type: "subscription_upgraded",
+        title: "Pro Subscription Activated!",
+        message: "Your payment has been verified. Welcome to Pro! You can now reserve unlimited campaigns.",
+        isRead: false,
+      });
+
+      res.json({ success: true, message: "Subscription activated" });
+    } catch (error) {
+      console.error("Error approving UPI payment:", error);
+      res.status(500).json({ error: "Failed to approve payment" });
+    }
+  });
+
+  app.post("/api/admin/pending-upi-payments/:transactionId/reject", isAdmin, async (req, res) => {
+    try {
+      const transactionId = parseInt(req.params.transactionId);
+      const { reason } = req.body;
+      const transaction = await storage.getTransaction(transactionId);
+      
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      if (transaction.status !== "pending_upi") {
+        return res.status(400).json({ error: "Transaction is not pending" });
+      }
+
+      await storage.updateTransactionStatus(transactionId, "failed");
+
+      await storage.createNotification({
+        userId: transaction.userId,
+        type: "subscription_rejected",
+        title: "Payment Verification Failed",
+        message: reason || "Your payment could not be verified. Please try again or contact support.",
+        isRead: false,
+      });
+
+      res.json({ success: true, message: "Payment rejected" });
+    } catch (error) {
+      console.error("Error rejecting UPI payment:", error);
+      res.status(500).json({ error: "Failed to reject payment" });
+    }
+  });
 
   // Get admin dashboard stats
   app.get("/api/admin/stats", isAdmin, async (req, res) => {
