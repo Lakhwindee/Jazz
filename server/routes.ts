@@ -1302,8 +1302,15 @@ export async function registerRoutes(
               `https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`,
               {
                 headers: {
-                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                   "X-IG-App-ID": "936619743392459",
+                  "X-ASBD-ID": "129477",
+                  "X-IG-WWW-Claim": "0",
+                  "Accept": "*/*",
+                  "Accept-Language": "en-US,en;q=0.9",
+                  "Sec-Fetch-Dest": "empty",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Site": "same-origin",
                 },
               }
             );
@@ -1681,21 +1688,28 @@ export async function registerRoutes(
         console.error("[Instagram OAuth] ALL Graph API attempts failed. Trying RapidAPI fallback...");
         console.error("[Instagram OAuth] All errors:", JSON.stringify(allErrors));
         
-        // FALLBACK: Try Instagram Web API with user_id
-        const webApiAttempts = [
+        // FALLBACK 1: Try Instagram Web API with user_id
+        const webApiByIdUrls = [
           `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`,
           `https://i.instagram.com/api/v1/users/${instagramUserId}/info/`,
         ];
         
-        for (const apiUrl of webApiAttempts) {
+        const igWebHeaders = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+          "X-IG-App-ID": "936619743392459",
+          "X-ASBD-ID": "129477",
+          "X-IG-WWW-Claim": "0",
+          "Accept": "*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin",
+        };
+        
+        for (const apiUrl of webApiByIdUrls) {
           try {
-            console.log(`[Instagram OAuth] Web API fallback: ${apiUrl}`);
-            const webResp = await fetch(apiUrl, {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "X-IG-App-ID": "936619743392459",
-              },
-            });
+            console.log(`[Instagram OAuth] Web API by ID: ${apiUrl}`);
+            const webResp = await fetch(apiUrl, { headers: igWebHeaders });
             
             if (webResp.ok) {
               const webData = await webResp.json() as any;
@@ -1707,14 +1721,60 @@ export async function registerRoutes(
                   followers_count: webUser.follower_count || 0,
                   profile_picture_url: webUser.hd_profile_pic_url_info?.url || webUser.profile_pic_url || "",
                 };
-                console.log(`[Instagram OAuth] Web API SUCCESS: @${webUser.username}, ${profileData.followers_count} followers`);
+                console.log(`[Instagram OAuth] Web API by ID SUCCESS: @${webUser.username}, ${profileData.followers_count} followers`);
                 break;
               }
             } else {
-              console.log(`[Instagram OAuth] Web API ${apiUrl} status: ${webResp.status}`);
+              console.log(`[Instagram OAuth] Web API by ID status: ${webResp.status}`);
             }
           } catch (e: any) {
-            console.log(`[Instagram OAuth] Web API error:`, e.message);
+            console.log(`[Instagram OAuth] Web API by ID error:`, e.message);
+          }
+        }
+
+        // FALLBACK 2: Try web_profile_info with the access token's associated account
+        if (!profileData) {
+          // We don't know the username yet, but try common lookup methods
+          const tokenUserUrl = `https://www.instagram.com/api/v1/users/${instagramUserId}/info/`;
+          try {
+            console.log(`[Instagram OAuth] Trying token-based user info with delay...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const retryResp = await fetch(tokenUserUrl, { headers: igWebHeaders });
+            if (retryResp.ok) {
+              const retryData = await retryResp.json() as any;
+              const retryUser = retryData?.user;
+              if (retryUser?.username) {
+                // Now fetch full profile with username for follower count
+                const profileInfoUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${retryUser.username}`;
+                const profileResp = await fetch(profileInfoUrl, { headers: igWebHeaders });
+                if (profileResp.ok) {
+                  const profileJson = await profileResp.json() as any;
+                  const pUser = profileJson?.data?.user;
+                  if (pUser) {
+                    profileData = {
+                      id: instagramUserId,
+                      username: pUser.username || retryUser.username,
+                      followers_count: pUser.edge_followed_by?.count || pUser.follower_count || retryUser.follower_count || 0,
+                      profile_picture_url: pUser.profile_pic_url_hd || retryUser.profile_pic_url || "",
+                    };
+                    console.log(`[Instagram OAuth] Web profile_info SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
+                  }
+                } else {
+                  // At least use the basic user info
+                  profileData = {
+                    id: instagramUserId,
+                    username: retryUser.username,
+                    followers_count: retryUser.follower_count || 0,
+                    profile_picture_url: retryUser.profile_pic_url || "",
+                  };
+                  console.log(`[Instagram OAuth] Basic user info SUCCESS: @${retryUser.username}, ${profileData.followers_count} followers`);
+                }
+              }
+            } else {
+              console.log(`[Instagram OAuth] Retry status: ${retryResp.status}`);
+            }
+          } catch (e: any) {
+            console.log(`[Instagram OAuth] Retry error:`, e.message);
           }
         }
         
@@ -1870,22 +1930,28 @@ export async function registerRoutes(
 
       console.log(`[Instagram Fetch] Username: ${cleanUsername}, Key exists: ${!!rapidapiKey}`);
 
+      const igWebHeaders: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "X-IG-App-ID": "936619743392459",
+        "X-ASBD-ID": "129477",
+        "X-IG-WWW-Claim": "0",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+      };
+
       const igEndpoints = [
         {
           name: "www.instagram.com/api/v1",
           url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "X-IG-App-ID": "936619743392459",
-          },
+          headers: igWebHeaders,
         },
         {
           name: "i.instagram.com",
           url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "X-IG-App-ID": "936619743392459",
-          },
+          headers: igWebHeaders,
         },
       ];
 
