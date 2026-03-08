@@ -81,6 +81,12 @@ export default function Profile() {
     try {
       const { authUrl } = await api.getInstagramAuthUrl(user.id);
       
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = authUrl;
+        return;
+      }
+      
       const width = 500;
       const height = 650;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -239,12 +245,26 @@ export default function Profile() {
     const profileUrl = instagramProfileUrl || `https://instagram.com/${username}`;
     
     if (isOAuthPartial) {
-      const manualFollowers = parseInt(instagramFollowers);
-      if (isNaN(manualFollowers) || manualFollowers < MIN_FOLLOWERS) {
-        toast.error(`Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required`);
-        return;
+      setIsFetchingProfile(true);
+      try {
+        const res = await fetch("/api/instagram/complete-oauth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, username }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`Instagram connected! ${data.followers.toLocaleString()} followers verified.`);
+          queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+        } else {
+          toast.error(data.error || "Could not verify username");
+        }
+      } catch (e) {
+        toast.error("Something went wrong. Try again.");
+      } finally {
+        setIsFetchingProfile(false);
       }
-      updateInstagramMutation.mutate({ username, profileUrl, followers: manualFollowers });
       return;
     }
     
@@ -606,7 +626,7 @@ export default function Profile() {
                           <div className="flex items-start gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                             <p className="text-xs text-green-700 dark:text-green-300">
-                              Instagram verified! Enter your details to complete setup.
+                              Instagram authorized! Enter your username to verify followers automatically.
                             </p>
                           </div>
                         </div>
@@ -626,37 +646,20 @@ export default function Profile() {
                               data-testid="input-instagram-username"
                             />
                           </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="instagram-followers-partial">Follower Count</Label>
-                          <div className="relative">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="instagram-followers-partial"
-                              type="number"
-                              placeholder="e.g. 10000"
-                              value={instagramFollowers}
-                              onChange={(e) => setInstagramFollowers(e.target.value)}
-                              className="pl-10"
-                              min={MIN_FOLLOWERS}
-                              data-testid="input-instagram-followers-partial"
-                            />
-                          </div>
                           <p className="text-xs text-muted-foreground">
-                            Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
+                            Followers will be fetched automatically
                           </p>
                         </div>
 
                         <Button 
                           onClick={handleLinkInstagram}
-                          disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
+                          disabled={isFetchingProfile || !instagramUsername.trim()}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                           data-testid="button-link-instagram-partial"
                         >
-                          {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {isFetchingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           <Instagram className="mr-2 h-4 w-4" />
-                          Complete Setup
+                          {isFetchingProfile ? "Verifying..." : "Verify & Connect"}
                         </Button>
                       </>
                     ) : (
