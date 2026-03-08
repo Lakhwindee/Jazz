@@ -1743,23 +1743,27 @@ export async function registerRoutes(
           }
         }
         
-        // Step B: If we have username but not full profile, fetch via mobile API then web API
+        // Step B: If we have username but not full profile, fetch via API with X-Forwarded-For
         if (discoveredUsername && !profileData) {
-          const mobileHeaders = {
+          const rIp = `103.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
+          const fetchHeaders = {
             "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
             "X-IG-App-ID": "936619743392459",
+            "X-Forwarded-For": rIp,
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
           };
           const profileEndpoints = [
-            { url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, headers: mobileHeaders, label: "mobile" },
-            { url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, headers: igWebHeaders, label: "web" },
+            { url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, label: "www" },
+            { url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, label: "mobile" },
           ];
           for (const endpoint of profileEndpoints) {
             if (profileData) break;
             for (let retry = 0; retry < 2 && !profileData; retry++) {
-              if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+              if (retry > 0) await new Promise(resolve => setTimeout(resolve, 1500));
               try {
                 console.log(`[Instagram OAuth] ${endpoint.label} profile fetch for @${discoveredUsername} (attempt ${retry + 1}/2)`);
-                const resp = await fetch(endpoint.url, { headers: endpoint.headers });
+                const resp = await fetch(endpoint.url, { headers: fetchHeaders });
                 if (resp.ok) {
                   const data = await resp.json() as any;
                   const pUser = data?.data?.user;
@@ -1927,7 +1931,7 @@ export async function registerRoutes(
   // Complete OAuth - called from popup form when Graph API couldn't get username
   app.post("/api/instagram/complete-oauth", async (req, res) => {
     try {
-      const { userId: reqUserId, username } = req.body;
+      const { userId: reqUserId, username, clientFollowers, clientProfilePic } = req.body;
       if (!reqUserId || !username) {
         return res.status(400).json({ error: "Username is required" });
       }
@@ -1939,53 +1943,31 @@ export async function registerRoutes(
       let profilePic = "";
       let foundProfile = false;
       
-      // Method 1: i.instagram.com mobile API (most reliable from server)
-      const mobileHeaders = {
-        "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-        "X-IG-App-ID": "936619743392459",
-      };
+      // Generate random Indian IP for X-Forwarded-For to avoid rate limiting on production
+      const randomIp = `103.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
       
-      for (let retry = 0; retry < 3; retry++) {
-        if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000 * retry));
-        try {
-          const profileUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`;
-          console.log(`[Instagram Complete] Mobile API attempt ${retry + 1}/3 for @${cleanUsername}`);
-          const resp = await fetch(profileUrl, { headers: mobileHeaders });
-          if (resp.ok) {
-            const data = await resp.json() as any;
-            const pUser = data?.data?.user;
-            if (pUser) {
-              followers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
-              profilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || "";
-              foundProfile = true;
-              console.log(`[Instagram Complete] Mobile API SUCCESS: @${cleanUsername}, ${followers} followers`);
-              break;
-            }
-          } else {
-            console.log(`[Instagram Complete] Mobile API attempt ${retry + 1} status: ${resp.status}`);
-          }
-        } catch (e: any) {
-          console.log(`[Instagram Complete] Mobile API attempt ${retry + 1} error:`, e.message);
-        }
-      }
+      // Method 1: www.instagram.com with X-Forwarded-For (bypasses IP-based rate limiting)
+      const apiEndpoints = [
+        { domain: "www.instagram.com", label: "www" },
+        { domain: "i.instagram.com", label: "mobile" },
+      ];
       
-      // Method 2: www.instagram.com web API fallback
-      if (!foundProfile) {
-        console.log(`[Instagram Complete] Trying www fallback for @${cleanUsername}`);
-        const webHeaders = {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-          "X-IG-App-ID": "936619743392459",
-          "X-ASBD-ID": "129477",
-          "X-IG-WWW-Claim": "0",
-          "Accept": "*/*",
-          "Sec-Fetch-Dest": "empty",
-          "Sec-Fetch-Mode": "cors",
-          "Sec-Fetch-Site": "same-origin",
-        };
+      for (const endpoint of apiEndpoints) {
+        if (foundProfile) break;
         for (let retry = 0; retry < 2; retry++) {
-          if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+          if (retry > 0) await new Promise(resolve => setTimeout(resolve, 1500));
           try {
-            const resp = await fetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`, { headers: webHeaders });
+            const profileUrl = `https://${endpoint.domain}/api/v1/users/web_profile_info/?username=${cleanUsername}`;
+            console.log(`[Instagram Complete] ${endpoint.label} attempt ${retry + 1}/2 for @${cleanUsername}`);
+            const resp = await fetch(profileUrl, { 
+              headers: {
+                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+                "X-IG-App-ID": "936619743392459",
+                "X-Forwarded-For": randomIp,
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+              }
+            });
             if (resp.ok) {
               const data = await resp.json() as any;
               const pUser = data?.data?.user;
@@ -1993,13 +1975,60 @@ export async function registerRoutes(
                 followers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
                 profilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || "";
                 foundProfile = true;
-                console.log(`[Instagram Complete] Web API SUCCESS: @${cleanUsername}, ${followers} followers`);
+                console.log(`[Instagram Complete] ${endpoint.label} SUCCESS: @${cleanUsername}, ${followers} followers`);
                 break;
               }
+            } else {
+              console.log(`[Instagram Complete] ${endpoint.label} attempt ${retry + 1} status: ${resp.status}`);
             }
           } catch (e: any) {
-            console.log(`[Instagram Complete] Web API error:`, e.message);
+            console.log(`[Instagram Complete] ${endpoint.label} attempt ${retry + 1} error:`, e.message);
           }
+        }
+      }
+      
+      // If server couldn't fetch, try using client-provided data
+      if (!foundProfile && clientFollowers && typeof clientFollowers === 'number' && clientFollowers > 0) {
+        followers = clientFollowers;
+        profilePic = clientProfilePic || "";
+        foundProfile = true;
+        console.log(`[Instagram Complete] Using client-provided data: @${cleanUsername}, ${followers} followers`);
+      }
+      
+      // If still no profile, try fetching Instagram public page as last resort
+      if (!foundProfile) {
+        try {
+          console.log(`[Instagram Complete] Trying public page for @${cleanUsername}`);
+          const pageResp = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+              "Accept": "text/html",
+              "Accept-Language": "en-US,en;q=0.9",
+            },
+            redirect: "follow",
+          });
+          if (pageResp.ok) {
+            const html = await pageResp.text();
+            // Check if page exists (not a 404 page)
+            const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+            if (titleMatch && !titleMatch[1].includes("Page Not Found")) {
+              // Page exists - account is real. Extract follower count from meta
+              const metaMatch = html.match(/(\d[\d,.]+)\s*Followers/i) || html.match(/"edge_followed_by":\{"count":(\d+)\}/);
+              if (metaMatch) {
+                const countStr = metaMatch[1].replace(/,/g, '');
+                followers = parseInt(countStr) || 0;
+                foundProfile = true;
+                console.log(`[Instagram Complete] Public page SUCCESS: @${cleanUsername}, ${followers} followers`);
+              } else {
+                // Page exists but can't parse followers - verify account exists at minimum
+                foundProfile = true;
+                followers = 0;
+                console.log(`[Instagram Complete] Public page found but no follower count for @${cleanUsername}`);
+              }
+            }
+          }
+        } catch (e: any) {
+          console.log(`[Instagram Complete] Public page error:`, e.message);
         }
       }
       

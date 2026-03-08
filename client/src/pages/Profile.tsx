@@ -246,10 +246,36 @@ export default function Profile() {
     
     setIsFetchingProfile(true);
     try {
+      let clientFollowers: number | null = null;
+      let clientProfilePic: string | null = null;
+
+      try {
+        const igResp = await fetch(`https://i.instagram.com/api/v1/users/web_profile_info/?username=${username}`, {
+          headers: {
+            "X-IG-App-ID": "936619743392459",
+          },
+        });
+        if (igResp.ok) {
+          const igData = await igResp.json();
+          const pUser = igData?.data?.user;
+          if (pUser) {
+            clientFollowers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
+            clientProfilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || null;
+          }
+        }
+      } catch (e) {
+        // Client-side fetch may fail due to CORS, will fall back to server
+      }
+
       const res = await fetch("/api/instagram/complete-oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, username }),
+        body: JSON.stringify({ 
+          userId: user.id, 
+          username,
+          clientFollowers,
+          clientProfilePic,
+        }),
         credentials: "include",
       });
       const data = await res.json();
