@@ -185,7 +185,7 @@ export default function Signup() {
           password, 
           role, 
           country,
-          city: city || undefined,
+          city,
           ...(role === "sponsor" && {
             companyName,
             gstNumber: country === "IN" ? gstNumber : undefined,
@@ -527,7 +527,7 @@ export default function Signup() {
                   type="button"
                   onClick={sendOtp}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                  disabled={isLoading || !name || !email || !password || (role === "sponsor" && !companyName)}
+                  disabled={isLoading || !name || !email || !password || !city || (role === "sponsor" && !companyName)}
                   data-testid="button-signup"
                 >
                   {isLoading ? (
