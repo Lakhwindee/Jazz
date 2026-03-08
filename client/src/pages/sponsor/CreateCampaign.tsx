@@ -16,6 +16,7 @@ import { TIERS, getPaymentByStyle, calculateSponsorPayment, TAX_RATES, formatTie
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe, Plus, AtSign, MapPin } from "lucide-react";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
+import { getCitiesByCountry } from "@shared/cities";
 import {
   Dialog,
   DialogContent,
@@ -515,49 +516,38 @@ export default function CreateCampaign() {
                       </Badge>
                     ))}
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Type city name and press Add"
-                      id="city-input"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const input = e.currentTarget;
-                          const val = input.value.trim();
-                          if (val && !formData.targetCities.includes(val)) {
-                            setFormData({
-                              ...formData,
-                              targetCities: [...formData.targetCities, val]
-                            });
-                            input.value = "";
-                          }
-                        }
-                      }}
-                      data-testid="input-target-city"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const input = document.getElementById("city-input") as HTMLInputElement;
-                        const val = input?.value?.trim();
-                        if (val && !formData.targetCities.includes(val)) {
-                          setFormData({
-                            ...formData,
-                            targetCities: [...formData.targetCities, val]
-                          });
-                          input.value = "";
-                        }
-                      }}
-                      data-testid="button-add-city"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                  </div>
+                  <Select 
+                    value=""
+                    onValueChange={(value) => {
+                      if (value && !formData.targetCities.includes(value)) {
+                        setFormData({ 
+                          ...formData, 
+                          targetCities: [...formData.targetCities, value] 
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-target-city">
+                      <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder="Add cities to target..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {formData.targetCountries.flatMap(countryCode => {
+                        const cities = getCitiesByCountry(countryCode);
+                        const country = COUNTRIES.find(c => c.code === countryCode);
+                        if (cities.length === 0) return [];
+                        return cities
+                          .filter(c => !formData.targetCities.includes(c))
+                          .map(c => (
+                            <SelectItem key={`${countryCode}-${c}`} value={c}>
+                              {c} {formData.targetCountries.length > 1 && country ? `(${country.name})` : ""}
+                            </SelectItem>
+                          ));
+                      })}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
-                    Leave empty to target all cities. Add specific cities to narrow your reach.
+                    Leave empty to target all cities in selected countries. Add specific cities to narrow your reach.
                   </p>
                 </div>
 

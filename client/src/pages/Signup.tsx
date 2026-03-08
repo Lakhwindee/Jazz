@@ -11,6 +11,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryClient } from "@/lib/queryClient";
 import mingreeLogo from "@assets/generated_images/mingree_mg_circular_logo.png";
+import { getCitiesByCountry } from "@shared/cities";
 
 const COUNTRIES = [
   { code: "IN", name: "India" },
@@ -68,6 +69,7 @@ export default function Signup() {
   const [country, setCountry] = useState("IN");
   const [city, setCity] = useState("");
   const [password, setPassword] = useState("");
+  const availableCities = getCitiesByCountry(country);
   
   // Brand/Sponsor specific fields
   const [companyName, setCompanyName] = useState("");
@@ -380,7 +382,7 @@ export default function Signup() {
 
                 <div className="relative">
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-                  <Select value={country} onValueChange={setCountry}>
+                  <Select value={country} onValueChange={(val) => { setCountry(val); setCity(""); }}>
                     <SelectTrigger 
                       className="pl-10 bg-white/10 border-purple-500/30 text-white"
                       data-testid="select-country"
@@ -398,15 +400,22 @@ export default function Signup() {
                 </div>
 
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="City (e.g. Mumbai, Delhi)"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
-                    data-testid="input-city"
-                  />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                  <Select value={city} onValueChange={setCity}>
+                    <SelectTrigger 
+                      className="pl-10 bg-white/10 border-purple-500/30 text-white"
+                      data-testid="select-city"
+                    >
+                      <SelectValue placeholder="Select City *" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 bg-gray-900 border-purple-500/30">
+                      {availableCities.map((c) => (
+                        <SelectItem key={c} value={c} className="text-white hover:bg-purple-500/20">
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {role === "sponsor" && (

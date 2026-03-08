@@ -14,6 +14,7 @@ import { useLocation } from "wouter";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { TIERS, formatFollowers, getTierByFollowers } from "@shared/tiers";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
+import { getCitiesByCountry } from "@shared/cities";
 import { 
   Music, 
   Heart, 
@@ -270,11 +271,14 @@ export default function Campaigns() {
                       </SelectTrigger>
                       <SelectContent className="max-h-[300px]">
                         <SelectItem value="all">All Cities</SelectItem>
-                        {Array.from(new Set(
-                          allCampaigns
-                            .flatMap((c: any) => c.targetCities || [])
-                            .filter(Boolean)
-                        )).sort().map((cityName: string) => (
+                        {(countryFilter && countryFilter !== "all"
+                          ? getCitiesByCountry(countryFilter)
+                          : Array.from(new Set(
+                              allCampaigns
+                                .flatMap((c: any) => c.targetCities || [])
+                                .filter(Boolean)
+                            )).sort()
+                        ).map((cityName: string) => (
                           <SelectItem key={cityName} value={cityName}>
                             {cityName}
                           </SelectItem>

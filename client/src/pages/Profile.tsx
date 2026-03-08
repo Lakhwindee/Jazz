@@ -12,20 +12,27 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { MIN_FOLLOWERS } from "@shared/tiers";
 import { useLocation } from "wouter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getCitiesByCountry } from "@shared/cities";
 
-function CityEditor({ userId, currentCity }: { userId: number; currentCity: string }) {
+function CityEditor({ userId, currentCity, country }: { userId: number; currentCity: string; country: string }) {
   const [city, setCity] = useState(currentCity);
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
+  const cities = getCitiesByCountry(country);
 
   return (
     <div className="flex gap-2">
-      <Input
-        placeholder="Enter your city (e.g. Mumbai, Delhi)"
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-        data-testid="input-profile-city"
-      />
+      <Select value={city} onValueChange={setCity}>
+        <SelectTrigger data-testid="select-profile-city">
+          <SelectValue placeholder="Select your city" />
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px]">
+          {cities.map((c) => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button
         variant="outline"
         disabled={isSaving || city === currentCity}
@@ -451,7 +458,7 @@ export default function Profile() {
                 <CardDescription>Set your city so sponsors can target campaigns to your area.</CardDescription>
               </CardHeader>
               <CardContent>
-                <CityEditor userId={user.id} currentCity={user.city || ""} />
+                <CityEditor userId={user.id} currentCity={user.city || ""} country={user.country} />
               </CardContent>
             </Card>
 

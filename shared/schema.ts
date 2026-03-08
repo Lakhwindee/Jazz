@@ -103,7 +103,7 @@ export const signupSchema = z.object({
   role: z.enum(["creator", "sponsor"]).default("creator"),
   companyName: z.string().optional(),
   country: z.string().min(2, "Please select a country").default("IN"),
-  city: z.string().optional(),
+  city: z.string().min(1, "Please select a city"),
 }).refine((data) => {
   if (data.role === "sponsor" && (!data.companyName || data.companyName.trim().length < 2)) {
     return false;
