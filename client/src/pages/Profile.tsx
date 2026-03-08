@@ -449,19 +449,6 @@ export default function Profile() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <MapPin className="h-5 w-5" />
-                  Your City
-                </CardTitle>
-                <CardDescription>Set your city so sponsors can target campaigns to your area.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CityEditor userId={user.id} currentCity={user.city || ""} country={user.country} />
-              </CardContent>
-            </Card>
-
             {user.role !== "admin" && (
             <Card>
               <CardHeader>
@@ -962,10 +949,7 @@ function SettingsCard({ user, onNavigate }: { user: any; onNavigate: (path: stri
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-6">
           <Button
             variant="outline"
             onClick={handleLogout}
@@ -975,75 +959,6 @@ function SettingsCard({ user, onNavigate }: { user: any; onNavigate: (path: stri
             <ExternalLink className="h-4 w-4 mr-2" />
             Logout
           </Button>
-
-          {!showDeleteConfirm ? (
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full"
-              data-testid="button-show-delete-account"
-            >
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Delete Account
-            </Button>
-          ) : (
-            <div className="space-y-3 p-4 border border-destructive/50 rounded-md">
-              <p className="text-sm font-medium text-destructive">
-                This action cannot be undone!
-              </p>
-              {statusLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : !canDelete ? (
-                <div className="text-sm space-y-1">
-                  {accountStatus && accountStatus.balance > 0 && (
-                    <p className="text-amber-600 dark:text-amber-400">
-                      Withdraw your balance of ${accountStatus.balance.toFixed(2)} first.
-                    </p>
-                  )}
-                  {accountStatus && accountStatus.pendingWithdrawals > 0 && (
-                    <p className="text-amber-600 dark:text-amber-400">
-                      You have {accountStatus.pendingWithdrawals} pending withdrawal(s).
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Type <span className="font-bold">DELETE</span> to confirm:
-                  </p>
-                  <Input
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="Type DELETE"
-                    data-testid="input-delete-confirm"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setDeleteConfirmText("");
-                      }}
-                      className="flex-1"
-                      data-testid="button-cancel-delete"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleDeleteAccount}
-                      disabled={deleteAccountMutation.isPending || deleteConfirmText !== "DELETE"}
-                      className="flex-1"
-                      data-testid="button-confirm-delete-account"
-                    >
-                      {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Delete
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </>
