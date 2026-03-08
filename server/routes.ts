@@ -1743,31 +1743,41 @@ export async function registerRoutes(
           }
         }
         
-        // Step B: If we have username but not full profile, fetch via web_profile_info
+        // Step B: If we have username but not full profile, fetch via mobile API then web API
         if (discoveredUsername && !profileData) {
-          for (let retry = 0; retry < 3 && !profileData; retry++) {
-            if (retry > 0) await new Promise(resolve => setTimeout(resolve, retry * 2000));
-            try {
-              const profileInfoUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`;
-              console.log(`[Instagram OAuth] Fetching profile for @${discoveredUsername} (attempt ${retry + 1}/3)`);
-              const resp = await fetch(profileInfoUrl, { headers: igWebHeaders });
-              if (resp.ok) {
-                const data = await resp.json() as any;
-                const pUser = data?.data?.user;
-                if (pUser) {
-                  profileData = {
-                    id: instagramUserId,
-                    username: pUser.username || discoveredUsername,
-                    followers_count: pUser.edge_followed_by?.count || pUser.follower_count || 0,
-                    profile_picture_url: pUser.profile_pic_url_hd || pUser.profile_pic_url || "",
-                  };
-                  console.log(`[Instagram OAuth] Profile fetch SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
+          const mobileHeaders = {
+            "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+            "X-IG-App-ID": "936619743392459",
+          };
+          const profileEndpoints = [
+            { url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, headers: mobileHeaders, label: "mobile" },
+            { url: `https://www.instagram.com/api/v1/users/web_profile_info/?username=${discoveredUsername}`, headers: igWebHeaders, label: "web" },
+          ];
+          for (const endpoint of profileEndpoints) {
+            if (profileData) break;
+            for (let retry = 0; retry < 2 && !profileData; retry++) {
+              if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+              try {
+                console.log(`[Instagram OAuth] ${endpoint.label} profile fetch for @${discoveredUsername} (attempt ${retry + 1}/2)`);
+                const resp = await fetch(endpoint.url, { headers: endpoint.headers });
+                if (resp.ok) {
+                  const data = await resp.json() as any;
+                  const pUser = data?.data?.user;
+                  if (pUser) {
+                    profileData = {
+                      id: instagramUserId,
+                      username: pUser.username || discoveredUsername,
+                      followers_count: pUser.edge_followed_by?.count || pUser.follower_count || 0,
+                      profile_picture_url: pUser.profile_pic_url_hd || pUser.profile_pic_url || "",
+                    };
+                    console.log(`[Instagram OAuth] ${endpoint.label} profile SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
+                  }
+                } else {
+                  console.log(`[Instagram OAuth] ${endpoint.label} profile status: ${resp.status}`);
                 }
-              } else {
-                console.log(`[Instagram OAuth] Profile fetch status: ${resp.status}`);
+              } catch (e: any) {
+                console.log(`[Instagram OAuth] ${endpoint.label} profile error:`, e.message);
               }
-            } catch (e: any) {
-              console.log(`[Instagram OAuth] Profile fetch error:`, e.message);
             }
           }
         }
@@ -1925,28 +1935,22 @@ export async function registerRoutes(
       const cleanUsername = username.replace("@", "").trim().toLowerCase();
       console.log(`[Instagram Complete] Fetching profile for @${cleanUsername}`);
       
-      const igWebHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "X-IG-App-ID": "936619743392459",
-        "X-ASBD-ID": "129477",
-        "X-IG-WWW-Claim": "0",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-      };
-      
       let followers = 0;
       let profilePic = "";
       let foundProfile = false;
       
-      for (let retry = 0; retry < 4; retry++) {
-        if (retry > 0) await new Promise(resolve => setTimeout(resolve, 1500 * retry));
+      // Method 1: i.instagram.com mobile API (most reliable from server)
+      const mobileHeaders = {
+        "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+        "X-IG-App-ID": "936619743392459",
+      };
+      
+      for (let retry = 0; retry < 3; retry++) {
+        if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000 * retry));
         try {
-          const profileUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`;
-          console.log(`[Instagram Complete] Attempt ${retry + 1}/4 for @${cleanUsername}`);
-          const resp = await fetch(profileUrl, { headers: igWebHeaders });
+          const profileUrl = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`;
+          console.log(`[Instagram Complete] Mobile API attempt ${retry + 1}/3 for @${cleanUsername}`);
+          const resp = await fetch(profileUrl, { headers: mobileHeaders });
           if (resp.ok) {
             const data = await resp.json() as any;
             const pUser = data?.data?.user;
@@ -1954,14 +1958,48 @@ export async function registerRoutes(
               followers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
               profilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || "";
               foundProfile = true;
-              console.log(`[Instagram Complete] SUCCESS: @${cleanUsername}, ${followers} followers`);
+              console.log(`[Instagram Complete] Mobile API SUCCESS: @${cleanUsername}, ${followers} followers`);
               break;
             }
           } else {
-            console.log(`[Instagram Complete] Attempt ${retry + 1} status: ${resp.status}`);
+            console.log(`[Instagram Complete] Mobile API attempt ${retry + 1} status: ${resp.status}`);
           }
         } catch (e: any) {
-          console.log(`[Instagram Complete] Attempt ${retry + 1} error:`, e.message);
+          console.log(`[Instagram Complete] Mobile API attempt ${retry + 1} error:`, e.message);
+        }
+      }
+      
+      // Method 2: www.instagram.com web API fallback
+      if (!foundProfile) {
+        console.log(`[Instagram Complete] Trying www fallback for @${cleanUsername}`);
+        const webHeaders = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+          "X-IG-App-ID": "936619743392459",
+          "X-ASBD-ID": "129477",
+          "X-IG-WWW-Claim": "0",
+          "Accept": "*/*",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin",
+        };
+        for (let retry = 0; retry < 2; retry++) {
+          if (retry > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+          try {
+            const resp = await fetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`, { headers: webHeaders });
+            if (resp.ok) {
+              const data = await resp.json() as any;
+              const pUser = data?.data?.user;
+              if (pUser) {
+                followers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
+                profilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || "";
+                foundProfile = true;
+                console.log(`[Instagram Complete] Web API SUCCESS: @${cleanUsername}, ${followers} followers`);
+                break;
+              }
+            }
+          } catch (e: any) {
+            console.log(`[Instagram Complete] Web API error:`, e.message);
+          }
         }
       }
       
