@@ -47,3 +47,7 @@ INSTAGRAM_REDIRECT_URI = "https://mingree.com/api/instagram/oauth-callback"
 ADMIN_UPI_ID = "judgeproductionmusic@oksbi"
 
 [userenv.development]
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
