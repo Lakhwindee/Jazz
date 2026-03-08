@@ -1792,7 +1792,7 @@ export async function registerRoutes(
               .at { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #8e8e8e; font-size: 15px; }
               input { width: 100%; padding: 12px 14px 12px 32px; border: 1.5px solid #dbdbdb; border-radius: 10px; font-size: 15px; outline: none; transition: border-color 0.2s; }
               input:focus { border-color: #E1306C; }
-              button { width: 100%; padding: 12px; background: linear-gradient(135deg, #833AB4, #E1306C); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+              button { width: 100%; padding: 12px; background: linear-gradient(135deg, #833AB4, #E1306C); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
               button:hover { opacity: 0.9; }
               button:disabled { opacity: 0.5; cursor: not-allowed; }
               .error { color: #ed4956; font-size: 13px; margin-top: 8px; display: none; }
@@ -1811,7 +1811,7 @@ export async function registerRoutes(
                 <span class="at">@</span>
                 <input type="text" id="username" placeholder="your_username" autocomplete="off" autocapitalize="off" />
               </div>
-              <button id="btn" onclick="submitUsername()">
+              <button type="button" id="btn">
                 <span class="loading" id="loader"><span class="spinner"></span></span>
                 <span id="btnText">Verify & Connect</span>
               </button>
@@ -1861,6 +1861,8 @@ export async function registerRoutes(
                   btnText.textContent = 'Verify & Connect';
                 }
               }
+              document.getElementById('btn').addEventListener('click', submitUsername);
+              document.getElementById('btn').addEventListener('touchend', function(e) { e.preventDefault(); submitUsername(); });
               document.getElementById('username').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitUsername(); });
             </script>
           </body></html>`);
