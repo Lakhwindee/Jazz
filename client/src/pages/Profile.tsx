@@ -7,11 +7,53 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw, Camera } from "lucide-react";
+import { CheckCircle2, Instagram, Loader2, Link2, ExternalLink, Users, AlertCircle, Clock, Copy, ShieldCheck, RefreshCw, Camera, MapPin, Save } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { MIN_FOLLOWERS } from "@shared/tiers";
 import { useLocation } from "wouter";
+
+function CityEditor({ userId, currentCity }: { userId: number; currentCity: string }) {
+  const [city, setCity] = useState(currentCity);
+  const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        placeholder="Enter your city (e.g. Mumbai, Delhi)"
+        value={city}
+        onChange={(e) => setCity(e.target.value)}
+        data-testid="input-profile-city"
+      />
+      <Button
+        variant="outline"
+        disabled={isSaving || city === currentCity}
+        onClick={async () => {
+          setIsSaving(true);
+          try {
+            const res = await fetch(`/api/users/${userId}/city`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ city }),
+              credentials: "include",
+            });
+            if (!res.ok) throw new Error("Failed to update city");
+            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+            toast.success("City updated!");
+          } catch {
+            toast.error("Failed to update city");
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+        data-testid="button-save-city"
+      >
+        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+      </Button>
+    </div>
+  );
+}
 
 export default function Profile() {
   const queryClient = useQueryClient();
@@ -389,8 +431,27 @@ export default function Profile() {
                     {isInstagramLinked && user.isInstagramVerified && (
                       <p className="text-sm text-muted-foreground mt-1">{user.tier} • {user.followers.toLocaleString()} followers</p>
                     )}
+                    <div className="flex items-center gap-1 mt-1">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        {user.city || "No city set"}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-5 w-5" />
+                  Your City
+                </CardTitle>
+                <CardDescription>Set your city so sponsors can target campaigns to your area.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CityEditor userId={user.id} currentCity={user.city || ""} />
               </CardContent>
             </Card>
 

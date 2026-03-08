@@ -28,6 +28,7 @@ export interface ApiCampaign {
   starReward: number;
   isApproved: boolean;
   targetCountries: string[];
+  targetCities?: string[] | null;
   totalBudget: string;
   releasedAmount: string;
   refundedAmount: string;
@@ -75,6 +76,7 @@ export interface ApiUser {
   subscriptionExpiresAt: string | null;
   stars: number;
   country: string;
+  city?: string | null;
   totalEarnings?: string;
   pendingWithdrawals?: string;
   starRewards?: number;
@@ -187,9 +189,12 @@ export interface ApiWithdrawalRequest {
 
 export const api = {
   // Campaigns
-  async getCampaigns(country?: string): Promise<ApiCampaign[]> {
-    const url = country 
-      ? `${API_BASE}/campaigns?country=${encodeURIComponent(country)}`
+  async getCampaigns(country?: string, city?: string): Promise<ApiCampaign[]> {
+    const params = new URLSearchParams();
+    if (country) params.set("country", country);
+    if (city) params.set("city", city);
+    const url = params.toString() 
+      ? `${API_BASE}/campaigns?${params.toString()}`
       : `${API_BASE}/campaigns`;
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) throw new Error("Failed to fetch campaigns");

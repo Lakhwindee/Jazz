@@ -66,6 +66,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("IN");
+  const [city, setCity] = useState("");
   const [password, setPassword] = useState("");
   
   // Brand/Sponsor specific fields
@@ -182,6 +183,7 @@ export default function Signup() {
           password, 
           role, 
           country,
+          city: city || undefined,
           ...(role === "sponsor" && {
             companyName,
             gstNumber: country === "IN" ? gstNumber : undefined,
@@ -393,6 +395,18 @@ export default function Signup() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="City (e.g. Mumbai, Delhi)"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="pl-10 bg-white/10 border-purple-500/30 text-white placeholder:text-gray-500"
+                    data-testid="input-city"
+                  />
                 </div>
 
                 {role === "sponsor" && (

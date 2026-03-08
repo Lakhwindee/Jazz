@@ -9,7 +9,7 @@ import { api, type ApiCategorySubscription, type ApiCampaign, type ApiReservatio
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star, AtSign } from "lucide-react";
+import { Users, ChevronRight, X, Lock, Clock, Building2, Gift, Globe, Star, AtSign, MapPin } from "lucide-react";
 import { useLocation } from "wouter";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
 import { TIERS, formatFollowers, getTierByFollowers } from "@shared/tiers";
@@ -45,6 +45,7 @@ export default function Campaigns() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("my-campaigns");
   const [countryFilter, setCountryFilter] = useState<string>("");
+  const [cityFilter, setCityFilter] = useState<string>("");
 
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
@@ -58,8 +59,11 @@ export default function Campaigns() {
   });
 
   const { data: allCampaigns = [] } = useQuery({
-    queryKey: ["allCampaigns", countryFilter],
-    queryFn: () => api.getCampaigns(countryFilter && countryFilter !== "all" ? countryFilter : undefined),
+    queryKey: ["allCampaigns", countryFilter, cityFilter],
+    queryFn: () => api.getCampaigns(
+      countryFilter && countryFilter !== "all" ? countryFilter : undefined,
+      cityFilter && cityFilter !== "all" ? cityFilter : undefined
+    ),
   });
 
   const { data: reservations = [] } = useQuery({
@@ -232,29 +236,60 @@ export default function Campaigns() {
                   <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Campaigns</h1>
                   <p className="text-muted-foreground">Browse and discover campaigns</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <Select
-                    value={countryFilter}
-                    onValueChange={setCountryFilter}
-                  >
-                    <SelectTrigger className="w-[200px]" data-testid="select-country-filter">
-                      <SelectValue placeholder="All Countries" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      <SelectItem value="all">All Countries</SelectItem>
-                      {COUNTRIES.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.flag} {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {countryFilter && countryFilter !== "all" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <Select
+                      value={countryFilter}
+                      onValueChange={(val) => {
+                        setCountryFilter(val);
+                        setCityFilter("");
+                      }}
+                    >
+                      <SelectTrigger className="w-[160px]" data-testid="select-country-filter">
+                        <SelectValue placeholder="All Countries" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem value="all">All Countries</SelectItem>
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <Select
+                      value={cityFilter}
+                      onValueChange={setCityFilter}
+                    >
+                      <SelectTrigger className="w-[160px]" data-testid="select-city-filter">
+                        <SelectValue placeholder="All Cities" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem value="all">All Cities</SelectItem>
+                        {Array.from(new Set(
+                          allCampaigns
+                            .flatMap((c: any) => c.targetCities || [])
+                            .filter(Boolean)
+                        )).sort().map((cityName: string) => (
+                          <SelectItem key={cityName} value={cityName}>
+                            {cityName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(countryFilter && countryFilter !== "all" || cityFilter && cityFilter !== "all") && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setCountryFilter("")}
+                      onClick={() => {
+                        setCountryFilter("");
+                        setCityFilter("");
+                      }}
                       data-testid="button-clear-filter"
                     >
                       <X className="h-4 w-4" />

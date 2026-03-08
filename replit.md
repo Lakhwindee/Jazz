@@ -10,6 +10,7 @@ International influencer marketing platform connecting Instagram creators with b
 - 20-tier campaign system with multi-currency pricing
 - **International Country System**: Country selection at signup, target country in campaigns
 - **Country-Based Targeting**: Creators only see campaigns targeting their country
+- **City-Based Targeting**: Sponsors can target specific cities within countries, creators set their city in profile
 - Instagram linking (username + follower count entry)
 - Campaign discovery and reservation with countdown timer
 - Creator wallet with earnings tracking and withdrawal

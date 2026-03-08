@@ -72,6 +72,7 @@ export const users = pgTable("users", {
   autoRenew: boolean("auto_renew").notNull().default(false),
   stars: integer("stars").notNull().default(0), // Stars earned from promotional campaigns
   country: text("country").notNull().default("IN"), // ISO country code (IN, US, CA, etc.)
+  city: text("city"), // City name for city-based targeting
   // Shipping address for product campaigns
   shippingAddress: text("shipping_address"),
   shippingCity: text("shipping_city"),
@@ -102,6 +103,7 @@ export const signupSchema = z.object({
   role: z.enum(["creator", "sponsor"]).default("creator"),
   companyName: z.string().optional(),
   country: z.string().min(2, "Please select a country").default("IN"),
+  city: z.string().optional(),
 }).refine((data) => {
   if (data.role === "sponsor" && (!data.companyName || data.companyName.trim().length < 2)) {
     return false;
@@ -161,6 +163,7 @@ export const campaigns = pgTable("campaigns", {
   starReward: integer("star_reward").notNull().default(0), // Number of stars awarded for completing this campaign
   isApproved: boolean("is_approved").notNull().default(false), // Admin approval required before visible to creators
   targetCountries: text("target_countries").array().notNull().default(["IN"]), // Array of ISO country codes for targeting creators
+  targetCities: text("target_cities").array().default([]), // Array of city names for city-level targeting
   // Escrow tracking fields
   totalBudget: decimal("total_budget", { precision: 10, scale: 2 }).notNull().default("0"), // Total amount held (payAmount * totalSpots)
   releasedAmount: decimal("released_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Amount released to creators

@@ -14,7 +14,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { TIERS, getPaymentByStyle, calculateSponsorPayment, TAX_RATES, formatTierRange } from "@shared/tiers";
 import { PROMOTION_CATEGORIES } from "@shared/schema";
-import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe, Plus, AtSign } from "lucide-react";
+import { Upload, X, FileCheck, Loader2, Users, Trash2, AlertTriangle, CheckCircle, Wallet, Calendar, Tag, Globe, Plus, AtSign, MapPin } from "lucide-react";
 import { COUNTRIES, getCountryByCode } from "@shared/countries";
 import {
   Dialog,
@@ -90,6 +90,7 @@ export default function CreateCampaign() {
     assetUrl: "",
     assetFileName: "",
     targetCountries: ["IN"] as string[],
+    targetCities: [] as string[],
     mentions: [""] as string[],
   });
 
@@ -316,6 +317,7 @@ export default function CreateCampaign() {
           minFollowers: tierSelection.minFollowers,
           totalSpots: tierSelection.creatorsNeeded,
           targetCountries: formData.targetCountries,
+          targetCities: formData.targetCities,
           mentions: formData.mentions.filter(m => m.trim() !== ''),
         });
       }
@@ -486,6 +488,76 @@ export default function CreateCampaign() {
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     Select one or more countries. Only creators from selected countries will see your campaign.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Target Cities (Optional)</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.targetCities.map((cityName) => (
+                      <Badge 
+                        key={cityName} 
+                        variant="secondary" 
+                        className="flex items-center gap-1"
+                      >
+                        <MapPin className="h-3 w-3" />
+                        {cityName}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({
+                            ...formData,
+                            targetCities: formData.targetCities.filter(c => c !== cityName)
+                          })}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Type city name and press Add"
+                      id="city-input"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const input = e.currentTarget;
+                          const val = input.value.trim();
+                          if (val && !formData.targetCities.includes(val)) {
+                            setFormData({
+                              ...formData,
+                              targetCities: [...formData.targetCities, val]
+                            });
+                            input.value = "";
+                          }
+                        }
+                      }}
+                      data-testid="input-target-city"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const input = document.getElementById("city-input") as HTMLInputElement;
+                        const val = input?.value?.trim();
+                        if (val && !formData.targetCities.includes(val)) {
+                          setFormData({
+                            ...formData,
+                            targetCities: [...formData.targetCities, val]
+                          });
+                          input.value = "";
+                        }
+                      }}
+                      data-testid="button-add-city"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to target all cities. Add specific cities to narrow your reach.
                   </p>
                 </div>
 

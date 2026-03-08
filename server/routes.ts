@@ -129,6 +129,7 @@ export async function registerRoutes(
         isVerified: isSponsor, // Sponsors are auto-verified
         companyName: isSponsor ? data.companyName?.trim() : undefined,
         country: data.country || "IN", // User's country for targeting
+        city: data.city || undefined,
       });
       
       // Notify admins about new signup (all roles - creator and sponsor)
@@ -510,14 +511,19 @@ export async function registerRoutes(
       // Filter campaigns by country - support optional country filter query parameter
       // If "all" is passed or no filter, show all campaigns (no country filtering)
       const filterCountry = req.query.country as string | undefined;
+      const filterCity = req.query.city as string | undefined;
       
       if (filterCountry && filterCountry !== "all") {
-        // Use explicit country filter from query parameter
         campaigns = campaigns.filter(c => 
           !c.targetCountries || c.targetCountries.length === 0 || c.targetCountries.includes(filterCountry)
         );
       }
-      // Note: Removed auto-filter by user's country - now "All Countries" shows everything
+      
+      if (filterCity && filterCity !== "all") {
+        campaigns = campaigns.filter(c => 
+          !c.targetCities || c.targetCities.length === 0 || c.targetCities.includes(filterCity)
+        );
+      }
       
       res.json(campaigns);
     } catch (error) {
@@ -1382,6 +1388,26 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating shipping address:", error);
       res.status(500).json({ error: "Failed to update shipping address" });
+    }
+  });
+
+  app.put("/api/users/:userId/city", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { city } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      await storage.updateUserCity(userId, city || null);
+      
+      const updatedUser = await storage.getUser(userId);
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error updating city:", error);
+      res.status(500).json({ error: "Failed to update city" });
     }
   });
 
@@ -2404,6 +2430,7 @@ export async function registerRoutes(
         escrowStatus: isProductCampaign ? "product" : "active",
         // Target countries for international campaigns (array)
         targetCountries: req.body.targetCountries || [sponsor.country || "IN"],
+        targetCities: req.body.targetCities || [],
         // Product campaign fields
         campaignType: campaignType,
         productName: req.body.productName || null,

@@ -19,6 +19,7 @@ export interface IStorage {
   verifyUserInstagram(id: number): Promise<void>;
   updateUserInstagramOAuth(id: number, accessToken: string, instagramUserId: string, expiresAt: Date): Promise<void>;
   updateUserInstagramProfile(id: number, username: string, profileUrl: string, followers: number): Promise<void>;
+  updateUserCity(id: number, city: string | null): Promise<void>;
   updateUserAvatar(id: number, avatar: string): Promise<void>;
   updateUserSubscription(id: number, plan: string, expiresAt: Date | null, isTrial?: boolean, autoRenew?: boolean): Promise<void>;
   updateUserStars(id: number, stars: number): Promise<number>;
@@ -264,6 +265,10 @@ export class DatabaseStorage implements IStorage {
       instagramFollowers: followers,
       followers: followers
     }).where(eq(users.id, id));
+  }
+
+  async updateUserCity(id: number, city: string | null): Promise<void> {
+    await db.update(users).set({ city }).where(eq(users.id, id));
   }
 
   async updateUserAvatar(id: number, avatar: string): Promise<void> {
