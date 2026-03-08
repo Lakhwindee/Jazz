@@ -18,6 +18,7 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showFollowerInput, setShowFollowerInput] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { data: user, isLoading } = useQuery({
@@ -246,42 +247,26 @@ export default function Profile() {
     
     setIsFetchingProfile(true);
     try {
-      let clientFollowers: number | null = null;
-      let clientProfilePic: string | null = null;
-
-      try {
-        const igResp = await fetch(`https://i.instagram.com/api/v1/users/web_profile_info/?username=${username}`, {
-          headers: {
-            "X-IG-App-ID": "936619743392459",
-          },
-        });
-        if (igResp.ok) {
-          const igData = await igResp.json();
-          const pUser = igData?.data?.user;
-          if (pUser) {
-            clientFollowers = pUser.edge_followed_by?.count || pUser.follower_count || 0;
-            clientProfilePic = pUser.profile_pic_url_hd || pUser.profile_pic_url || null;
-          }
-        }
-      } catch (e) {
-        // Client-side fetch may fail due to CORS, will fall back to server
+      const bodyData: any = { userId: user.id, username };
+      if (instagramFollowers) {
+        bodyData.manualFollowers = parseInt(instagramFollowers);
       }
 
       const res = await fetch("/api/instagram/complete-oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          userId: user.id, 
-          username,
-          clientFollowers,
-          clientProfilePic,
-        }),
+        body: JSON.stringify(bodyData),
         credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
         toast.success(`Instagram connected! @${data.username} - ${data.followers.toLocaleString()} followers verified.`);
+        setInstagramFollowers("");
+        setShowFollowerInput(false);
         queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      } else if (data.needsFollowers) {
+        setShowFollowerInput(true);
+        toast.error("Enter your follower count to complete verification.");
       } else {
         toast.error(data.error || "Could not verify username");
       }
@@ -642,7 +627,7 @@ export default function Profile() {
                           <div className="flex items-start gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                             <p className="text-xs text-green-700 dark:text-green-300">
-                              Instagram authorized! Enter your username to verify followers automatically.
+                              Instagram authorized! Enter your username to verify followers.
                             </p>
                           </div>
                         </div>
@@ -657,19 +642,41 @@ export default function Profile() {
                               value={instagramUsername.replace("@", "")}
                               onChange={(e) => {
                                 setInstagramUsername(e.target.value.replace("@", ""));
+                                setShowFollowerInput(false);
                               }}
                               className="pl-8"
                               data-testid="input-instagram-username"
                             />
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Followers will be fetched automatically
-                          </p>
                         </div>
+
+                        {showFollowerInput && (
+                          <div className="space-y-2">
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3">
+                              <p className="text-xs text-amber-700 dark:text-amber-300">
+                                Account found! Enter your follower count to complete setup.
+                              </p>
+                            </div>
+                            <Label htmlFor="instagram-followers-partial">Follower Count</Label>
+                            <div className="relative">
+                              <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="instagram-followers-partial"
+                                type="number"
+                                placeholder="e.g. 10000"
+                                value={instagramFollowers}
+                                onChange={(e) => setInstagramFollowers(e.target.value)}
+                                className="pl-10"
+                                min={MIN_FOLLOWERS}
+                                data-testid="input-instagram-followers-partial"
+                              />
+                            </div>
+                          </div>
+                        )}
 
                         <Button 
                           onClick={handleLinkInstagram}
-                          disabled={isFetchingProfile || !instagramUsername.trim()}
+                          disabled={isFetchingProfile || !instagramUsername.trim() || (showFollowerInput && !instagramFollowers)}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                           data-testid="button-link-instagram-partial"
                         >
@@ -723,6 +730,7 @@ export default function Profile() {
                               value={instagramUsername.replace("@", "")}
                               onChange={(e) => {
                                 setInstagramUsername(e.target.value.replace("@", ""));
+                                setShowFollowerInput(false);
                               }}
                               className="pl-8"
                               data-testid="input-instagram-username"
@@ -730,9 +738,33 @@ export default function Profile() {
                           </div>
                         </div>
 
+                        {showFollowerInput && (
+                          <div className="space-y-2">
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3">
+                              <p className="text-xs text-amber-700 dark:text-amber-300">
+                                Account found! Auto-fetch unavailable right now. Enter your follower count - admin will verify later.
+                              </p>
+                            </div>
+                            <Label htmlFor="instagram-followers">Follower Count</Label>
+                            <div className="relative">
+                              <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="instagram-followers"
+                                type="number"
+                                placeholder="e.g. 10000"
+                                value={instagramFollowers}
+                                onChange={(e) => setInstagramFollowers(e.target.value)}
+                                className="pl-10"
+                                min={MIN_FOLLOWERS}
+                                data-testid="input-instagram-followers"
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         <Button 
                           onClick={handleLinkInstagram}
-                          disabled={isFetchingProfile || !instagramUsername.trim()}
+                          disabled={isFetchingProfile || !instagramUsername.trim() || (showFollowerInput && !instagramFollowers)}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                           data-testid="button-link-instagram-manual"
                         >

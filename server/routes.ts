@@ -2033,7 +2033,22 @@ export async function registerRoutes(
       }
       
       if (!foundProfile) {
-        return res.json({ success: false, error: "Could not fetch profile. Make sure the username is correct and account is public." });
+        return res.json({ success: false, error: "Could not find this Instagram account. Make sure the username is correct and account is public." });
+      }
+      
+      // If we found the account but couldn't get follower count (rate limited), ask for manual entry
+      if (followers === 0 && foundProfile) {
+        const { manualFollowers } = req.body;
+        if (manualFollowers && typeof manualFollowers === 'number' && manualFollowers > 0) {
+          followers = manualFollowers;
+          console.log(`[Instagram Complete] Using manual followers: ${followers} for @${cleanUsername}`);
+        } else {
+          return res.json({ 
+            success: false, 
+            needsFollowers: true,
+            error: "Account found! But we couldn't auto-fetch your follower count right now. Please enter it manually - we'll verify it later." 
+          });
+        }
       }
       
       if (followers < MIN_FOLLOWERS) {
