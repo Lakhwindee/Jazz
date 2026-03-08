@@ -244,36 +244,26 @@ export default function Profile() {
     const username = instagramUsername.replace("@", "").trim();
     const profileUrl = instagramProfileUrl || `https://instagram.com/${username}`;
     
-    if (isOAuthPartial) {
-      setIsFetchingProfile(true);
-      try {
-        const res = await fetch("/api/instagram/complete-oauth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id, username }),
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (data.success) {
-          toast.success(`Instagram connected! ${data.followers.toLocaleString()} followers verified.`);
-          queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-        } else {
-          toast.error(data.error || "Could not verify username");
-        }
-      } catch (e) {
-        toast.error("Something went wrong. Try again.");
-      } finally {
-        setIsFetchingProfile(false);
+    setIsFetchingProfile(true);
+    try {
+      const res = await fetch("/api/instagram/complete-oauth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, username }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Instagram connected! @${data.username} - ${data.followers.toLocaleString()} followers verified.`);
+        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      } else {
+        toast.error(data.error || "Could not verify username");
       }
-      return;
+    } catch (e) {
+      toast.error("Something went wrong. Try again.");
+    } finally {
+      setIsFetchingProfile(false);
     }
-    
-    const followers = parseInt(instagramFollowers);
-    if (isNaN(followers) || followers < MIN_FOLLOWERS) {
-      toast.error(`Minimum ${MIN_FOLLOWERS.toLocaleString()} followers required to link your Instagram`);
-      return;
-    }
-    updateInstagramMutation.mutate({ username, profileUrl, followers });
   };
 
   const handleDisconnect = () => {
@@ -684,15 +674,15 @@ export default function Profile() {
 
                         <div className="relative flex items-center gap-2 py-2">
                           <div className="flex-1 border-t border-gray-300 dark:border-gray-700" />
-                          <span className="text-xs text-muted-foreground px-2">OR enter manually</span>
+                          <span className="text-xs text-muted-foreground px-2">OR enter username</span>
                           <div className="flex-1 border-t border-gray-300 dark:border-gray-700" />
                         </div>
 
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3">
                           <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
-                              Minimum {MIN_FOLLOWERS.toLocaleString()} followers required. Your account must be public.
+                            <Instagram className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              Enter your username - followers will be verified automatically. Account must be public. Minimum {MIN_FOLLOWERS.toLocaleString()} followers required.
                             </p>
                           </div>
                         </div>
@@ -714,35 +704,15 @@ export default function Profile() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="instagram-followers">Follower Count</Label>
-                          <div className="relative">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="instagram-followers"
-                              type="number"
-                              placeholder="e.g. 10000"
-                              value={instagramFollowers}
-                              onChange={(e) => setInstagramFollowers(e.target.value)}
-                              className="pl-10"
-                              min={MIN_FOLLOWERS}
-                              data-testid="input-instagram-followers"
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Minimum {MIN_FOLLOWERS.toLocaleString()} followers required
-                          </p>
-                        </div>
-
                         <Button 
                           onClick={handleLinkInstagram}
-                          disabled={updateInstagramMutation.isPending || !instagramUsername.trim() || !instagramFollowers}
+                          disabled={isFetchingProfile || !instagramUsername.trim()}
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                           data-testid="button-link-instagram-manual"
                         >
-                          {updateInstagramMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {isFetchingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           <Instagram className="mr-2 h-4 w-4" />
-                          Connect Instagram
+                          {isFetchingProfile ? "Verifying..." : "Verify & Connect"}
                         </Button>
                       </>
                     )}
