@@ -1790,8 +1790,11 @@ export async function registerRoutes(
               try {
                 console.log(`[Instagram OAuth] ${endpoint.label} profile fetch for @${discoveredUsername} (attempt ${retry + 1}/2)`);
                 const resp = await fetch(endpoint.url, { headers: fetchHeaders });
+                const respText = await resp.text();
+                console.log(`[Instagram OAuth] ${endpoint.label} response status: ${resp.status}, body (first 300 chars): ${respText.substring(0, 300)}`);
+                
                 if (resp.ok) {
-                  const data = await resp.json() as any;
+                  const data = JSON.parse(respText) as any;
                   const pUser = data?.data?.user;
                   if (pUser) {
                     profileData = {
@@ -1801,12 +1804,14 @@ export async function registerRoutes(
                       profile_picture_url: pUser.profile_pic_url_hd || pUser.profile_pic_url || "",
                     };
                     console.log(`[Instagram OAuth] ${endpoint.label} profile SUCCESS: @${profileData.username}, ${profileData.followers_count} followers`);
+                  } else {
+                    console.log(`[Instagram OAuth] ${endpoint.label} - user data not found in response`);
                   }
                 } else {
-                  console.log(`[Instagram OAuth] ${endpoint.label} profile status: ${resp.status}`);
+                  console.log(`[Instagram OAuth] ${endpoint.label} FAILED with status ${resp.status}`);
                 }
               } catch (e: any) {
-                console.log(`[Instagram OAuth] ${endpoint.label} profile error:`, e.message);
+                console.error(`[Instagram OAuth] ${endpoint.label} EXCEPTION:`, e.message, e.stack);
               }
             }
           }
