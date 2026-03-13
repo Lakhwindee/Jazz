@@ -1812,13 +1812,13 @@ export async function registerRoutes(
           }
         }
 
-        // Step C: If we still don't have profile data, still mark as OAuth connected
-        // Followers will be set to 0 and admin can verify/update manually via dashboard
+        // Step C: If we still don't have profile data, use discovered username with 0 followers
+        // (followers will be verified/updated manually by admin via dashboard)
         if (!profileData) {
-          console.log("[Instagram OAuth] All fallbacks failed - marking user as OAuth connected with 0 followers");
+          console.log("[Instagram OAuth] All API calls failed - using discovered username with 0 followers");
           profileData = {
             id: instagramUserId,
-            username: `instagram_user_${instagramUserId}`,
+            username: discoveredUsername || `instagram_user_${instagramUserId}`,
             followers_count: 0, // Will be verified/updated manually by admin
             profile_picture_url: "",
           };
