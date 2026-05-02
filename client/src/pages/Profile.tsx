@@ -66,8 +66,6 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [showFollowerInput, setShowFollowerInput] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { data: user, isLoading } = useQuery({
@@ -101,12 +99,6 @@ export default function Profile() {
     if (params.get('instagram_connected') === 'true') {
       toast.success("Instagram connected successfully! Your account is verified.");
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      window.history.replaceState({}, '', '/profile');
-    }
-    if (params.get('instagram_oauth_partial') === 'true') {
-      toast.success("Instagram account verified! Please enter your username and follower count below to complete setup.");
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      setShowManualEntry(true);
       window.history.replaceState({}, '', '/profile');
     }
     const error = params.get('error');
@@ -161,9 +153,6 @@ export default function Profile() {
           if (event.data.status === 'success') {
             toast.success(`Instagram connected! @${event.data.username} (${event.data.followers?.toLocaleString()} followers)`);
             queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-          } else if (event.data.status === 'partial') {
-            toast.success("Instagram account verified! Please enter your username below to complete setup.");
-            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
           } else if (event.data.status === 'error') {
             toast.error(event.data.message || "Instagram verification failed");
           }
@@ -182,7 +171,7 @@ export default function Profile() {
       }, 1000);
     } catch (error: any) {
       if (error.message?.includes("not configured")) {
-        toast.error("Instagram verification is not available right now. Please use manual entry below.");
+        toast.error("Instagram verification is not available right now. Please try again later.");
       } else {
         toast.error(error.message || "Failed to connect Instagram");
       }
@@ -248,82 +237,13 @@ export default function Profile() {
     },
   });
 
-  const handleFetchInstagramProfile = async () => {
-    const username = instagramUsername.replace("@", "").trim();
-    if (!username) {
-      toast.error("Please enter your Instagram username");
-      return;
-    }
-    setIsFetchingProfile(true);
-    setFetchError("");
-    setFetchedProfile(null);
-    setShowManualEntry(false);
-    try {
-      const res = await fetch("/api/instagram/fetch-followers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setShowManualEntry(true);
-        return;
-      }
-      setFetchedProfile({
-        followers: data.followers,
-        fullName: data.fullName,
-        profilePic: data.profilePic,
-        bio: data.bio,
-        isPrivate: data.isPrivate,
-      });
-      setInstagramFollowers(data.followers.toString());
-      toast.success(`Found @${username} with ${data.followers.toLocaleString()} followers!`);
-    } catch (error: any) {
-      setShowManualEntry(true);
-    } finally {
-      setIsFetchingProfile(false);
-    }
-  };
-
   const handleLinkInstagram = async () => {
     if (!instagramUsername.trim()) {
       toast.error("Please enter your Instagram username");
       return;
     }
     const username = instagramUsername.replace("@", "").trim();
-    const profileUrl = instagramProfileUrl || `https://instagram.com/${username}`;
-    
-    setIsFetchingProfile(true);
-    try {
-      const bodyData: any = { userId: user.id, username };
-      if (instagramFollowers) {
-        bodyData.manualFollowers = parseInt(instagramFollowers);
-      }
-
-      const res = await fetch("/api/instagram/complete-oauth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyData),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Instagram connected! @${data.username} - ${data.followers.toLocaleString()} followers verified.`);
-        setInstagramFollowers("");
-        setShowFollowerInput(false);
-        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      } else if (data.needsFollowers) {
-        setShowFollowerInput(true);
-        toast.error("Enter your follower count to complete verification.");
-      } else {
-        toast.error(data.error || "Could not verify username");
-      }
-    } catch (e) {
-      toast.error("Something went wrong. Try again.");
-    } finally {
-      setIsFetchingProfile(false);
-    }
+    toast.info(`Instagram username set to @${username}. Use OAuth connect instead.`);
   };
 
   const handleDisconnect = () => {

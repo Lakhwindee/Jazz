@@ -1835,11 +1835,8 @@ export async function registerRoutes(
       const username = profileData!.username;
       const followersCount = profileData!.followers_count || 0;
       
-      // Check minimum followers requirement
-      // In development/review mode, allow OAuth with 0 followers (admin will verify manually)
-      if (followersCount > 0 && followersCount < MIN_FOLLOWERS) {
-        return res.redirect(`/profile?error=min_followers&required=${MIN_FOLLOWERS}&actual=${followersCount}`);
-      }
+      // Do not block OAuth connection on follower count here.
+      // Creator eligibility is enforced when reserving campaigns, not during connection.
       
       // Update user with Instagram OAuth data
       await storage.updateUserInstagramOAuth(userId, accessToken, instagramUserId, expiresAt);
